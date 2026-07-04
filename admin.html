@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="sr">
+<head>
+<meta charset="UTF-8">
+<title>Administracija — Zahtev za nabavku</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600;700&display=swap');
+
+:root{
+  --paper:#EAEBE4;
+  --card:#F7F7F2;
+  --ink:#1E2A2E;
+  --ink-soft:#4A5559;
+  --steel:#35566B;
+  --steel-dark:#243D4C;
+  --safety:#C0762A;
+  --line:#CBCFC5;
+  --line-soft:#DEE0D8;
+  --danger:#A8432F;
+  --good:#3F6B4A;
+  --radius:3px;
+}
+*{box-sizing:border-box;}
+body{
+  margin:0;
+  background:var(--paper);
+  color:var(--ink);
+  font-family:'IBM Plex Sans',sans-serif;
+  font-size:14px;
+  -webkit-font-smoothing:antialiased;
+}
+.app{max-width:960px;margin:0 auto;padding:28px 24px 60px;}
+
+.masthead{
+  display:flex;justify-content:space-between;align-items:flex-end;
+  border-bottom:3px solid var(--ink);
+  padding-bottom:14px;margin-bottom:26px;flex-wrap:wrap;gap:10px;
+}
+.masthead h1{
+  font-family:'Space Grotesk',sans-serif;font-size:24px;font-weight:700;
+  letter-spacing:0.02em;margin:0;text-transform:uppercase;
+}
+.masthead .sub{font-family:'IBM Plex Mono',monospace;font-size:11.5px;color:var(--ink-soft);letter-spacing:0.04em;}
+.back-link{font-size:12.5px;color:var(--steel-dark);text-decoration:none;border:1px solid var(--line);padding:6px 12px;border-radius:var(--radius);white-space:nowrap;}
+.back-link:hover{border-color:var(--steel);}
+
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:20px 22px;margin-bottom:24px;}
+.card h2{
+  font-family:'Space Grotesk',sans-serif;font-size:14px;text-transform:uppercase;letter-spacing:0.08em;
+  margin:0 0 16px;padding-bottom:10px;border-bottom:1px solid var(--line-soft);color:var(--steel-dark);
+}
+
+label{display:block;font-size:11.5px;font-weight:600;color:var(--ink-soft);text-transform:uppercase;letter-spacing:0.05em;margin:0 0 5px;}
+input[type=text],input[type=number],select,textarea{
+  width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:var(--radius);
+  background:#fff;font-family:'IBM Plex Sans',sans-serif;font-size:13.5px;color:var(--ink);
+}
+input:focus,select:focus,textarea:focus{outline:2px solid var(--steel);outline-offset:1px;}
+.field{margin-bottom:14px;}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.hint{font-size:11px;color:var(--ink-soft);margin-top:4px;}
+.err{font-size:11.5px;color:var(--danger);margin-top:4px;font-weight:500;}
+
+.checkbox-row{display:flex;align-items:center;gap:8px;margin-bottom:10px;}
+.checkbox-row input[type=checkbox]{width:auto;}
+.checkbox-row label{margin:0;text-transform:none;font-weight:500;font-size:13px;letter-spacing:0;color:var(--ink);}
+
+.chip-grid{
+  display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));
+  gap:6px 10px;padding:10px;border:1px solid var(--line-soft);border-radius:var(--radius);
+  background:#fff;max-height:220px;overflow-y:auto;
+}
+.chip-grid label{
+  display:flex;align-items:center;gap:6px;font-size:12.5px;text-transform:none;font-weight:500;
+  color:var(--ink);margin:0;cursor:pointer;
+}
+.chip-grid input{width:auto;}
+
+.btn{
+  font-family:'IBM Plex Sans',sans-serif;font-weight:600;font-size:13px;
+  padding:11px 18px;border-radius:var(--radius);border:none;cursor:pointer;letter-spacing:0.02em;
+}
+.btn-primary{background:var(--steel-dark);color:#fff;}
+.btn-primary:hover{background:var(--steel);}
+.btn-primary:disabled{background:#9AA3A6;cursor:not-allowed;}
+.btn-ghost{background:none;border:1px solid var(--line);color:var(--ink);padding:7px 12px;font-size:12px;}
+.btn-ghost:hover{border-color:var(--steel);color:var(--steel-dark);}
+
+table{width:100%;border-collapse:collapse;margin-bottom:6px;}
+th{text-align:left;font-size:10.5px;text-transform:uppercase;letter-spacing:0.05em;color:var(--ink-soft);padding:0 8px 8px 0;font-weight:600;border-bottom:1px solid var(--line-soft);}
+td{padding:8px 8px 8px 0;border-bottom:1px solid var(--line-soft);font-size:13px;vertical-align:top;}
+.tags{display:flex;flex-wrap:wrap;gap:4px;}
+.tag{
+  font-family:'IBM Plex Mono',monospace;font-size:11px;background:var(--steel-dark);color:#fff;
+  padding:2px 7px;border-radius:12px;
+}
+.tag.sva{background:var(--good);}
+.tag.nijedno{background:var(--danger);}
+.row-actions{display:flex;gap:6px;white-space:nowrap;}
+.empty{color:var(--ink-soft);font-size:13px;padding:16px 0;text-align:center;}
+.loading{color:var(--ink-soft);font-size:13px;padding:16px 0;text-align:center;}
+</style>
+</head>
+<body>
+<div class="app" id="app">
+  <div class="masthead">
+    <div>
+      <h1>Administracija</h1>
+      <div class="sub">Gradilišta i nalozi za realizaciju — Zahtev za nabavku</div>
+    </div>
+    <a class="back-link" href="index.html">← Nazad na glavnu stranicu</a>
+  </div>
+
+  <!-- GRADILIŠTA -->
+  <div class="card">
+    <h2 id="gradilisteFormTitle">Novo gradilište</h2>
+    <div class="row2">
+      <div class="field">
+        <label for="gKod">Oznaka (901–999)</label>
+        <input type="number" id="gKod" min="901" max="999" placeholder="npr. 915">
+      </div>
+      <div class="field">
+        <label for="gNaziv">Naziv</label>
+        <input type="text" id="gNaziv" placeholder="npr. Projektovanje">
+      </div>
+    </div>
+    <div class="err" id="gErr"></div>
+    <div style="display:flex;gap:8px;">
+      <button type="button" class="btn btn-primary" id="gSaveBtn">Dodaj gradilište</button>
+      <button type="button" class="btn-ghost" id="gCancelBtn" style="display:none;">Otkaži</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Postojeća gradilišta</h2>
+    <div id="gradilisteListWrap"><div class="loading">Učitavanje…</div></div>
+  </div>
+
+  <!-- NALOZI -->
+  <div class="card">
+    <h2 id="nalogFormTitle">Novi nalog za realizaciju</h2>
+    <div class="row2">
+      <div class="field">
+        <label for="nKod">Kod naloga</label>
+        <input type="text" id="nKod" placeholder="npr. 720/26/011 ili SOPSTVENE">
+      </div>
+      <div class="field">
+        <label for="nOpis">Opis</label>
+        <input type="text" id="nOpis" placeholder="npr. TENT A - Redovno održavanje">
+      </div>
+    </div>
+    <div class="checkbox-row">
+      <input type="checkbox" id="nSva">
+      <label for="nSva">Važi za sva gradilišta</label>
+    </div>
+    <div class="field" id="nGradilistaWrap">
+      <label>Gradilišta za koja ovaj nalog važi</label>
+      <div class="chip-grid" id="nGradilistaGrid"><div class="loading">Učitavanje…</div></div>
+      <div class="hint">Ako ništa ne označiš, nalog se neće prikazivati ni za jedno gradilište dok mu ga ne dodeliš.</div>
+    </div>
+    <div class="err" id="nErr"></div>
+    <div style="display:flex;gap:8px;">
+      <button type="button" class="btn btn-primary" id="nSaveBtn">Dodaj nalog</button>
+      <button type="button" class="btn-ghost" id="nCancelBtn" style="display:none;">Otkaži</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Postojeći nalozi</h2>
+    <div id="nalogListWrap"><div class="loading">Učitavanje…</div></div>
+  </div>
+</div>
+
+<script>
+/* ========================================================================
+   PODEŠAVANJE: isti SCRIPT_URL kao u index.html
+   ======================================================================== */
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycby9zpoac93iRvD7gavKdgKel7XaT_lmDBTfTc42-M0iKo3LIj7MSuVxXN36sTUDpBcU/exec";
+
+const $ = id => document.getElementById(id);
+function escapeHtml(s){ return String(s??'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+let GRADILISTA = [];
+let NALOZI = [];
+let editingGradilisteKod = null;
+let editingNalogKod = null;
+
+async function apiGet(action, params){
+  const qs = new URLSearchParams({ action, ...(params||{}) });
+  const res = await fetch(`${SCRIPT_URL}?${qs.toString()}`);
+  if(!res.ok) throw new Error('Greška pri učitavanju.');
+  return res.json();
+}
+async function apiPost(action, payload){
+  const res = await fetch(SCRIPT_URL, { method:'POST', body: JSON.stringify({ action, ...payload }) });
+  if(!res.ok) throw new Error('Greška pri čuvanju.');
+  return res.json();
+}
+
+async function loadAll(){
+  if(SCRIPT_URL.includes('PASTE_YOUR')){
+    $('gradilisteListWrap').innerHTML = '<div class="empty">Nije podešen SCRIPT_URL u fajlu admin.html.</div>';
+    $('nalogListWrap').innerHTML = '<div class="empty">Nije podešen SCRIPT_URL u fajlu admin.html.</div>';
+    return;
+  }
+  try{
+    const [gData, nData] = await Promise.all([apiGet('listGradilista'), apiGet('listNalozi')]);
+    GRADILISTA = (gData.gradilista || []).map(g => ({ kod:String(g.kod), naziv:g.naziv }));
+    NALOZI = (nData.nalozi || []).map(n => ({ kod:n.kod, opis:n.opis, gradiliste:n.gradiliste }));
+    renderGradilistaList();
+    renderNalogGrid();
+    renderNalogList();
+  }catch(e){
+    $('gradilisteListWrap').innerHTML = '<div class="empty">Greška pri učitavanju. Proveri SCRIPT_URL i konekciju.</div>';
+    $('nalogListWrap').innerHTML = '<div class="empty">Greška pri učitavanju. Proveri SCRIPT_URL i konekciju.</div>';
+  }
+}
+
+/* ---------- GRADILIŠTA ---------- */
+
+function renderGradilistaList(){
+  const wrap = $('gradilisteListWrap');
+  if(GRADILISTA.length === 0){
+    wrap.innerHTML = '<div class="empty">Još uvek nema gradilišta.</div>';
+    return;
+  }
+  const sorted = [...GRADILISTA].sort((a,b)=> a.kod.localeCompare(b.kod));
+  wrap.innerHTML = `
+    <table>
+      <thead><tr><th style="width:90px;">Kod</th><th>Naziv</th><th style="width:140px;"></th></tr></thead>
+      <tbody>
+        ${sorted.map(g => `
+          <tr>
+            <td style="font-family:'IBM Plex Mono',monospace;">${escapeHtml(g.kod)}</td>
+            <td>${escapeHtml(g.naziv)}</td>
+            <td class="row-actions">
+              <button class="btn-ghost" data-edit-g="${g.kod}">Uredi</button>
+              <button class="btn-ghost" data-del-g="${g.kod}">Obriši</button>
+            </td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>
+  `;
+  wrap.querySelectorAll('[data-edit-g]').forEach(b => b.addEventListener('click', e => openEditGradiliste(e.target.dataset.editG)));
+  wrap.querySelectorAll('[data-del-g]').forEach(b => b.addEventListener('click', async e => {
+    const kod = e.target.dataset.delG;
+    if(!confirm(`Obrisati gradilište ${kod}? Ovo neće obrisati postojeće zahteve, ali se ono više neće moći birati za nove.`)) return;
+    try{
+      await apiPost('deleteGradiliste', { kod });
+      await loadAll();
+    }catch(err){
+      alert('Brisanje nije uspelo.');
+    }
+  }));
+}
+
+function openEditGradiliste(kod){
+  const g = GRADILISTA.find(x => x.kod === kod);
+  if(!g) return;
+  editingGradilisteKod = kod;
+  $('gKod').value = g.kod;
+  $('gKod').disabled = true;
+  $('gNaziv').value = g.naziv;
+  $('gradilisteFormTitle').textContent = `Izmena gradilišta ${kod}`;
+  $('gSaveBtn').textContent = 'Sačuvaj izmene';
+  $('gCancelBtn').style.display = 'inline-block';
+  $('gKod').closest('.card').scrollIntoView({ behavior:'smooth', block:'start' });
+}
+
+function resetGradilisteForm(){
+  editingGradilisteKod = null;
+  $('gKod').value = '';
+  $('gKod').disabled = false;
+  $('gNaziv').value = '';
+  $('gErr').textContent = '';
+  $('gradilisteFormTitle').textContent = 'Novo gradilište';
+  $('gSaveBtn').textContent = 'Dodaj gradilište';
+  $('gCancelBtn').style.display = 'none';
+}
+
+$('gCancelBtn').addEventListener('click', resetGradilisteForm);
+
+$('gSaveBtn').addEventListener('click', async ()=>{
+  $('gErr').textContent = '';
+  const kod = $('gKod').value.trim();
+  const naziv = $('gNaziv').value.trim();
+  if(!kod || parseInt(kod,10) < 901 || parseInt(kod,10) > 999){
+    $('gErr').textContent = 'Oznaka mora biti broj od 901 do 999.';
+    return;
+  }
+  if(!naziv){
+    $('gErr').textContent = 'Naziv je obavezan.';
+    return;
+  }
+  $('gSaveBtn').disabled = true;
+  try{
+    const action = editingGradilisteKod ? 'updateGradiliste' : 'addGradiliste';
+    const result = await apiPost(action, { kod, naziv });
+    if(result && result.error){
+      $('gErr').textContent = result.error;
+    }else{
+      resetGradilisteForm();
+      await loadAll();
+    }
+  }catch(e){
+    $('gErr').textContent = 'Čuvanje nije uspelo. Proveri konekciju.';
+  }
+  $('gSaveBtn').disabled = false;
+});
+
+/* ---------- NALOZI ---------- */
+
+function renderNalogGrid(){
+  const grid = $('nGradilistaGrid');
+  const sorted = [...GRADILISTA].sort((a,b)=> a.kod.localeCompare(b.kod));
+  if(sorted.length === 0){
+    grid.innerHTML = '<div class="empty">Prvo dodaj bar jedno gradilište.</div>';
+    return;
+  }
+  grid.innerHTML = sorted.map(g => `
+    <label><input type="checkbox" value="${g.kod}"> ${escapeHtml(g.kod)} — ${escapeHtml(g.naziv)}</label>
+  `).join('');
+}
+
+$('nSva').addEventListener('change', ()=>{
+  $('nGradilistaWrap').style.display = $('nSva').checked ? 'none' : 'block';
+});
+
+function renderNalogList(){
+  const wrap = $('nalogListWrap');
+  if(NALOZI.length === 0){
+    wrap.innerHTML = '<div class="empty">Još uvek nema naloga.</div>';
+    return;
+  }
+  const sorted = [...NALOZI].sort((a,b)=> a.kod.localeCompare(b.kod));
+  wrap.innerHTML = `
+    <table>
+      <thead><tr><th style="width:120px;">Kod</th><th>Opis</th><th>Gradilišta</th><th style="width:140px;"></th></tr></thead>
+      <tbody>
+        ${sorted.map(n => `
+          <tr>
+            <td style="font-family:'IBM Plex Mono',monospace;">${escapeHtml(n.kod)}</td>
+            <td>${escapeHtml(n.opis) || '<span class="hint">—</span>'}</td>
+            <td>${renderGradilistaTags(n.gradiliste)}</td>
+            <td class="row-actions">
+              <button class="btn-ghost" data-edit-n="${escapeHtml(n.kod)}">Uredi</button>
+              <button class="btn-ghost" data-del-n="${escapeHtml(n.kod)}">Obriši</button>
+            </td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>
+  `;
+  wrap.querySelectorAll('[data-edit-n]').forEach(b => b.addEventListener('click', e => openEditNalog(e.target.dataset.editN)));
+  wrap.querySelectorAll('[data-del-n]').forEach(b => b.addEventListener('click', async e => {
+    const kod = e.target.dataset.delN;
+    if(!confirm(`Obrisati nalog ${kod}?`)) return;
+    try{
+      await apiPost('deleteNalog', { kod });
+      await loadAll();
+    }catch(err){
+      alert('Brisanje nije uspelo.');
+    }
+  }));
+}
+
+function renderGradilistaTags(gradiliste){
+  if(gradiliste === null) return '<span class="tag sva">SVA</span>';
+  if(!gradiliste.length) return '<span class="tag nijedno">nijedno</span>';
+  return `<div class="tags">${gradiliste.map(k => `<span class="tag">${escapeHtml(k)}</span>`).join('')}</div>`;
+}
+
+function openEditNalog(kod){
+  const n = NALOZI.find(x => x.kod === kod);
+  if(!n) return;
+  editingNalogKod = kod;
+  $('nKod').value = n.kod;
+  $('nKod').disabled = true;
+  $('nOpis').value = n.opis;
+  const isSva = n.gradiliste === null;
+  $('nSva').checked = isSva;
+  $('nGradilistaWrap').style.display = isSva ? 'none' : 'block';
+  $('nGradilistaGrid').querySelectorAll('input[type=checkbox]').forEach(cb=>{
+    cb.checked = !isSva && n.gradiliste.includes(cb.value);
+  });
+  $('nalogFormTitle').textContent = `Izmena naloga ${kod}`;
+  $('nSaveBtn').textContent = 'Sačuvaj izmene';
+  $('nCancelBtn').style.display = 'inline-block';
+  $('nKod').closest('.card').scrollIntoView({ behavior:'smooth', block:'start' });
+}
+
+function resetNalogForm(){
+  editingNalogKod = null;
+  $('nKod').value = '';
+  $('nKod').disabled = false;
+  $('nOpis').value = '';
+  $('nSva').checked = false;
+  $('nGradilistaWrap').style.display = 'block';
+  $('nGradilistaGrid').querySelectorAll('input[type=checkbox]').forEach(cb => cb.checked = false);
+  $('nErr').textContent = '';
+  $('nalogFormTitle').textContent = 'Novi nalog za realizaciju';
+  $('nSaveBtn').textContent = 'Dodaj nalog';
+  $('nCancelBtn').style.display = 'none';
+}
+
+$('nCancelBtn').addEventListener('click', resetNalogForm);
+
+$('nSaveBtn').addEventListener('click', async ()=>{
+  $('nErr').textContent = '';
+  const kod = $('nKod').value.trim();
+  const opis = $('nOpis').value.trim();
+  if(!kod){
+    $('nErr').textContent = 'Kod naloga je obavezan.';
+    return;
+  }
+  if(!/^\d+(\/\d+)*$/.test(kod) && kod !== 'SOPSTVENE'){
+    $('nErr').textContent = 'Kod mora biti niz brojeva odvojenih kosom crtom (npr. 720/26/011) ili "SOPSTVENE".';
+    return;
+  }
+  const isSva = $('nSva').checked;
+  const checked = [...$('nGradilistaGrid').querySelectorAll('input[type=checkbox]:checked')].map(cb => cb.value);
+  const gradiliste = isSva ? null : checked;
+
+  $('nSaveBtn').disabled = true;
+  try{
+    const action = editingNalogKod ? 'updateNalog' : 'addNalog';
+    const result = await apiPost(action, { kod, opis, gradiliste });
+    if(result && result.error){
+      $('nErr').textContent = result.error;
+    }else{
+      resetNalogForm();
+      await loadAll();
+    }
+  }catch(e){
+    $('nErr').textContent = 'Čuvanje nije uspelo. Proveri konekciju.';
+  }
+  $('nSaveBtn').disabled = false;
+});
+
+loadAll();
+</script>
+</body>
+</html>

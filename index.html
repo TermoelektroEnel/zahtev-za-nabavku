@@ -311,7 +311,7 @@ table.spec td input{padding:7px 8px;font-size:13px;}
    PODEŠAVANJE: nalepi URL svog Google Apps Script Web App-a ovde.
    Uputstvo kako da ga dobiješ nalazi se u fajlu UPUTSTVO.md
    ======================================================================== */
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxC8ASUaJQxirf07-MCRC-YAkaA9SxlpuHoq4KUYdwjjUKq8-IEwa068pykx1TaGTc/exec";
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycby9zpoac93iRvD7gavKdgKel7XaT_lmDBTfTc42-M0iKo3LIj7MSuVxXN36sTUDpBcU/exec";
 
 let DATA = { requests: [] };
 let specRows = [];
@@ -354,59 +354,28 @@ async function apiUpdate(id, payload){
 const $ = id => document.getElementById(id);
 const yy = new Date().getFullYear().toString().slice(-2);
 
-const GRADILISTA = [
-  { code:'901', naziv:'DIREKCIJA' },
-  { code:'902', naziv:'OBRENOVAC' },
-  { code:'907', naziv:'KOSTOLAC' },
-  { code:'908', naziv:'MORAVA SVILAJNAC' },
-  { code:'909', naziv:'LABORATORIJA' },
-  { code:'910', naziv:'Beograd' },
-  { code:'911', naziv:'PANČEVO' },
-  { code:'913', naziv:'PODGORICA' },
-  { code:'914', naziv:'OBRENOVAC - Odsumporavanje' },
-  { code:'915', naziv:'Projektovanje' },
-  { code:'919', naziv:'KOSTOLAC - NIŠ - materijal' },
-  { code:'924', naziv:'EXPO' },
-  { code:'925', naziv:'NOVI SAD' },
-  { code:'927', naziv:'KOLUBARA A' },
-  { code:'928', naziv:'KOLUBARA B' },
-  { code:'932', naziv:'CENTRALNI MAGACIN' }
-];
+let GRADILISTA = [];
+let NALOZI = [];
 
 function nazivGradilista(code){
   const g = GRADILISTA.find(x => x.code === String(code));
   return g ? g.naziv : '';
 }
 
-const NALOZI = [
-  { code:'720/25/001', opis:'TENT A-Usluga elektroodržavanja', gradiliste:[] },
-  { code:'720/25/002', opis:'TE Kostolac A2- Rekonstrukcija ventilskih kasetnih podrazvoda', gradiliste:['907'] },
-  { code:'720/25/003', opis:'TENT A- Isporuka i zamena 6 kV kablova (A3, A4, A6)', gradiliste:['902'] },
-  { code:'720/25/004', opis:'TE Kostolac B2 - EII - Čišćenje sabirnica', gradiliste:['907'] },
-  { code:'720/25/005', opis:'TENT A - ODG Održavanje', gradiliste:['902'] },
-  { code:'720/25/006', opis:'Comita - Skladište Niš - Premeštanje ESD ormana', gradiliste:['919'] },
-  { code:'720/25/007', opis:'MTN - RNP Železnica - Polaganje PP Kablova po nadstrešnici', gradiliste:['911'] },
-  { code:'720/25/008', opis:'Comita - Skladiste Nis- Izrada dokumentacije sa rasporedom kablova na nadzemnim i podzemnim trasama', gradiliste:['919'] },
-  { code:'720/25/009', opis:'N2K Proces inzenjering - Vreoci - kabliranje', gradiliste:['927'] },
-  { code:'720/25/010', opis:'Siemens Energy - EXPO Trigenerativno postrojenje instumentacija', gradiliste:['924'] },
-  { code:'720/25/011', opis:'TE Kolubara -Odrzavanje 110,35 i 6 kV postrojenja', gradiliste:['927'] },
-  { code:'720/25/012', opis:'IvDam - J245 vodeno ispiranje hladnjaka S4300', gradiliste:['911'] },
-  { code:'720/26/001', opis:'TENT A - Redovno održavanje kablova i kablovskih trasa', gradiliste:['902'] },
-  { code:'720/26/002', opis:'Tehnički servisi - Elektroenergetski radovi na zameni pumpe GA -103', gradiliste:['911'] },
-  { code:'720/26/003', opis:'TENT A - Energetski kablovi pobudnog sistema generatora A1 i A2', gradiliste:['902'] },
-  { code:'720/26/004', opis:'IMP - TE Kostolac A - Proširenje postrojenja za pepeo i šljaku', gradiliste:['907'] },
-  { code:'720/26/005', opis:'TENT A - Usluge elektroodržavanja', gradiliste:['902'] },
-  { code:'720/26/006', opis:'POWER CHINA - Napajanje TCF za BG metro', gradiliste:['919'] },
-  { code:'720/26/007', opis:'TENT B - Remontno održavanje MRU', gradiliste:['902'] },
-  { code:'720/26/008', opis:'NIS Rezervoari R6, R7 Novi Sad', gradiliste:['925'] },
-  { code:'720/26/009', opis:'HIP Petrohemija - SN kablovi za PEVG, NN kablovi PENG', gradiliste:['911'] },
-  { code:'720/26/010', opis:'TE-KO A-Rekonstrukcija klapni na A2', gradiliste:['919'] },
-  { code:'SOPSTVENE', opis:'', gradiliste:null }
-];
-
 function nazivNaloga(code){
   const n = NALOZI.find(x => x.code === String(code));
   return n ? n.opis : '';
+}
+
+async function apiListGradilista(){
+  const res = await fetch(`${SCRIPT_URL}?action=listGradilista`);
+  if(!res.ok) throw new Error('Greška pri učitavanju gradilišta.');
+  return res.json();
+}
+async function apiListNalozi(){
+  const res = await fetch(`${SCRIPT_URL}?action=listNalozi`);
+  if(!res.ok) throw new Error('Greška pri učitavanju naloga.');
+  return res.json();
 }
 
 function populateNalogSelect(gradilisteCode){
@@ -423,7 +392,6 @@ function populateNalogSelect(gradilisteCode){
   });
   sel.disabled = !gradilisteCode;
 }
-populateNalogSelect(null);
 
 $('nalog').addEventListener('change', ()=>{
   $('nalogOpis').textContent = nazivNaloga($('nalog').value) || '\u00A0';
@@ -431,6 +399,7 @@ $('nalog').addEventListener('change', ()=>{
 
 function populateGradilisteSelect(){
   const sel = $('gradiliste');
+  sel.innerHTML = '<option value="">— izaberi gradilište —</option>';
   GRADILISTA.forEach(g => {
     const opt = document.createElement('option');
     opt.value = g.code;
@@ -438,7 +407,21 @@ function populateGradilisteSelect(){
     sel.appendChild(opt);
   });
 }
-populateGradilisteSelect();
+
+async function loadRefData(){
+  $('gradiliste').innerHTML = '<option value="">Učitavanje…</option>';
+  $('gradiliste').disabled = true;
+  try{
+    const [gData, nData] = await Promise.all([apiListGradilista(), apiListNalozi()]);
+    GRADILISTA = (gData.gradilista || []).map(g => ({ code: String(g.kod), naziv: g.naziv }));
+    NALOZI = (nData.nalozi || []).map(n => ({ code: n.kod, opis: n.opis, gradiliste: n.gradiliste }));
+    populateGradilisteSelect();
+    populateNalogSelect(null);
+    $('gradiliste').disabled = false;
+  }catch(e){
+    $('gradiliste').innerHTML = '<option value="">Greška pri učitavanju — osveži stranicu</option>';
+  }
+}
 
 $('gradiliste').addEventListener('change', ()=>{
   const naziv = nazivGradilista($('gradiliste').value);
@@ -446,7 +429,7 @@ $('gradiliste').addEventListener('change', ()=>{
   const g = $('gradiliste').value;
   populateNalogSelect(g || null);
   $('nalog').value = '';
-  $('nalogOpis').textContent = '\u00A0';
+  $('nalogOpis').textContent = g ? '\u00A0' : 'Prvo izaberite gradilište iznad.';
   refreshNextBrojPreview();
 });
 
@@ -855,6 +838,7 @@ $('saveBtn').addEventListener('click', async ()=>{
 });
 
 resetForm();
+loadRefData();
 loadData();
 </script>
 </body>
