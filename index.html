@@ -379,29 +379,29 @@ function nazivGradilista(code){
 }
 
 const NALOZI = [
-  { code:'720/25/001', opis:'TENT A-Usluga elektroodržavanja' },
-  { code:'720/25/002', opis:'TE Kostolac A2- Rekonstrukcija ventilskih kasetnih podrazvoda' },
-  { code:'720/25/003', opis:'TENT A- Isporuka i zamena 6 kV kablova (A3, A4, A6)' },
-  { code:'720/25/004', opis:'TE Kostolac B2 - EII - Čišćenje sabirnica' },
-  { code:'720/25/005', opis:'TENT A - ODG Održavanje' },
-  { code:'720/25/006', opis:'Comita - Skladište Niš - Premeštanje ESD ormana' },
-  { code:'720/25/007', opis:'MTN - RNP Železnica - Polaganje PP Kablova po nadstrešnici' },
-  { code:'720/25/008', opis:'Comita - Skladiste Nis- Izrada dokumentacije sa rasporedom kablova na nadzemnim i podzemnim trasama' },
-  { code:'720/25/009', opis:'N2K Proces inzenjering - Vreoci - kabliranje' },
-  { code:'720/25/010', opis:'Siemens Energy - EXPO Trigenerativno postrojenje instumentacija' },
-  { code:'720/25/011', opis:'TE Kolubara -Odrzavanje 110,35 i 6 kV postrojenja' },
-  { code:'720/25/012', opis:'IvDam - J245 vodeno ispiranje hladnjaka S4300' },
-  { code:'720/26/001', opis:'TENT A - Redovno održavanje kablova i kablovskih trasa' },
-  { code:'720/26/002', opis:'Tehnički servisi - Elektroenergetski radovi na zameni pumpe GA -103' },
-  { code:'720/26/003', opis:'TENT A - Energetski kablovi pobudnog sistema generatora A1 i A2' },
-  { code:'720/26/004', opis:'IMP - TE Kostolac A - Proširenje postrojenja za pepeo i šljaku' },
-  { code:'720/26/005', opis:'TENT A - Usluge elektroodržavanja' },
-  { code:'720/26/006', opis:'POWER CHINA - Napajanje TCF za BG metro' },
-  { code:'720/26/007', opis:'TENT B - Remontno održavanje MRU' },
-  { code:'720/26/008', opis:'NIS Rezervoari R6, R7 Novi Sad' },
-  { code:'720/26/009', opis:'HIP Petrohemija - SN kablovi za PEVG, NN kablovi PENG' },
-  { code:'720/26/010', opis:'TE-KO A-Rekonstrukcija klapni na A2' },
-  { code:'SOPSTVENE', opis:'' }
+  { code:'720/25/001', opis:'TENT A-Usluga elektroodržavanja', gradiliste:[] },
+  { code:'720/25/002', opis:'TE Kostolac A2- Rekonstrukcija ventilskih kasetnih podrazvoda', gradiliste:['907'] },
+  { code:'720/25/003', opis:'TENT A- Isporuka i zamena 6 kV kablova (A3, A4, A6)', gradiliste:['902'] },
+  { code:'720/25/004', opis:'TE Kostolac B2 - EII - Čišćenje sabirnica', gradiliste:['907'] },
+  { code:'720/25/005', opis:'TENT A - ODG Održavanje', gradiliste:['902'] },
+  { code:'720/25/006', opis:'Comita - Skladište Niš - Premeštanje ESD ormana', gradiliste:['919'] },
+  { code:'720/25/007', opis:'MTN - RNP Železnica - Polaganje PP Kablova po nadstrešnici', gradiliste:['911'] },
+  { code:'720/25/008', opis:'Comita - Skladiste Nis- Izrada dokumentacije sa rasporedom kablova na nadzemnim i podzemnim trasama', gradiliste:['919'] },
+  { code:'720/25/009', opis:'N2K Proces inzenjering - Vreoci - kabliranje', gradiliste:['927'] },
+  { code:'720/25/010', opis:'Siemens Energy - EXPO Trigenerativno postrojenje instumentacija', gradiliste:['924'] },
+  { code:'720/25/011', opis:'TE Kolubara -Odrzavanje 110,35 i 6 kV postrojenja', gradiliste:['927'] },
+  { code:'720/25/012', opis:'IvDam - J245 vodeno ispiranje hladnjaka S4300', gradiliste:['911'] },
+  { code:'720/26/001', opis:'TENT A - Redovno održavanje kablova i kablovskih trasa', gradiliste:['902'] },
+  { code:'720/26/002', opis:'Tehnički servisi - Elektroenergetski radovi na zameni pumpe GA -103', gradiliste:['911'] },
+  { code:'720/26/003', opis:'TENT A - Energetski kablovi pobudnog sistema generatora A1 i A2', gradiliste:['902'] },
+  { code:'720/26/004', opis:'IMP - TE Kostolac A - Proširenje postrojenja za pepeo i šljaku', gradiliste:['907'] },
+  { code:'720/26/005', opis:'TENT A - Usluge elektroodržavanja', gradiliste:['902'] },
+  { code:'720/26/006', opis:'POWER CHINA - Napajanje TCF za BG metro', gradiliste:['919'] },
+  { code:'720/26/007', opis:'TENT B - Remontno održavanje MRU', gradiliste:['902'] },
+  { code:'720/26/008', opis:'NIS Rezervoari R6, R7 Novi Sad', gradiliste:['925'] },
+  { code:'720/26/009', opis:'HIP Petrohemija - SN kablovi za PEVG, NN kablovi PENG', gradiliste:['911'] },
+  { code:'720/26/010', opis:'TE-KO A-Rekonstrukcija klapni na A2', gradiliste:['919'] },
+  { code:'SOPSTVENE', opis:'', gradiliste:null }
 ];
 
 function nazivNaloga(code){
@@ -409,16 +409,21 @@ function nazivNaloga(code){
   return n ? n.opis : '';
 }
 
-function populateNalogSelect(){
+function populateNalogSelect(gradilisteCode){
   const sel = $('nalog');
-  NALOZI.forEach(n => {
+  sel.innerHTML = '<option value="">— izaberi nalog —</option>';
+  const filtered = gradilisteCode
+    ? NALOZI.filter(n => n.gradiliste === null || n.gradiliste.includes(gradilisteCode))
+    : [];
+  filtered.forEach(n => {
     const opt = document.createElement('option');
     opt.value = n.code;
     opt.textContent = n.code;
     sel.appendChild(opt);
   });
+  sel.disabled = !gradilisteCode;
 }
-populateNalogSelect();
+populateNalogSelect(null);
 
 $('nalog').addEventListener('change', ()=>{
   $('nalogOpis').textContent = nazivNaloga($('nalog').value) || '\u00A0';
@@ -438,6 +443,10 @@ populateGradilisteSelect();
 $('gradiliste').addEventListener('change', ()=>{
   const naziv = nazivGradilista($('gradiliste').value);
   $('gradilisteNaziv').textContent = naziv || '\u00A0';
+  const g = $('gradiliste').value;
+  populateNalogSelect(g || null);
+  $('nalog').value = '';
+  $('nalogOpis').textContent = '\u00A0';
   refreshNextBrojPreview();
 });
 
@@ -555,8 +564,9 @@ function resetForm(){
   $('gradilisteNaziv').textContent = '\u00A0';
   $('redniBrojManual').value = '';
   $('errBroj').textContent = '';
+  populateNalogSelect(null);
   $('nalog').value = '';
-  $('nalogOpis').textContent = '\u00A0';
+  $('nalogOpis').textContent = 'Prvo izaberite gradilište iznad.';
   $('errGradiliste').textContent = '';
   $('errNalog').textContent = '';
   $('errSpec').textContent = '';
@@ -585,6 +595,15 @@ function openEdit(id){
   $('redniBrojManual').value = parseInt(editingRedniBrojParts.broj, 10) || '';
   $('redniBrojManual').disabled = true;
 
+  populateNalogSelect(r.gradiliste);
+  if(![...$('nalog').options].some(o => o.value === r.nalog)){
+    // nalog ne pripada trenutnoj šemi za ovo gradilište (npr. stariji zahtev) — dodaj ga da se ne izgubi
+    const opt = document.createElement('option');
+    opt.value = r.nalog;
+    opt.textContent = r.nalog;
+    $('nalog').appendChild(opt);
+  }
+  $('nalog').disabled = false;
   $('nalog').value = r.nalog;
   $('nalogOpis').textContent = nazivNaloga(r.nalog) || '\u00A0';
 
