@@ -646,14 +646,14 @@ td{padding:7px 8px;border-bottom:1px solid #ddd;font-size:12.5px;}
 </body>
 </html>`;
 
-  const novi = window.open('', '_blank');
+  const blob = new Blob([html], { type: 'text/html' });
+  const url = URL.createObjectURL(blob);
+  const novi = window.open(url, '_blank');
   if(!novi){
     alert('Browser je blokirao otvaranje novog taba. Dozvoli pop-up prozore za ovu stranicu i pokušaj ponovo.');
     return;
   }
-  novi.document.open();
-  novi.document.write(html);
-  novi.document.close();
+  setTimeout(()=> URL.revokeObjectURL(url), 30000);
 }
 
 $('gradiliste').addEventListener('change', ()=>{
