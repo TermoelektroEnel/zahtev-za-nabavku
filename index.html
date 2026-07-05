@@ -307,9 +307,8 @@ table.spec td input{padding:7px 8px;font-size:13px;}
         <select id="zbirniNalog">
           <option value="">— izaberi nalog —</option>
         </select>
-        <div class="nalog-desc" id="zbirniNalogOpis">&nbsp;</div>
+        <div class="hint">Otvara zbirnu specifikaciju za izabrani nalog u novom tabu.</div>
       </div>
-      <div id="zbirnaWrap"></div>
     </div>
 
     <!-- LIST -->
@@ -469,112 +468,19 @@ function populateZbirniNalogSelect(){
   if(current) sel.value = current;
 }
 
-const STATUS_KLASA = {
-  'nije poručeno': 'status-nije',
-  'poručeno': 'status-porucena',
-  'isporučeno': 'status-isporucena'
-};
-
-function statusKlasa(status){
-  return STATUS_KLASA[status] || STATUS_KLASA['nije poručeno'];
-}
-
-function renderZbirnaSpecifikacija(){
+$('zbirniNalog').addEventListener('change', ()=>{
   const nalog = $('zbirniNalog').value;
-  $('zbirniNalogOpis').textContent = nazivNaloga(nalog) || '\u00A0';
-  const wrap = $('zbirnaWrap');
-  if(!nalog){
-    wrap.innerHTML = '';
-    return;
-  }
-  const matching = DATA.requests.filter(r => r.nalog === nalog);
-  if(matching.length === 0){
-    wrap.innerHTML = '<div class="empty">Nema sačuvanih zahteva za ovaj nalog.</div>';
-    return;
-  }
-  const rows = [];
-  matching.forEach(r => {
-    (r.stavke || []).forEach((s, idx) => {
-      if(!s.status) s.status = 'nije poručeno';
-      rows.push({ requestId: r.id, redniBroj: r.redniBroj, gradiliste: r.gradiliste, rb: idx + 1, stavkaIndex: idx, s });
-    });
-  });
-  const tableRows = rows.map(row => `
-    <tr class="${statusKlasa(row.s.status)}">
-      <td style="font-family:'IBM Plex Mono',monospace;white-space:nowrap;">${escapeHtml(row.redniBroj)}</td>
-      <td>${escapeHtml(nazivGradilista(row.gradiliste) || row.gradiliste)}</td>
-      <td style="text-align:center;">${row.rb}</td>
-      <td>${escapeHtml(row.s.sifra || '—')}</td>
-      <td>${escapeHtml(row.s.opis)}</td>
-      <td>${escapeHtml(row.s.jm)}</td>
-      <td class="num" style="text-align:right;">${escapeHtml(row.s.kolicina)}</td>
-      <td class="num" style="text-align:right;">${escapeHtml(row.s.odPostojeceg || '0')}</td>
-      <td class="num" style="text-align:right;font-weight:600;">${escapeHtml(row.s.zaNabavku !== undefined ? row.s.zaNabavku : '')}</td>
-      <td>${escapeHtml(formatDatumSr(row.s.rok))}</td>
-      <td style="text-align:center;">${escapeHtml(row.s.atest || '—')}</td>
-      <td>
-        <select data-req="${row.requestId}" data-idx="${row.stavkaIndex}" data-field="status" style="width:auto;color:inherit;font-weight:600;border-color:currentColor;">
-          <option value="nije poručeno" ${row.s.status==='nije poručeno'?'selected':''}>nije poručeno</option>
-          <option value="poručeno" ${row.s.status==='poručeno'?'selected':''}>poručeno</option>
-          <option value="isporučeno" ${row.s.status==='isporučeno'?'selected':''}>isporučeno</option>
-        </select>
-      </td>
-      <td>
-        <input type="date" data-req="${row.requestId}" data-idx="${row.stavkaIndex}" data-field="datumIsporuke" value="${escapeHtml(row.s.datumIsporuke || '')}" style="width:auto;color:inherit;border-color:currentColor;">
-      </td>
-    </tr>
-  `).join('');
-  wrap.innerHTML = `
-    <div style="overflow-x:auto;">
-    <table class="spec" style="table-layout:auto;font-size:13px;">
-      <thead><tr>
-        <th>Redni broj</th>
-        <th>Gradilište</th>
-        <th style="text-align:center;">Rb.</th>
-        <th>Broj poz. spec.</th>
-        <th>Opis</th>
-        <th>Jed. mere</th>
-        <th style="text-align:right;">Količina</th>
-        <th style="text-align:right;">Od postojećeg</th>
-        <th style="text-align:right;">Za nabavku</th>
-        <th>Rok isporuke</th>
-        <th style="text-align:center;">Atest</th>
-        <th>Status</th>
-        <th>Datum isporuke</th>
-      </tr></thead>
-      <tbody>${tableRows}</tbody>
-    </table>
-    </div>
-    <div style="margin-top:12px;">
-      <button type="button" class="btn-ghost" id="printZbirnaBtn">Otvori u novom tabu / Štampaj</button>
-    </div>
-  `;
-  wrap.querySelectorAll('select[data-field], input[data-field]').forEach(el=>{
-    el.addEventListener('change', e => updateStavkaField(e.target.dataset.req, parseInt(e.target.dataset.idx,10), e.target.dataset.field, e.target.value));
-  });
-  $('printZbirnaBtn').addEventListener('click', ()=> openZbirniNoviTab(nalog));
-}
-
-async function updateStavkaField(requestId, stavkaIndex, field, value){
-  const r = DATA.requests.find(x => x.id === requestId);
-  if(!r || !r.stavke || !r.stavke[stavkaIndex]) return;
-  r.stavke[stavkaIndex][field] = value;
-  try{
-    const result = await apiUpdate(requestId, { nalog: r.nalog, stavke: r.stavke });
-    if(result && result.request){
-      const idx = DATA.requests.findIndex(x => x.id === result.request.id);
-      if(idx !== -1) DATA.requests[idx] = result.request;
-    }
-  }catch(e){
-    alert('Čuvanje izmene nije uspelo. Proveri internet konekciju.');
-  }
-  renderZbirnaSpecifikacija();
-}
-
-$('zbirniNalog').addEventListener('change', renderZbirnaSpecifikacija);
+  if(!nalog) return;
+  openZbirniNoviTab(nalog);
+  $('zbirniNalog').value = '';
+});
 
 function openZbirniNoviTab(nalog){
   const matching = DATA.requests.filter(r => r.nalog === nalog);
+  if(matching.length === 0){
+    alert('Nema sačuvanih zahteva za ovaj nalog.');
+    return;
+  }
   const requestsData = matching.map(r => ({
     id: r.id,
     redniBroj: r.redniBroj,
@@ -971,7 +877,6 @@ async function loadData(){
   }
   $('countTag').textContent = DATA.requests.length + ' zahteva evidentirano';
   renderList();
-  renderZbirnaSpecifikacija();
   renderPlate();
   refreshNextBrojPreview();
 }
@@ -1008,7 +913,6 @@ function renderList(){
         DATA.requests = DATA.requests.filter(r=>r.id !== id);
         $('countTag').textContent = DATA.requests.length + ' zahteva evidentirano';
         renderList();
-  renderZbirnaSpecifikacija();
       }catch(err){
         alert('Brisanje nije uspelo. Proveri internet konekciju i pokušaj ponovo.');
       }
@@ -1119,7 +1023,6 @@ $('saveBtn').addEventListener('click', async ()=>{
         const idx = DATA.requests.findIndex(x => x.id === result.request.id);
         if(idx !== -1) DATA.requests[idx] = result.request;
         renderList();
-  renderZbirnaSpecifikacija();
         resetForm();
       }else{
         throw new Error(result && result.error ? result.error : 'Neispravan odgovor servera.');
@@ -1140,7 +1043,6 @@ $('saveBtn').addEventListener('click', async ()=>{
         DATA.requests.push(result.request);
         $('countTag').textContent = DATA.requests.length + ' zahteva evidentirano';
         renderList();
-  renderZbirnaSpecifikacija();
         resetForm();
         refreshNextBrojPreview();
       }else{
