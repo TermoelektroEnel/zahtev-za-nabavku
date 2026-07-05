@@ -613,12 +613,16 @@ async function onFieldChange(e){
   const stavka = req.stavke[idx];
   stavka[field] = value;
 
-  // Ako je isporučena količina jednaka količini za nabavku, automatski postavi status na "isporučeno"
+  // Automatska promena statusa na osnovu unete isporučene količine
   if(field === 'isporuceno'){
     const zaNabavku = parseFloat(stavka.zaNabavku);
     const isp = parseFloat(value);
-    if(!isNaN(zaNabavku) && !isNaN(isp) && isp === zaNabavku && zaNabavku !== 0){
-      stavka.status = 'isporučeno';
+    if(!isNaN(zaNabavku) && !isNaN(isp) && zaNabavku !== 0){
+      if(isp === zaNabavku){
+        stavka.status = 'isporučeno';
+      }else if(isp > 0 && isp < zaNabavku){
+        stavka.status = 'poručeno';
+      }
     }
   }
 
