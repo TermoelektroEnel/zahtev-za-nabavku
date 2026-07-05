@@ -663,7 +663,9 @@ render();
     alert('Browser je blokirao otvaranje novog taba. Dozvoli pop-up prozore za ovu stranicu i pokušaj ponovo.');
     return;
   }
-  setTimeout(()=> URL.revokeObjectURL(url), 30000);
+  // Napomena: URL se namerno NE briše odmah (URL.revokeObjectURL) — ako se obriše dok je
+  // tab još otvoren (npr. dok korisnik bira štampu / landscape), sadržaj taba nestane i PDF
+  // ispadne prazan. Browser sam oslobađa memoriju kad se ova (glavna) stranica zatvori/osveži.
 }
 
 $('gradiliste').addEventListener('change', ()=>{
