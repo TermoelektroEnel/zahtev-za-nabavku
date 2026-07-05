@@ -432,24 +432,10 @@ async function loadRefData(){
     NALOZI = (nData.nalozi || []).map(n => ({ code: n.kod, opis: n.opis, gradiliste: n.gradiliste }));
     populateGradilisteSelect();
     populateNalogSelect(null);
-    $('gradiliste').disabled = false;
-  }catch(e){
-    $('gradiliste').innerHTML = '<option value="">Greška pri učitavanju — osveži stranicu</option>';
-  }
-}
-
-async function loadRefData(){
-  $('gradiliste').innerHTML = '<option value="">Učitavanje…</option>';
-  $('gradiliste').disabled = true;
-  try{
-    const [gData, nData] = await Promise.all([apiListGradilista(), apiListNalozi()]);
-    GRADILISTA = (gData.gradilista || []).map(g => ({ code: String(g.kod), naziv: g.naziv }));
-    NALOZI = (nData.nalozi || []).map(n => ({ code: n.kod, opis: n.opis, gradiliste: n.gradiliste }));
-    populateGradilisteSelect();
-    populateNalogSelect(null);
     populateZbirniNalogSelect();
     $('gradiliste').disabled = false;
   }catch(e){
+    console.error('loadRefData greška:', e);
     $('gradiliste').innerHTML = '<option value="">Greška pri učitavanju — osveži stranicu</option>';
   }
 }
@@ -517,7 +503,7 @@ td{padding:7px 8px;border-bottom:1px solid #ddd;font-size:12.5px;}
 .status-nije td{background:#F1948A;color:#1a1a1a;}
 .status-porucena td{background:#F8C471;color:#1a1a1a;}
 .status-isporucena td{background:#82E0AA;color:#1a1a1a;}
-select, input[type=date]{font-family:'IBM Plex Sans',sans-serif;font-size:12.5px;padding:5px 6px;border-radius:3px;border:1px solid #CBCFC5;background:#fff;color:inherit;}
+select, input[type=date], input[type=number], input[type=text]{font-family:'IBM Plex Sans',sans-serif;font-size:12.5px;padding:5px 6px;border-radius:3px;border:1px solid #CBCFC5;background:#fff;color:inherit;}
 @media print{ .toolbar{display:none;} body{background:#fff;} .card{border:none;padding:0;} }
 </style>
 </head>
@@ -541,13 +527,15 @@ select, input[type=date]{font-family:'IBM Plex Sans',sans-serif;font-size:12.5px
         <th>Broj poz. spec.</th>
         <th>Opis</th>
         <th>Jed. mere</th>
-        <th style="text-align:right;">Količina</th>
-        <th style="text-align:right;">Od postojećeg</th>
         <th style="text-align:right;">Za nabavku</th>
+        <th style="text-align:right;">Isporučeno</th>
         <th>Rok isporuke</th>
         <th style="text-align:center;">Atest</th>
         <th>Status</th>
         <th>Datum isporuke</th>
+        <th>Dobavljač</th>
+        <th>Otpremnica</th>
+        <th>Prijemnica</th>
       </tr></thead>
       <tbody id="tbody"></tbody>
     </table>
@@ -584,9 +572,8 @@ function render(){
         '<td>' + escapeHtml(s.sifra || '—') + '</td>' +
         '<td>' + escapeHtml(s.opis) + '</td>' +
         '<td>' + escapeHtml(s.jm) + '</td>' +
-        '<td class="num">' + escapeHtml(s.kolicina) + '</td>' +
-        '<td class="num">' + escapeHtml(s.odPostojeceg || '0') + '</td>' +
         '<td class="num" style="font-weight:600;">' + escapeHtml(s.zaNabavku !== undefined ? s.zaNabavku : '') + '</td>' +
+        '<td><input type="number" min="0" step="any" style="width:80px;" data-req="' + reqIdx + '" data-idx="' + idx + '" data-field="isporuceno" value="' + escapeHtml(s.isporuceno || '') + '"></td>' +
         '<td>' + escapeHtml(formatDatumSr(s.rok)) + '</td>' +
         '<td style="text-align:center;">' + escapeHtml(s.atest || '—') + '</td>' +
         '<td><select data-req="' + reqIdx + '" data-idx="' + idx + '" data-field="status">' +
@@ -595,6 +582,9 @@ function render(){
           '<option value="isporučeno"' + (s.status==='isporučeno'?' selected':'') + '>isporučeno</option>' +
         '</select></td>' +
         '<td><input type="date" data-req="' + reqIdx + '" data-idx="' + idx + '" data-field="datumIsporuke" value="' + escapeHtml(s.datumIsporuke || '') + '"></td>' +
+        '<td><input type="text" style="width:120px;" data-req="' + reqIdx + '" data-idx="' + idx + '" data-field="dobavljac" value="' + escapeHtml(s.dobavljac || '') + '"></td>' +
+        '<td><input type="text" style="width:100px;" data-req="' + reqIdx + '" data-idx="' + idx + '" data-field="otpremnica" value="' + escapeHtml(s.otpremnica || '') + '"></td>' +
+        '<td><input type="text" style="width:100px;" data-req="' + reqIdx + '" data-idx="' + idx + '" data-field="prijemnica" value="' + escapeHtml(s.prijemnica || '') + '"></td>' +
         '</tr>';
     });
   });
@@ -610,7 +600,17 @@ async function onFieldChange(e){
   const field = e.target.dataset.field;
   const value = e.target.value;
   const req = REQUESTS[reqIdx];
-  req.stavke[idx][field] = value;
+  const stavka = req.stavke[idx];
+  stavka[field] = value;
+
+  // Ako je isporučena količina jednaka količini za nabavku, automatski postavi status na "isporučeno"
+  if(field === 'isporuceno'){
+    const zaNabavku = parseFloat(stavka.zaNabavku);
+    const isp = parseFloat(value);
+    if(!isNaN(zaNabavku) && !isNaN(isp) && isp === zaNabavku && zaNabavku !== 0){
+      stavka.status = 'isporučeno';
+    }
+  }
 
   const statusMsg = document.getElementById('statusMsg');
   statusMsg.textContent = 'Čuvanje…';
