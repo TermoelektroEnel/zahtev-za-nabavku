@@ -296,6 +296,19 @@ table.spec td input{padding:7px 8px;font-size:13px;}
       </div>
     </div>
 
+    <!-- ZBIRNA SPECIFIKACIJA -->
+    <div class="card">
+      <h2>Zbirna specifikacija po nalogu</h2>
+      <div class="field" style="max-width:480px;">
+        <label for="zbirniNalog">Nalog za realizaciju</label>
+        <select id="zbirniNalog">
+          <option value="">— izaberi nalog —</option>
+        </select>
+        <div class="nalog-desc" id="zbirniNalogOpis">&nbsp;</div>
+      </div>
+      <div id="zbirnaWrap"></div>
+    </div>
+
     <!-- LIST -->
     <div class="card">
       <h2>Prethodni zahtevi</h2>
@@ -421,6 +434,153 @@ async function loadRefData(){
   }catch(e){
     $('gradiliste').innerHTML = '<option value="">Greška pri učitavanju — osveži stranicu</option>';
   }
+}
+
+async function loadRefData(){
+  $('gradiliste').innerHTML = '<option value="">Učitavanje…</option>';
+  $('gradiliste').disabled = true;
+  try{
+    const [gData, nData] = await Promise.all([apiListGradilista(), apiListNalozi()]);
+    GRADILISTA = (gData.gradilista || []).map(g => ({ code: String(g.kod), naziv: g.naziv }));
+    NALOZI = (nData.nalozi || []).map(n => ({ code: n.kod, opis: n.opis, gradiliste: n.gradiliste }));
+    populateGradilisteSelect();
+    populateNalogSelect(null);
+    populateZbirniNalogSelect();
+    $('gradiliste').disabled = false;
+  }catch(e){
+    $('gradiliste').innerHTML = '<option value="">Greška pri učitavanju — osveži stranicu</option>';
+  }
+}
+
+function populateZbirniNalogSelect(){
+  const sel = $('zbirniNalog');
+  const current = sel.value;
+  sel.innerHTML = '<option value="">— izaberi nalog —</option>';
+  const sorted = [...NALOZI].sort((a,b)=> a.code.localeCompare(b.code));
+  sorted.forEach(n => {
+    const opt = document.createElement('option');
+    opt.value = n.code;
+    opt.textContent = n.code;
+    sel.appendChild(opt);
+  });
+  if(current) sel.value = current;
+}
+
+function renderZbirnaSpecifikacija(){
+  const nalog = $('zbirniNalog').value;
+  $('zbirniNalogOpis').textContent = nazivNaloga(nalog) || '\u00A0';
+  const wrap = $('zbirnaWrap');
+  if(!nalog){
+    wrap.innerHTML = '';
+    return;
+  }
+  const matching = DATA.requests.filter(r => r.nalog === nalog);
+  if(matching.length === 0){
+    wrap.innerHTML = '<div class="empty">Nema sačuvanih zahteva za ovaj nalog.</div>';
+    return;
+  }
+  const rows = [];
+  matching.forEach(r => {
+    (r.stavke || []).forEach((s, idx) => {
+      rows.push({ redniBroj: r.redniBroj, gradiliste: r.gradiliste, rb: idx + 1, s });
+    });
+  });
+  const tableRows = rows.map(row => `
+    <tr>
+      <td style="font-family:'IBM Plex Mono',monospace;white-space:nowrap;">${escapeHtml(row.redniBroj)}</td>
+      <td>${escapeHtml(nazivGradilista(row.gradiliste) || row.gradiliste)}</td>
+      <td style="text-align:center;">${row.rb}</td>
+      <td>${escapeHtml(row.s.sifra || '—')}</td>
+      <td>${escapeHtml(row.s.opis)}</td>
+      <td>${escapeHtml(row.s.jm)}</td>
+      <td class="num" style="text-align:right;">${escapeHtml(row.s.kolicina)}</td>
+      <td class="num" style="text-align:right;">${escapeHtml(row.s.odPostojeceg || '0')}</td>
+      <td class="num" style="text-align:right;font-weight:600;">${escapeHtml(row.s.zaNabavku !== undefined ? row.s.zaNabavku : '')}</td>
+      <td>${escapeHtml(formatDatumSr(row.s.rok))}</td>
+      <td style="text-align:center;">${escapeHtml(row.s.atest || '—')}</td>
+    </tr>
+  `).join('');
+  wrap.innerHTML = `
+    <div style="overflow-x:auto;">
+    <table class="spec" style="table-layout:auto;font-size:13px;">
+      <thead><tr>
+        <th>Redni broj</th>
+        <th>Gradilište</th>
+        <th style="text-align:center;">Rb.</th>
+        <th>Broj poz. spec.</th>
+        <th>Opis</th>
+        <th>Jed. mere</th>
+        <th style="text-align:right;">Količina</th>
+        <th style="text-align:right;">Od postojećeg</th>
+        <th style="text-align:right;">Za nabavku</th>
+        <th>Rok isporuke</th>
+        <th style="text-align:center;">Atest</th>
+      </tr></thead>
+      <tbody>${tableRows}</tbody>
+    </table>
+    </div>
+    <div style="margin-top:12px;">
+      <button type="button" class="btn-ghost" id="printZbirnaBtn">Štampaj / sačuvaj PDF</button>
+    </div>
+  `;
+  $('printZbirnaBtn').addEventListener('click', ()=> openZbirniDoc(nalog, rows));
+}
+
+$('zbirniNalog').addEventListener('change', renderZbirnaSpecifikacija);
+
+function openZbirniDoc(nalog, rows){
+  const tableRows = rows.map(row => `
+    <tr>
+      <td style="font-family:'IBM Plex Mono',monospace;">${escapeHtml(row.redniBroj)}</td>
+      <td>${escapeHtml(nazivGradilista(row.gradiliste) || row.gradiliste)}</td>
+      <td style="text-align:center;">${row.rb}</td>
+      <td>${escapeHtml(row.s.sifra || '—')}</td>
+      <td>${escapeHtml(row.s.opis)}</td>
+      <td>${escapeHtml(row.s.jm)}</td>
+      <td class="num">${escapeHtml(row.s.kolicina)}</td>
+      <td class="num">${escapeHtml(row.s.odPostojeceg || '0')}</td>
+      <td class="num" style="font-weight:600;">${escapeHtml(row.s.zaNabavku !== undefined ? row.s.zaNabavku : '')}</td>
+      <td>${escapeHtml(formatDatumSr(row.s.rok))}</td>
+      <td style="text-align:center;">${escapeHtml(row.s.atest || '—')}</td>
+    </tr>
+  `).join('');
+  $('modalRoot').innerHTML = `
+    <div class="overlay" id="overlay">
+      <div class="doc-outer">
+        <div class="doc-toolbar">
+          <button class="btn-ghost" id="closeDoc">Zatvori</button>
+          <button class="btn btn-primary" style="width:auto;" id="printDoc">Štampaj / sačuvaj PDF</button>
+        </div>
+        <div class="doc">
+          <h2>Zbirna specifikacija</h2>
+          <div class="doc-sub">Dokument generisan ${new Date().toLocaleString('sr-RS')}</div>
+          <div class="doc-meta">
+            <div><div class="k">Nalog za realizaciju</div><div class="v">${escapeHtml(nalog)}${nazivNaloga(nalog) ? '<br><span style="font-size:11px;font-weight:500;color:#555;">' + escapeHtml(nazivNaloga(nalog)) + '</span>' : ''}</div></div>
+            <div><div class="k">Broj zahteva</div><div class="v">${new Set(rows.map(r=>r.redniBroj)).size}</div></div>
+          </div>
+          <table style="font-size:11px;">
+            <thead><tr>
+              <th>Redni broj</th>
+              <th>Gradilište</th>
+              <th style="text-align:center;">Rb.</th>
+              <th>Broj poz. spec.</th>
+              <th>Opis</th>
+              <th>Jed. mere</th>
+              <th style="text-align:right;">Količina</th>
+              <th style="text-align:right;">Od postojećeg</th>
+              <th style="text-align:right;">Za nabavku</th>
+              <th>Rok isporuke</th>
+              <th style="text-align:center;">Atest</th>
+            </tr></thead>
+            <tbody>${tableRows}</tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  `;
+  $('closeDoc').addEventListener('click', ()=> $('modalRoot').innerHTML = '');
+  $('printDoc').addEventListener('click', ()=> window.print());
+  $('overlay').addEventListener('click', e=>{ if(e.target.id==='overlay') $('modalRoot').innerHTML=''; });
 }
 
 $('gradiliste').addEventListener('change', ()=>{
@@ -654,6 +814,7 @@ async function loadData(){
   }
   $('countTag').textContent = DATA.requests.length + ' zahteva evidentirano';
   renderList();
+  renderZbirnaSpecifikacija();
   renderPlate();
   refreshNextBrojPreview();
 }
@@ -690,6 +851,7 @@ function renderList(){
         DATA.requests = DATA.requests.filter(r=>r.id !== id);
         $('countTag').textContent = DATA.requests.length + ' zahteva evidentirano';
         renderList();
+  renderZbirnaSpecifikacija();
       }catch(err){
         alert('Brisanje nije uspelo. Proveri internet konekciju i pokušaj ponovo.');
       }
@@ -800,6 +962,7 @@ $('saveBtn').addEventListener('click', async ()=>{
         const idx = DATA.requests.findIndex(x => x.id === result.request.id);
         if(idx !== -1) DATA.requests[idx] = result.request;
         renderList();
+  renderZbirnaSpecifikacija();
         resetForm();
       }else{
         throw new Error(result && result.error ? result.error : 'Neispravan odgovor servera.');
@@ -820,6 +983,7 @@ $('saveBtn').addEventListener('click', async ()=>{
         DATA.requests.push(result.request);
         $('countTag').textContent = DATA.requests.length + ' zahteva evidentirano';
         renderList();
+  renderZbirnaSpecifikacija();
         resetForm();
         refreshNextBrojPreview();
       }else{
