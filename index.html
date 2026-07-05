@@ -123,6 +123,9 @@ table.spec td input{padding:7px 8px;font-size:13px;}
   font-weight:600;color:var(--steel-dark);background:#EEF0E9;border-radius:var(--radius);
   text-align:right;
 }
+.status-nije, .status-nije td{color:#A8432F;}
+.status-porucena, .status-porucena td{color:#C0762A;}
+.status-isporucena, .status-isporucena td{color:#3F6B4A;}
 .rm-btn{
   background:none;border:none;color:var(--danger);cursor:pointer;font-size:16px;
   line-height:1;padding:6px;border-radius:var(--radius);
@@ -466,6 +469,16 @@ function populateZbirniNalogSelect(){
   if(current) sel.value = current;
 }
 
+const STATUS_KLASA = {
+  'nije poručeno': 'status-nije',
+  'poručeno': 'status-porucena',
+  'isporučeno': 'status-isporucena'
+};
+
+function statusKlasa(status){
+  return STATUS_KLASA[status] || STATUS_KLASA['nije poručeno'];
+}
+
 function renderZbirnaSpecifikacija(){
   const nalog = $('zbirniNalog').value;
   $('zbirniNalogOpis').textContent = nazivNaloga(nalog) || '\u00A0';
@@ -482,11 +495,12 @@ function renderZbirnaSpecifikacija(){
   const rows = [];
   matching.forEach(r => {
     (r.stavke || []).forEach((s, idx) => {
-      rows.push({ redniBroj: r.redniBroj, gradiliste: r.gradiliste, rb: idx + 1, s });
+      if(!s.status) s.status = 'nije poručeno';
+      rows.push({ requestId: r.id, redniBroj: r.redniBroj, gradiliste: r.gradiliste, rb: idx + 1, stavkaIndex: idx, s });
     });
   });
   const tableRows = rows.map(row => `
-    <tr>
+    <tr class="${statusKlasa(row.s.status)}">
       <td style="font-family:'IBM Plex Mono',monospace;white-space:nowrap;">${escapeHtml(row.redniBroj)}</td>
       <td>${escapeHtml(nazivGradilista(row.gradiliste) || row.gradiliste)}</td>
       <td style="text-align:center;">${row.rb}</td>
@@ -498,6 +512,16 @@ function renderZbirnaSpecifikacija(){
       <td class="num" style="text-align:right;font-weight:600;">${escapeHtml(row.s.zaNabavku !== undefined ? row.s.zaNabavku : '')}</td>
       <td>${escapeHtml(formatDatumSr(row.s.rok))}</td>
       <td style="text-align:center;">${escapeHtml(row.s.atest || '—')}</td>
+      <td>
+        <select data-req="${row.requestId}" data-idx="${row.stavkaIndex}" data-field="status" style="width:auto;color:inherit;font-weight:600;border-color:currentColor;">
+          <option value="nije poručeno" ${row.s.status==='nije poručeno'?'selected':''}>nije poručeno</option>
+          <option value="poručeno" ${row.s.status==='poručeno'?'selected':''}>poručeno</option>
+          <option value="isporučeno" ${row.s.status==='isporučeno'?'selected':''}>isporučeno</option>
+        </select>
+      </td>
+      <td>
+        <input type="date" data-req="${row.requestId}" data-idx="${row.stavkaIndex}" data-field="datumIsporuke" value="${escapeHtml(row.s.datumIsporuke || '')}" style="width:auto;color:inherit;border-color:currentColor;">
+      </td>
     </tr>
   `).join('');
   wrap.innerHTML = `
@@ -515,22 +539,43 @@ function renderZbirnaSpecifikacija(){
         <th style="text-align:right;">Za nabavku</th>
         <th>Rok isporuke</th>
         <th style="text-align:center;">Atest</th>
+        <th>Status</th>
+        <th>Datum isporuke</th>
       </tr></thead>
       <tbody>${tableRows}</tbody>
     </table>
     </div>
     <div style="margin-top:12px;">
-      <button type="button" class="btn-ghost" id="printZbirnaBtn">Štampaj / sačuvaj PDF</button>
+      <button type="button" class="btn-ghost" id="printZbirnaBtn">Otvori u novom tabu / Štampaj</button>
     </div>
   `;
-  $('printZbirnaBtn').addEventListener('click', ()=> openZbirniDoc(nalog, rows));
+  wrap.querySelectorAll('select[data-field], input[data-field]').forEach(el=>{
+    el.addEventListener('change', e => updateStavkaField(e.target.dataset.req, parseInt(e.target.dataset.idx,10), e.target.dataset.field, e.target.value));
+  });
+  $('printZbirnaBtn').addEventListener('click', ()=> openZbirniNoviTab(nalog, rows));
+}
+
+async function updateStavkaField(requestId, stavkaIndex, field, value){
+  const r = DATA.requests.find(x => x.id === requestId);
+  if(!r || !r.stavke || !r.stavke[stavkaIndex]) return;
+  r.stavke[stavkaIndex][field] = value;
+  try{
+    const result = await apiUpdate(requestId, { nalog: r.nalog, stavke: r.stavke });
+    if(result && result.request){
+      const idx = DATA.requests.findIndex(x => x.id === result.request.id);
+      if(idx !== -1) DATA.requests[idx] = result.request;
+    }
+  }catch(e){
+    alert('Čuvanje izmene nije uspelo. Proveri internet konekciju.');
+  }
+  renderZbirnaSpecifikacija();
 }
 
 $('zbirniNalog').addEventListener('change', renderZbirnaSpecifikacija);
 
-function openZbirniDoc(nalog, rows){
+function openZbirniNoviTab(nalog, rows){
   const tableRows = rows.map(row => `
-    <tr>
+    <tr class="${statusKlasa(row.s.status)}">
       <td style="font-family:'IBM Plex Mono',monospace;">${escapeHtml(row.redniBroj)}</td>
       <td>${escapeHtml(nazivGradilista(row.gradiliste) || row.gradiliste)}</td>
       <td style="text-align:center;">${row.rb}</td>
@@ -542,45 +587,73 @@ function openZbirniDoc(nalog, rows){
       <td class="num" style="font-weight:600;">${escapeHtml(row.s.zaNabavku !== undefined ? row.s.zaNabavku : '')}</td>
       <td>${escapeHtml(formatDatumSr(row.s.rok))}</td>
       <td style="text-align:center;">${escapeHtml(row.s.atest || '—')}</td>
+      <td style="font-weight:600;">${escapeHtml(row.s.status || 'nije poručeno')}</td>
+      <td>${escapeHtml(formatDatumSr(row.s.datumIsporuke))}</td>
     </tr>
   `).join('');
-  $('modalRoot').innerHTML = `
-    <div class="overlay" id="overlay">
-      <div class="doc-outer">
-        <div class="doc-toolbar">
-          <button class="btn-ghost" id="closeDoc">Zatvori</button>
-          <button class="btn btn-primary" style="width:auto;" id="printDoc">Štampaj / sačuvaj PDF</button>
-        </div>
-        <div class="doc">
-          <h2>Zbirna specifikacija</h2>
-          <div class="doc-sub">Dokument generisan ${new Date().toLocaleString('sr-RS')}</div>
-          <div class="doc-meta">
-            <div><div class="k">Nalog za realizaciju</div><div class="v">${escapeHtml(nalog)}${nazivNaloga(nalog) ? '<br><span style="font-size:11px;font-weight:500;color:#555;">' + escapeHtml(nazivNaloga(nalog)) + '</span>' : ''}</div></div>
-            <div><div class="k">Broj zahteva</div><div class="v">${new Set(rows.map(r=>r.redniBroj)).size}</div></div>
-          </div>
-          <table style="font-size:11px;">
-            <thead><tr>
-              <th>Redni broj</th>
-              <th>Gradilište</th>
-              <th style="text-align:center;">Rb.</th>
-              <th>Broj poz. spec.</th>
-              <th>Opis</th>
-              <th>Jed. mere</th>
-              <th style="text-align:right;">Količina</th>
-              <th style="text-align:right;">Od postojećeg</th>
-              <th style="text-align:right;">Za nabavku</th>
-              <th>Rok isporuke</th>
-              <th style="text-align:center;">Atest</th>
-            </tr></thead>
-            <tbody>${tableRows}</tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-  `;
-  $('closeDoc').addEventListener('click', ()=> $('modalRoot').innerHTML = '');
-  $('printDoc').addEventListener('click', ()=> window.print());
-  $('overlay').addEventListener('click', e=>{ if(e.target.id==='overlay') $('modalRoot').innerHTML=''; });
+
+  const html = `<!DOCTYPE html>
+<html lang="sr">
+<head>
+<meta charset="UTF-8">
+<title>Zbirna specifikacija — ${escapeHtml(nalog)}</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600&display=swap');
+*{box-sizing:border-box;}
+body{font-family:'IBM Plex Sans',sans-serif;color:#1a1a1a;margin:0;padding:20px 24px;font-size:13px;}
+h1{font-family:'Space Grotesk',sans-serif;font-size:20px;text-transform:uppercase;letter-spacing:0.04em;margin:0 0 4px;}
+.sub{font-size:11.5px;color:#666;font-family:'IBM Plex Mono',monospace;margin-bottom:6px;}
+.toolbar{display:flex;justify-content:flex-end;margin-bottom:14px;}
+.toolbar button{
+  font-family:'IBM Plex Sans',sans-serif;font-weight:600;font-size:13px;padding:9px 16px;
+  border-radius:3px;border:1px solid #243D4C;background:#243D4C;color:#fff;cursor:pointer;
+}
+table{width:100%;border-collapse:collapse;}
+th{
+  text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:0.05em;
+  border-bottom:1.5px solid #1a1a1a;padding:6px 8px;color:#444;
+}
+td{padding:7px 8px;border-bottom:1px solid #ddd;font-size:12.5px;}
+.num{text-align:right;font-family:'IBM Plex Mono',monospace;}
+.status-nije{color:#A8432F;}
+.status-porucena{color:#C0762A;}
+.status-isporucena{color:#3F6B4A;}
+@media print{ .toolbar{display:none;} }
+</style>
+</head>
+<body>
+  <div class="toolbar"><button onclick="window.print()">Štampaj / sačuvaj PDF</button></div>
+  <h1>Zbirna specifikacija</h1>
+  <div class="sub">Nalog za realizaciju: ${escapeHtml(nalog)}${nazivNaloga(nalog) ? ' — ' + escapeHtml(nazivNaloga(nalog)) : ''} · Generisano ${new Date().toLocaleString('sr-RS')}</div>
+  <table>
+    <thead><tr>
+      <th>Redni broj</th>
+      <th>Gradilište</th>
+      <th style="text-align:center;">Rb.</th>
+      <th>Broj poz. spec.</th>
+      <th>Opis</th>
+      <th>Jed. mere</th>
+      <th style="text-align:right;">Količina</th>
+      <th style="text-align:right;">Od postojećeg</th>
+      <th style="text-align:right;">Za nabavku</th>
+      <th>Rok isporuke</th>
+      <th style="text-align:center;">Atest</th>
+      <th>Status</th>
+      <th>Datum isporuke</th>
+    </tr></thead>
+    <tbody>${tableRows}</tbody>
+  </table>
+</body>
+</html>`;
+
+  const novi = window.open('', '_blank');
+  if(!novi){
+    alert('Browser je blokirao otvaranje novog taba. Dozvoli pop-up prozore za ovu stranicu i pokušaj ponovo.');
+    return;
+  }
+  novi.document.open();
+  novi.document.write(html);
+  novi.document.close();
 }
 
 $('gradiliste').addEventListener('change', ()=>{
