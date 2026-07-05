@@ -508,7 +508,16 @@ td{padding:7px 8px;border-bottom:1px solid #ddd;font-size:12.5px;}
 .status-porucena td{background:#F8C471;color:#1a1a1a;}
 .status-isporucena td{background:#82E0AA;color:#1a1a1a;}
 select, input[type=date], input[type=number], input[type=text]{font-family:'IBM Plex Sans',sans-serif;font-size:12.5px;padding:5px 6px;border-radius:3px;border:1px solid #CBCFC5;background:#fff;color:inherit;}
-@media print{ .toolbar{display:none;} body{background:#fff;} .card{border:none;padding:0;} }
+@media print{
+  .toolbar{display:none;}
+  body{background:#fff;}
+  .card{border:none;padding:0;overflow:visible;}
+  table{width:auto;}
+  th{white-space:normal;}
+}
+</style>
+<style>
+@page{ margin:10mm; }
 </style>
 </head>
 <body>
