@@ -529,6 +529,7 @@ select, input[type=date], input[type=number], input[type=text]{font-family:'IBM 
         <th>Jed. mere</th>
         <th style="text-align:right;">Za nabavku</th>
         <th style="text-align:right;">Isporučeno</th>
+        <th style="text-align:right;">Preostalo za isporuku</th>
         <th>Rok isporuke</th>
         <th style="text-align:center;">Atest</th>
         <th>Status</th>
@@ -558,6 +559,14 @@ function statusKlasa(status){
   if(status === 'isporučeno') return 'status-isporucena';
   return 'status-nije';
 }
+function preostaloZaIsporuku(s){
+  const zaNabavku = parseFloat(s.zaNabavku);
+  const isp = parseFloat(s.isporuceno);
+  const z = isNaN(zaNabavku) ? 0 : zaNabavku;
+  const i = isNaN(isp) ? 0 : isp;
+  const diff = z - i;
+  return Math.round(diff * 1000) / 1000;
+}
 
 function render(){
   const tbody = document.getElementById('tbody');
@@ -574,6 +583,7 @@ function render(){
         '<td>' + escapeHtml(s.jm) + '</td>' +
         '<td class="num" style="font-weight:600;">' + escapeHtml(s.zaNabavku !== undefined ? s.zaNabavku : '') + '</td>' +
         '<td><input type="number" min="0" step="any" style="width:80px;" data-req="' + reqIdx + '" data-idx="' + idx + '" data-field="isporuceno" value="' + escapeHtml(s.isporuceno || '') + '"></td>' +
+        '<td class="num" style="font-weight:600;">' + escapeHtml(preostaloZaIsporuku(s)) + '</td>' +
         '<td>' + escapeHtml(formatDatumSr(s.rok)) + '</td>' +
         '<td style="text-align:center;">' + escapeHtml(s.atest || '—') + '</td>' +
         '<td><select data-req="' + reqIdx + '" data-idx="' + idx + '" data-field="status">' +
