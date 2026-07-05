@@ -552,7 +552,7 @@ function renderZbirnaSpecifikacija(){
   wrap.querySelectorAll('select[data-field], input[data-field]').forEach(el=>{
     el.addEventListener('change', e => updateStavkaField(e.target.dataset.req, parseInt(e.target.dataset.idx,10), e.target.dataset.field, e.target.value));
   });
-  $('printZbirnaBtn').addEventListener('click', ()=> openZbirniNoviTab(nalog, rows));
+  $('printZbirnaBtn').addEventListener('click', ()=> openZbirniNoviTab(nalog));
 }
 
 async function updateStavkaField(requestId, stavkaIndex, field, value){
@@ -573,24 +573,15 @@ async function updateStavkaField(requestId, stavkaIndex, field, value){
 
 $('zbirniNalog').addEventListener('change', renderZbirnaSpecifikacija);
 
-function openZbirniNoviTab(nalog, rows){
-  const tableRows = rows.map(row => `
-    <tr class="${statusKlasa(row.s.status)}">
-      <td style="font-family:'IBM Plex Mono',monospace;">${escapeHtml(row.redniBroj)}</td>
-      <td>${escapeHtml(nazivGradilista(row.gradiliste) || row.gradiliste)}</td>
-      <td style="text-align:center;">${row.rb}</td>
-      <td>${escapeHtml(row.s.sifra || '—')}</td>
-      <td>${escapeHtml(row.s.opis)}</td>
-      <td>${escapeHtml(row.s.jm)}</td>
-      <td class="num">${escapeHtml(row.s.kolicina)}</td>
-      <td class="num">${escapeHtml(row.s.odPostojeceg || '0')}</td>
-      <td class="num" style="font-weight:600;">${escapeHtml(row.s.zaNabavku !== undefined ? row.s.zaNabavku : '')}</td>
-      <td>${escapeHtml(formatDatumSr(row.s.rok))}</td>
-      <td style="text-align:center;">${escapeHtml(row.s.atest || '—')}</td>
-      <td style="font-weight:600;">${escapeHtml(row.s.status || 'nije poručeno')}</td>
-      <td>${escapeHtml(formatDatumSr(row.s.datumIsporuke))}</td>
-    </tr>
-  `).join('');
+function openZbirniNoviTab(nalog){
+  const matching = DATA.requests.filter(r => r.nalog === nalog);
+  const requestsData = matching.map(r => ({
+    id: r.id,
+    redniBroj: r.redniBroj,
+    gradilisteNaziv: nazivGradilista(r.gradiliste) || r.gradiliste,
+    stavke: r.stavke || []
+  }));
+  const nalogOpisText = nazivNaloga(nalog) || '';
 
   const html = `<!DOCTYPE html>
 <html lang="sr">
@@ -600,49 +591,142 @@ function openZbirniNoviTab(nalog, rows){
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600&display=swap');
 *{box-sizing:border-box;}
-body{font-family:'IBM Plex Sans',sans-serif;color:#1a1a1a;margin:0;padding:20px 24px;font-size:13px;}
+body{font-family:'IBM Plex Sans',sans-serif;color:#1a1a1a;margin:0;padding:20px 24px;font-size:13px;background:#EAEBE4;}
 h1{font-family:'Space Grotesk',sans-serif;font-size:20px;text-transform:uppercase;letter-spacing:0.04em;margin:0 0 4px;}
 .sub{font-size:11.5px;color:#666;font-family:'IBM Plex Mono',monospace;margin-bottom:6px;}
-.toolbar{display:flex;justify-content:flex-end;margin-bottom:14px;}
+.toolbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;gap:10px;flex-wrap:wrap;}
+.status-msg{font-size:12px;color:#666;}
 .toolbar button{
   font-family:'IBM Plex Sans',sans-serif;font-weight:600;font-size:13px;padding:9px 16px;
   border-radius:3px;border:1px solid #243D4C;background:#243D4C;color:#fff;cursor:pointer;
 }
+.card{background:#F7F7F2;border:1px solid #CBCFC5;border-radius:3px;padding:16px;overflow-x:auto;}
 table{width:100%;border-collapse:collapse;}
 th{
   text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:0.05em;
-  border-bottom:1.5px solid #1a1a1a;padding:6px 8px;color:#444;
+  border-bottom:1.5px solid #1a1a1a;padding:6px 8px;color:#444;white-space:nowrap;
 }
 td{padding:7px 8px;border-bottom:1px solid #ddd;font-size:12.5px;}
 .num{text-align:right;font-family:'IBM Plex Mono',monospace;}
-.status-nije{color:#A8432F;}
-.status-porucena{color:#C0762A;}
-.status-isporucena{color:#3F6B4A;}
-@media print{ .toolbar{display:none;} }
+.status-nije, .status-nije td{color:#A8432F;}
+.status-porucena, .status-porucena td{color:#C0762A;}
+.status-isporucena, .status-isporucena td{color:#3F6B4A;}
+select, input[type=date]{font-family:'IBM Plex Sans',sans-serif;font-size:12.5px;padding:5px 6px;border-radius:3px;border:1px solid #CBCFC5;background:#fff;color:inherit;}
+@media print{ .toolbar{display:none;} body{background:#fff;} .card{border:none;padding:0;} }
 </style>
 </head>
 <body>
-  <div class="toolbar"><button onclick="window.print()">Štampaj / sačuvaj PDF</button></div>
-  <h1>Zbirna specifikacija</h1>
-  <div class="sub">Nalog za realizaciju: ${escapeHtml(nalog)}${nazivNaloga(nalog) ? ' — ' + escapeHtml(nazivNaloga(nalog)) : ''} · Generisano ${new Date().toLocaleString('sr-RS')}</div>
-  <table>
-    <thead><tr>
-      <th>Redni broj</th>
-      <th>Gradilište</th>
-      <th style="text-align:center;">Rb.</th>
-      <th>Broj poz. spec.</th>
-      <th>Opis</th>
-      <th>Jed. mere</th>
-      <th style="text-align:right;">Količina</th>
-      <th style="text-align:right;">Od postojećeg</th>
-      <th style="text-align:right;">Za nabavku</th>
-      <th>Rok isporuke</th>
-      <th style="text-align:center;">Atest</th>
-      <th>Status</th>
-      <th>Datum isporuke</th>
-    </tr></thead>
-    <tbody>${tableRows}</tbody>
-  </table>
+  <div class="toolbar">
+    <div>
+      <h1>Zbirna specifikacija</h1>
+      <div class="sub">Nalog za realizaciju: ${escapeHtml(nalog)}${nalogOpisText ? ' — ' + escapeHtml(nalogOpisText) : ''} · Otvoreno ${new Date().toLocaleString('sr-RS')}</div>
+    </div>
+    <div style="display:flex;align-items:center;gap:12px;">
+      <span class="status-msg" id="statusMsg"></span>
+      <button onclick="window.print()">Štampaj / sačuvaj PDF</button>
+    </div>
+  </div>
+  <div class="card">
+    <table>
+      <thead><tr>
+        <th>Redni broj</th>
+        <th>Gradilište</th>
+        <th style="text-align:center;">Rb.</th>
+        <th>Broj poz. spec.</th>
+        <th>Opis</th>
+        <th>Jed. mere</th>
+        <th style="text-align:right;">Količina</th>
+        <th style="text-align:right;">Od postojećeg</th>
+        <th style="text-align:right;">Za nabavku</th>
+        <th>Rok isporuke</th>
+        <th style="text-align:center;">Atest</th>
+        <th>Status</th>
+        <th>Datum isporuke</th>
+      </tr></thead>
+      <tbody id="tbody"></tbody>
+    </table>
+  </div>
+
+<script>
+const SCRIPT_URL = ${JSON.stringify(SCRIPT_URL)};
+const NALOG = ${JSON.stringify(nalog)};
+let REQUESTS = ${JSON.stringify(requestsData)};
+
+function escapeHtml(s){ return String(s??'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function formatDatumSr(iso){
+  if(!iso) return '—';
+  const parts = String(iso).split('-');
+  if(parts.length !== 3) return iso;
+  return parts[2] + '.' + parts[1] + '.' + parts[0] + '.';
+}
+function statusKlasa(status){
+  if(status === 'poručeno') return 'status-porucena';
+  if(status === 'isporučeno') return 'status-isporucena';
+  return 'status-nije';
+}
+
+function render(){
+  const tbody = document.getElementById('tbody');
+  let html = '';
+  REQUESTS.forEach((r, reqIdx) => {
+    (r.stavke || []).forEach((s, idx) => {
+      if(!s.status) s.status = 'nije poručeno';
+      html += '<tr class="' + statusKlasa(s.status) + '">' +
+        '<td style="font-family:\\'IBM Plex Mono\\',monospace;white-space:nowrap;">' + escapeHtml(r.redniBroj) + '</td>' +
+        '<td>' + escapeHtml(r.gradilisteNaziv) + '</td>' +
+        '<td style="text-align:center;">' + (idx+1) + '</td>' +
+        '<td>' + escapeHtml(s.sifra || '—') + '</td>' +
+        '<td>' + escapeHtml(s.opis) + '</td>' +
+        '<td>' + escapeHtml(s.jm) + '</td>' +
+        '<td class="num">' + escapeHtml(s.kolicina) + '</td>' +
+        '<td class="num">' + escapeHtml(s.odPostojeceg || '0') + '</td>' +
+        '<td class="num" style="font-weight:600;">' + escapeHtml(s.zaNabavku !== undefined ? s.zaNabavku : '') + '</td>' +
+        '<td>' + escapeHtml(formatDatumSr(s.rok)) + '</td>' +
+        '<td style="text-align:center;">' + escapeHtml(s.atest || '—') + '</td>' +
+        '<td><select data-req="' + reqIdx + '" data-idx="' + idx + '" data-field="status">' +
+          '<option value="nije poručeno"' + (s.status==='nije poručeno'?' selected':'') + '>nije poručeno</option>' +
+          '<option value="poručeno"' + (s.status==='poručeno'?' selected':'') + '>poručeno</option>' +
+          '<option value="isporučeno"' + (s.status==='isporučeno'?' selected':'') + '>isporučeno</option>' +
+        '</select></td>' +
+        '<td><input type="date" data-req="' + reqIdx + '" data-idx="' + idx + '" data-field="datumIsporuke" value="' + escapeHtml(s.datumIsporuke || '') + '"></td>' +
+        '</tr>';
+    });
+  });
+  tbody.innerHTML = html;
+  tbody.querySelectorAll('[data-field]').forEach(el => {
+    el.addEventListener('change', onFieldChange);
+  });
+}
+
+async function onFieldChange(e){
+  const reqIdx = parseInt(e.target.dataset.req, 10);
+  const idx = parseInt(e.target.dataset.idx, 10);
+  const field = e.target.dataset.field;
+  const value = e.target.value;
+  const req = REQUESTS[reqIdx];
+  req.stavke[idx][field] = value;
+
+  const statusMsg = document.getElementById('statusMsg');
+  statusMsg.textContent = 'Čuvanje…';
+  try{
+    const res = await fetch(SCRIPT_URL, {
+      method: 'POST',
+      body: JSON.stringify({ action: 'update', id: req.id, nalog: NALOG, stavke: req.stavke })
+    });
+    const result = await res.json();
+    if(result && result.error){
+      statusMsg.textContent = 'Greška: ' + result.error;
+    }else{
+      statusMsg.textContent = 'Sačuvano ' + new Date().toLocaleTimeString('sr-RS');
+    }
+  }catch(err){
+    statusMsg.textContent = 'Greška pri čuvanju — proveri konekciju.';
+  }
+  render();
+}
+
+render();
+<\/script>
 </body>
 </html>`;
 
