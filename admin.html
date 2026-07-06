@@ -169,6 +169,40 @@ td{padding:8px 8px 8px 0;border-bottom:1px solid var(--line-soft);font-size:13px
     <h2>Postojeći nalozi</h2>
     <div id="nalogListWrap"><div class="loading">Učitavanje…</div></div>
   </div>
+
+  <!-- KORISNICI -->
+  <div class="card">
+    <h2 id="korisnikFormTitle">Novi korisnik</h2>
+    <div class="row2">
+      <div class="field">
+        <label for="kUsername">Korisničko ime</label>
+        <input type="text" id="kUsername" placeholder="npr. petar.petrovic">
+      </div>
+      <div class="field">
+        <label for="kPassword" id="kPasswordLabel">Lozinka</label>
+        <input type="text" id="kPassword" placeholder="npr. tajna123">
+      </div>
+    </div>
+    <div class="hint" id="kPasswordHint" style="display:none;margin-top:-8px;margin-bottom:14px;">Ostavi prazno da zadržiš postojeću lozinku.</div>
+    <div class="checkbox-row">
+      <input type="checkbox" id="kSva">
+      <label for="kSva">Pristup svim gradilištima</label>
+    </div>
+    <div class="field" id="kGradilistaWrap">
+      <label>Gradilišta kojima korisnik sme da pristupi</label>
+      <div class="chip-grid" id="kGradilistaGrid"><div class="loading">Učitavanje…</div></div>
+    </div>
+    <div class="err" id="kErr"></div>
+    <div style="display:flex;gap:8px;">
+      <button type="button" class="btn btn-primary" id="kSaveBtn">Dodaj korisnika</button>
+      <button type="button" class="btn-ghost" id="kCancelBtn" style="display:none;">Otkaži</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Postojeći korisnici</h2>
+    <div id="korisnikListWrap"><div class="loading">Učitavanje…</div></div>
+  </div>
 </div>
 
 <script>
@@ -182,8 +216,10 @@ function escapeHtml(s){ return String(s??'').replace(/[&<>"']/g, c=>({'&':'&amp;
 
 let GRADILISTA = [];
 let NALOZI = [];
+let KORISNICI = [];
 let editingGradilisteKod = null;
 let editingNalogKod = null;
+let editingKorisnikUsername = null;
 
 async function apiGet(action, params){
   const qs = new URLSearchParams({ action, ...(params||{}) });
@@ -201,18 +237,23 @@ async function loadAll(){
   if(SCRIPT_URL.includes('PASTE_YOUR')){
     $('gradilisteListWrap').innerHTML = '<div class="empty">Nije podešen SCRIPT_URL u fajlu admin.html.</div>';
     $('nalogListWrap').innerHTML = '<div class="empty">Nije podešen SCRIPT_URL u fajlu admin.html.</div>';
+    $('korisnikListWrap').innerHTML = '<div class="empty">Nije podešen SCRIPT_URL u fajlu admin.html.</div>';
     return;
   }
   try{
-    const [gData, nData] = await Promise.all([apiGet('listGradilista'), apiGet('listNalozi')]);
+    const [gData, nData, kData] = await Promise.all([apiGet('listGradilista'), apiGet('listNalozi'), apiGet('listKorisnici')]);
     GRADILISTA = (gData.gradilista || []).map(g => ({ kod:String(g.kod), naziv:g.naziv }));
     NALOZI = (nData.nalozi || []).map(n => ({ kod:n.kod, opis:n.opis, gradiliste:n.gradiliste }));
+    KORISNICI = (kData.korisnici || []).map(k => ({ username:k.username, gradiliste:k.gradiliste }));
     renderGradilistaList();
     renderNalogGrid();
     renderNalogList();
+    renderKorisnikGrid();
+    renderKorisnikList();
   }catch(e){
     $('gradilisteListWrap').innerHTML = '<div class="empty">Greška pri učitavanju. Proveri SCRIPT_URL i konekciju.</div>';
     $('nalogListWrap').innerHTML = '<div class="empty">Greška pri učitavanju. Proveri SCRIPT_URL i konekciju.</div>';
+    $('korisnikListWrap').innerHTML = '<div class="empty">Greška pri učitavanju. Proveri SCRIPT_URL i konekciju.</div>';
   }
 }
 
@@ -436,6 +477,132 @@ $('nSaveBtn').addEventListener('click', async ()=>{
     $('nErr').textContent = 'Čuvanje nije uspelo. Proveri konekciju.';
   }
   $('nSaveBtn').disabled = false;
+});
+
+/* ---------- KORISNICI ---------- */
+
+function renderKorisnikGrid(){
+  const grid = $('kGradilistaGrid');
+  const sorted = [...GRADILISTA].sort((a,b)=> a.kod.localeCompare(b.kod));
+  if(sorted.length === 0){
+    grid.innerHTML = '<div class="empty">Prvo dodaj bar jedno gradilište.</div>';
+    return;
+  }
+  grid.innerHTML = sorted.map(g => `
+    <label><input type="checkbox" value="${g.kod}"> ${escapeHtml(g.kod)} — ${escapeHtml(g.naziv)}</label>
+  `).join('');
+}
+
+$('kSva').addEventListener('change', ()=>{
+  $('kGradilistaWrap').style.display = $('kSva').checked ? 'none' : 'block';
+});
+
+function renderKorisnikList(){
+  const wrap = $('korisnikListWrap');
+  if(KORISNICI.length === 0){
+    wrap.innerHTML = '<div class="empty">Još uvek nema korisnika.</div>';
+    return;
+  }
+  const sorted = [...KORISNICI].sort((a,b)=> a.username.localeCompare(b.username));
+  wrap.innerHTML = `
+    <table>
+      <thead><tr><th style="width:180px;">Korisničko ime</th><th>Dozvoljena gradilišta</th><th style="width:140px;"></th></tr></thead>
+      <tbody>
+        ${sorted.map(k => `
+          <tr>
+            <td style="font-family:'IBM Plex Mono',monospace;">${escapeHtml(k.username)}</td>
+            <td>${renderGradilistaTags(k.gradiliste)}</td>
+            <td class="row-actions">
+              <button class="btn-ghost" data-edit-k="${escapeHtml(k.username)}">Uredi</button>
+              <button class="btn-ghost" data-del-k="${escapeHtml(k.username)}">Obriši</button>
+            </td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>
+  `;
+  wrap.querySelectorAll('[data-edit-k]').forEach(b => b.addEventListener('click', e => openEditKorisnik(e.target.dataset.editK)));
+  wrap.querySelectorAll('[data-del-k]').forEach(b => b.addEventListener('click', async e => {
+    const username = e.target.dataset.delK;
+    if(!confirm(`Obrisati korisnika ${username}?`)) return;
+    try{
+      await apiPost('deleteKorisnik', { username });
+      await loadAll();
+    }catch(err){
+      alert('Brisanje nije uspelo.');
+    }
+  }));
+}
+
+function openEditKorisnik(username){
+  const k = KORISNICI.find(x => x.username === username);
+  if(!k) return;
+  editingKorisnikUsername = username;
+  $('kUsername').value = k.username;
+  $('kUsername').disabled = true;
+  $('kPassword').value = '';
+  $('kPasswordLabel').textContent = 'Nova lozinka';
+  $('kPasswordHint').style.display = 'block';
+  const isSva = k.gradiliste === null;
+  $('kSva').checked = isSva;
+  $('kGradilistaWrap').style.display = isSva ? 'none' : 'block';
+  $('kGradilistaGrid').querySelectorAll('input[type=checkbox]').forEach(cb=>{
+    cb.checked = !isSva && k.gradiliste.includes(cb.value);
+  });
+  $('korisnikFormTitle').textContent = `Izmena korisnika ${username}`;
+  $('kSaveBtn').textContent = 'Sačuvaj izmene';
+  $('kCancelBtn').style.display = 'inline-block';
+  $('kUsername').closest('.card').scrollIntoView({ behavior:'smooth', block:'start' });
+}
+
+function resetKorisnikForm(){
+  editingKorisnikUsername = null;
+  $('kUsername').value = '';
+  $('kUsername').disabled = false;
+  $('kPassword').value = '';
+  $('kPasswordLabel').textContent = 'Lozinka';
+  $('kPasswordHint').style.display = 'none';
+  $('kSva').checked = false;
+  $('kGradilistaWrap').style.display = 'block';
+  $('kGradilistaGrid').querySelectorAll('input[type=checkbox]').forEach(cb => cb.checked = false);
+  $('kErr').textContent = '';
+  $('korisnikFormTitle').textContent = 'Novi korisnik';
+  $('kSaveBtn').textContent = 'Dodaj korisnika';
+  $('kCancelBtn').style.display = 'none';
+}
+
+$('kCancelBtn').addEventListener('click', resetKorisnikForm);
+
+$('kSaveBtn').addEventListener('click', async ()=>{
+  $('kErr').textContent = '';
+  const username = $('kUsername').value.trim();
+  const password = $('kPassword').value;
+  if(!username){
+    $('kErr').textContent = 'Korisničko ime je obavezno.';
+    return;
+  }
+  if(!editingKorisnikUsername && !password){
+    $('kErr').textContent = 'Lozinka je obavezna za novog korisnika.';
+    return;
+  }
+  const isSva = $('kSva').checked;
+  const checked = [...$('kGradilistaGrid').querySelectorAll('input[type=checkbox]:checked')].map(cb => cb.value);
+  const gradiliste = isSva ? null : checked;
+
+  $('kSaveBtn').disabled = true;
+  try{
+    const action = editingKorisnikUsername ? 'updateKorisnik' : 'addKorisnik';
+    const result = await apiPost(action, { username, password, gradiliste });
+    if(result && result.error){
+      $('kErr').textContent = result.error;
+    }else{
+      resetKorisnikForm();
+      await loadAll();
+    }
+  }catch(e){
+    $('kErr').textContent = 'Čuvanje nije uspelo. Proveri konekciju.';
+  }
+  $('kSaveBtn').disabled = false;
 });
 
 loadAll();
