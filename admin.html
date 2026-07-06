@@ -316,41 +316,29 @@ async function doLogin(){
   $('loginBtn').disabled = true;
   $('loginSpinner').classList.add('visible');
   $('loginErr').classList.remove('visible');
+
+  // 1. Uvek prvo proveravamo lokalni fallback (radi i sa starim i novim AppScript-om)
+  const localMatch = FALLBACK_ADMINS.find(a => a.username === username && a.password === password);
+  if(localMatch){
+    loginSuccess(username);
+    return;
+  }
+
+  // 2. Lokalni fallback nije prošao — probamo Google Sheets (novi AppScript)
   try{
     const result = await apiPost('checkLogin', { username, password });
-
     if(result && result.ok){
-      // Novi AppScript — provjera uspela u Google Sheets
       loginSuccess(username);
       return;
     }
-
-    if(result && result.error === 'Nepoznata akcija.'){
-      // Stari AppScript još nije ažuriran — koristimo lokalni fallback
-      const match = FALLBACK_ADMINS.find(a => a.username === username && a.password === password);
-      if(match){
-        loginSuccess(username);
-        return;
-      }else{
-        loginFailed('Pogrešno korisničko ime ili lozinka.');
-        return;
-      }
-    }
-
-    // Akcija je poznata ali vraća grešku (npr. pogrešni podaci)
-    loginFailed((result && result.error) ? result.error : 'Pogrešno korisničko ime ili lozinka.');
-
+    // API vraća grešku (pogrešni podaci ili stari AppScript)
+    const raw = (result && result.error) ? String(result.error) : '';
+    const msg = raw && !raw.toLowerCase().includes('nepoznata')
+      ? raw
+      : 'Pogrešno korisničko ime ili lozinka.';
+    loginFailed(msg);
   }catch(e){
-    // Mreža nije dostupna — probamo lokalni fallback
-    const match = FALLBACK_ADMINS.find(a => a.username === username && a.password === password);
-    if(match){
-      loginSuccess(username);
-    }else{
-      $('loginErr').textContent = 'Greška pri povezivanju sa serverom. Proveri internet konekciju.';
-      $('loginErr').classList.add('visible');
-      $('loginBtn').disabled = false;
-      $('loginSpinner').classList.remove('visible');
-    }
+    loginFailed('Greška pri povezivanju sa serverom. Proveri internet konekciju.');
   }
 }
 
