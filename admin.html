@@ -7,30 +7,15 @@
 @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600;700&display=swap');
 
 :root{
-  --paper:#EAEBE4;
-  --card:#F7F7F2;
-  --ink:#1E2A2E;
-  --ink-soft:#4A5559;
-  --steel:#35566B;
-  --steel-dark:#243D4C;
-  --safety:#C0762A;
-  --line:#CBCFC5;
-  --line-soft:#DEE0D8;
-  --danger:#A8432F;
-  --good:#3F6B4A;
-  --radius:3px;
+  --paper:#EAEBE4;--card:#F7F7F2;--ink:#1E2A2E;--ink-soft:#4A5559;
+  --steel:#35566B;--steel-dark:#243D4C;--safety:#C0762A;
+  --line:#CBCFC5;--line-soft:#DEE0D8;--danger:#A8432F;--good:#3F6B4A;--radius:3px;
 }
 *{box-sizing:border-box;}
-body{
-  margin:0;background:var(--paper);color:var(--ink);
-  font-family:'IBM Plex Sans',sans-serif;font-size:14px;-webkit-font-smoothing:antialiased;
-}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:'IBM Plex Sans',sans-serif;font-size:14px;-webkit-font-smoothing:antialiased;}
 .app{max-width:960px;margin:0 auto;padding:28px 24px 60px;}
 
-.masthead{
-  display:flex;justify-content:space-between;align-items:flex-end;
-  border-bottom:3px solid var(--ink);padding-bottom:14px;margin-bottom:26px;flex-wrap:wrap;gap:10px;
-}
+.masthead{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:3px solid var(--ink);padding-bottom:14px;margin-bottom:26px;flex-wrap:wrap;gap:10px;}
 .masthead h1{font-family:'Space Grotesk',sans-serif;font-size:24px;font-weight:700;letter-spacing:0.02em;margin:0;text-transform:uppercase;}
 .masthead .sub{font-family:'IBM Plex Mono',monospace;font-size:11.5px;color:var(--ink-soft);letter-spacing:0.04em;}
 .masthead-right{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
@@ -40,12 +25,10 @@ body{
 
 .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:20px 22px;margin-bottom:24px;}
 .card h2{font-family:'Space Grotesk',sans-serif;font-size:14px;text-transform:uppercase;letter-spacing:0.08em;margin:0 0 16px;padding-bottom:10px;border-bottom:1px solid var(--line-soft);color:var(--steel-dark);}
+.card .section-note{font-size:12px;color:var(--ink-soft);margin:-8px 0 14px;padding-bottom:10px;border-bottom:1px dashed var(--line-soft);}
 
 label{display:block;font-size:11.5px;font-weight:600;color:var(--ink-soft);text-transform:uppercase;letter-spacing:0.05em;margin:0 0 5px;}
-input[type=text],input[type=number],input[type=password],select,textarea{
-  width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:var(--radius);
-  background:#fff;font-family:'IBM Plex Sans',sans-serif;font-size:13.5px;color:var(--ink);
-}
+input[type=text],input[type=number],input[type=password],select,textarea{width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:var(--radius);background:#fff;font-family:'IBM Plex Sans',sans-serif;font-size:13.5px;color:var(--ink);}
 input:focus,select:focus,textarea:focus{outline:2px solid var(--steel);outline-offset:1px;}
 .field{margin-bottom:14px;}
 .row2{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
@@ -57,11 +40,7 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--steel);outline-o
 .checkbox-row input[type=checkbox]{width:auto;}
 .checkbox-row label{margin:0;text-transform:none;font-weight:500;font-size:13px;letter-spacing:0;color:var(--ink);}
 
-.chip-grid{
-  display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));
-  gap:6px 10px;padding:10px;border:1px solid var(--line-soft);border-radius:var(--radius);
-  background:#fff;max-height:220px;overflow-y:auto;
-}
+.chip-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:6px 10px;padding:10px;border:1px solid var(--line-soft);border-radius:var(--radius);background:#fff;max-height:220px;overflow-y:auto;}
 .chip-grid label{display:flex;align-items:center;gap:6px;font-size:12.5px;text-transform:none;font-weight:500;color:var(--ink);margin:0;cursor:pointer;}
 .chip-grid input{width:auto;}
 
@@ -90,28 +69,26 @@ td{padding:8px 8px 8px 0;border-bottom:1px solid var(--line-soft);font-size:13px
 .info-msg{font-size:12px;color:var(--good);font-weight:600;background:rgba(63,107,74,0.08);border:1px solid rgba(63,107,74,0.25);border-radius:var(--radius);padding:9px 12px;margin-bottom:16px;display:none;}
 .info-msg.visible{display:block;}
 
-/* ====== LOGIN OVERLAY ====== */
+/* LOGIN OVERLAY */
 .login-overlay{position:fixed;inset:0;background:var(--paper);display:flex;align-items:center;justify-content:center;z-index:999;padding:20px;}
 .login-box{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:36px 40px 32px;width:100%;max-width:380px;}
-.login-box .login-title{font-family:'Space Grotesk',sans-serif;font-size:18px;font-weight:700;text-transform:uppercase;letter-spacing:0.04em;margin:0 0 4px;}
-.login-box .login-sub{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--ink-soft);letter-spacing:0.04em;margin-bottom:28px;}
+.login-title{font-family:'Space Grotesk',sans-serif;font-size:18px;font-weight:700;text-transform:uppercase;letter-spacing:0.04em;margin:0 0 4px;}
+.login-sub{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--ink-soft);letter-spacing:0.04em;margin-bottom:28px;}
 .login-divider{border:none;border-top:1px solid var(--line-soft);margin:0 0 22px;}
 .login-err{font-size:12px;color:var(--danger);font-weight:600;background:rgba(168,67,47,0.08);border:1px solid rgba(168,67,47,0.25);border-radius:var(--radius);padding:9px 12px;margin-bottom:16px;display:none;}
 .login-err.visible{display:block;}
 .login-box .btn-primary{width:100%;margin-top:6px;font-size:13.5px;padding:12px;}
-.login-spinner{display:none;font-size:12px;color:var(--ink-soft);text-align:center;margin-top:10px;}
-.login-spinner.visible{display:block;}
 </style>
 </head>
 <body>
 
-<!-- ====== LOGIN OVERLAY ====== -->
+<!-- LOGIN OVERLAY -->
 <div class="login-overlay" id="loginOverlay">
   <div class="login-box">
     <div class="login-title">Administracija</div>
-    <div class="login-sub">Zahtev za nabavku — pristup samo za administratore</div>
+    <div class="login-sub">Zahtev za nabavku — samo za administratora</div>
     <hr class="login-divider">
-    <div class="login-err" id="loginErr"></div>
+    <div class="login-err" id="loginErr">Pogrešno korisničko ime ili lozinka.</div>
     <div class="field">
       <label for="loginUser">Korisničko ime</label>
       <input type="text" id="loginUser" autocomplete="username" autofocus>
@@ -121,11 +98,10 @@ td{padding:8px 8px 8px 0;border-bottom:1px solid var(--line-soft);font-size:13px
       <input type="password" id="loginPass" autocomplete="current-password">
     </div>
     <button type="button" class="btn btn-primary" id="loginBtn">Prijavi se</button>
-    <div class="login-spinner" id="loginSpinner">Proveravanje…</div>
   </div>
 </div>
 
-<!-- ====== GLAVNI SADRŽAJ ====== -->
+<!-- GLAVNI SADRŽAJ -->
 <div class="app" id="app" style="display:none;">
   <div class="masthead">
     <div>
@@ -133,15 +109,16 @@ td{padding:8px 8px 8px 0;border-bottom:1px solid var(--line-soft);font-size:13px
       <div class="sub">Gradilišta, nalozi i korisnici — Zahtev za nabavku</div>
     </div>
     <div class="masthead-right">
-      <span class="current-user-badge" id="currentUserBadge"></span>
+      <span class="current-user-badge">▸ admin</span>
       <a class="back-link" href="index.html">← Nazad na glavnu stranicu</a>
       <button type="button" class="btn-logout" id="logoutBtn">Odjavi se</button>
     </div>
   </div>
 
-  <!-- ======= KORISNICI — FORMA ======= -->
+  <!-- KORISNICI — za pristup stranici "Zahtev za nabavku" (index.html) -->
   <div class="card">
     <h2 id="uFormTitle">Novi korisnik</h2>
+    <p class="section-note">Ovi korisnici mogu da se prijave na <strong>stranicu "Zahtev za nabavku"</strong> (index.html). Na ovu admin stranicu može samo <code>admin</code>.</p>
     <div class="info-msg" id="uInfo"></div>
     <div class="row3">
       <div class="field">
@@ -164,13 +141,12 @@ td{padding:8px 8px 8px 0;border-bottom:1px solid var(--line-soft);font-size:13px
     </div>
   </div>
 
-  <!-- ======= KORISNICI — LISTA ======= -->
   <div class="card">
-    <h2>Postojeći korisnici</h2>
+    <h2>Postojeći korisnici (za index.html)</h2>
     <div id="userListWrap"><div class="loading">Učitavanje…</div></div>
   </div>
 
-  <!-- ======= GRADILIŠTA — FORMA ======= -->
+  <!-- GRADILIŠTA -->
   <div class="card">
     <h2 id="gradilisteFormTitle">Novo gradilište</h2>
     <div class="row2">
@@ -190,13 +166,12 @@ td{padding:8px 8px 8px 0;border-bottom:1px solid var(--line-soft);font-size:13px
     </div>
   </div>
 
-  <!-- ======= GRADILIŠTA — LISTA ======= -->
   <div class="card">
     <h2>Postojeća gradilišta</h2>
     <div id="gradilisteListWrap"><div class="loading">Učitavanje…</div></div>
   </div>
 
-  <!-- ======= NALOZI — FORMA ======= -->
+  <!-- NALOZI -->
   <div class="card">
     <h2 id="nalogFormTitle">Novi nalog za realizaciju</h2>
     <div class="row2">
@@ -225,7 +200,6 @@ td{padding:8px 8px 8px 0;border-bottom:1px solid var(--line-soft);font-size:13px
     </div>
   </div>
 
-  <!-- ======= NALOZI — LISTA ======= -->
   <div class="card">
     <h2>Postojeći nalozi</h2>
     <div id="nalogListWrap"><div class="loading">Učitavanje…</div></div>
@@ -233,26 +207,57 @@ td{padding:8px 8px 8px 0;border-bottom:1px solid var(--line-soft);font-size:13px
 </div>
 
 <script>
-/* ========================================================================
-   PODEŠAVANJE — isti SCRIPT_URL kao u index.html
-   ======================================================================== */
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycby9zpoac93iRvD7gavKdgKel7XaT_lmDBTfTc42-M0iKo3LIj7MSuVxXN36sTUDpBcU/exec";
 
+/* ============================================================
+   ADMIN LOGIN — samo hardkodovani admin/Nabavka2025
+   Za promenu: izmeni ADMIN_USER i ADMIN_PASS ovde u fajlu.
+   ============================================================ */
+const ADMIN_USER = 'admin';
+const ADMIN_PASS = 'Nabavka2025';
 const SESSION_KEY = 'zn_admin_session';
-
-// Podrazumevani admin — koristi se kao REZERVA dok ne ažuriraš AppScript.
-// Kada ažuriraš AppScript i sheet "Korisnici" bude kreiran, ovaj nalog
-// možeš promeniti ili obrisati direktno kroz sekciju "Korisnici" u adminu.
-const FALLBACK_ADMINS = [
-  { username: 'admin', password: 'Nabavka2025' }
-];
 
 const $ = id => document.getElementById(id);
 function escapeHtml(s){ return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 
-/* ========================================================================
+function isLoggedIn(){ return sessionStorage.getItem(SESSION_KEY) === '1'; }
+
+function showApp(){
+  $('loginOverlay').style.display = 'none';
+  $('app').style.display = 'block';
+}
+function showLogin(){
+  $('loginOverlay').style.display = 'flex';
+  $('app').style.display = 'none';
+  $('loginUser').value = '';
+  $('loginPass').value = '';
+  $('loginErr').classList.remove('visible');
+  setTimeout(()=> $('loginUser').focus(), 50);
+}
+
+function doLogin(){
+  const user = $('loginUser').value.trim();
+  const pass = $('loginPass').value;
+  if(user === ADMIN_USER && pass === ADMIN_PASS){
+    sessionStorage.setItem(SESSION_KEY, '1');
+    showApp();
+    loadAll();
+    loadUsers();
+  }else{
+    $('loginErr').classList.add('visible');
+    $('loginPass').value = '';
+    $('loginPass').focus();
+  }
+}
+
+$('loginBtn').addEventListener('click', doLogin);
+$('loginPass').addEventListener('keydown', e => { if(e.key==='Enter') doLogin(); });
+$('loginUser').addEventListener('keydown', e => { if(e.key==='Enter') $('loginPass').focus(); });
+$('logoutBtn').addEventListener('click', ()=>{ sessionStorage.removeItem(SESSION_KEY); showLogin(); });
+
+/* ============================================================
    API HELPERS
-   ======================================================================== */
+   ============================================================ */
 async function apiGet(action, params){
   const qs = new URLSearchParams({ action, ...(params||{}) });
   const res = await fetch(`${SCRIPT_URL}?${qs.toString()}`);
@@ -265,95 +270,9 @@ async function apiPost(action, payload){
   return res.json();
 }
 
-/* ========================================================================
-   SESSION / LOGIN
-   ======================================================================== */
-function currentUser(){ return sessionStorage.getItem(SESSION_KEY) || null; }
-function isLoggedIn(){ return !!currentUser(); }
-
-function showApp(){
-  $('loginOverlay').style.display = 'none';
-  $('app').style.display = 'block';
-  $('currentUserBadge').textContent = currentUser() ? ('▸ ' + currentUser()) : '';
-}
-
-function showLogin(){
-  $('loginOverlay').style.display = 'flex';
-  $('app').style.display = 'none';
-  $('loginUser').value = '';
-  $('loginPass').value = '';
-  $('loginErr').textContent = '';
-  $('loginErr').classList.remove('visible');
-  $('loginSpinner').classList.remove('visible');
-  $('loginBtn').disabled = false;
-  setTimeout(()=> $('loginUser').focus(), 50);
-}
-
-function loginSuccess(username){
-  sessionStorage.setItem(SESSION_KEY, username);
-  showApp();
-  loadAll();
-  loadUsers();
-}
-
-function loginFailed(msg){
-  $('loginErr').textContent = msg || 'Pogrešno korisničko ime ili lozinka.';
-  $('loginErr').classList.add('visible');
-  $('loginPass').value = '';
-  $('loginPass').focus();
-  $('loginBtn').disabled = false;
-  $('loginSpinner').classList.remove('visible');
-}
-
-async function doLogin(){
-  const username = $('loginUser').value.trim();
-  const password = $('loginPass').value;
-  if(!username || !password){
-    $('loginErr').textContent = 'Unesite korisničko ime i lozinku.';
-    $('loginErr').classList.add('visible');
-    return;
-  }
-  $('loginBtn').disabled = true;
-  $('loginSpinner').classList.add('visible');
-  $('loginErr').classList.remove('visible');
-
-  // 1. Uvek prvo proveravamo lokalni fallback (radi i sa starim i novim AppScript-om)
-  const localMatch = FALLBACK_ADMINS.find(a => a.username === username && a.password === password);
-  if(localMatch){
-    loginSuccess(username);
-    return;
-  }
-
-  // 2. Lokalni fallback nije prošao — probamo Google Sheets (novi AppScript)
-  try{
-    const result = await apiPost('checkLogin', { username, password });
-    if(result && result.ok){
-      loginSuccess(username);
-      return;
-    }
-    // API vraća grešku (pogrešni podaci ili stari AppScript)
-    const raw = (result && result.error) ? String(result.error) : '';
-    const msg = raw && !raw.toLowerCase().includes('nepoznata')
-      ? raw
-      : 'Pogrešno korisničko ime ili lozinka.';
-    loginFailed(msg);
-  }catch(e){
-    loginFailed('Greška pri povezivanju sa serverom. Proveri internet konekciju.');
-  }
-}
-
-$('loginBtn').addEventListener('click', doLogin);
-$('loginPass').addEventListener('keydown', e => { if(e.key==='Enter') doLogin(); });
-$('loginUser').addEventListener('keydown', e => { if(e.key==='Enter') $('loginPass').focus(); });
-
-$('logoutBtn').addEventListener('click', ()=>{
-  sessionStorage.removeItem(SESSION_KEY);
-  showLogin();
-});
-
-/* ========================================================================
-   UPRAVLJANJE KORISNICIMA
-   ======================================================================== */
+/* ============================================================
+   UPRAVLJANJE KORISNICIMA (za index.html)
+   ============================================================ */
 let editingUsername = null;
 
 async function loadUsers(){
@@ -362,324 +281,213 @@ async function loadUsers(){
     const data = await apiGet('listUsers');
     renderUserList(data.users || []);
   }catch(e){
-    $('userListWrap').innerHTML = '<div class="empty">Greška pri učitavanju korisnika.</div>';
+    $('userListWrap').innerHTML = '<div class="empty">Greška pri učitavanju. Ažuriraj AppScript pa pokušaj ponovo.</div>';
   }
 }
 
 function renderUserList(users){
   const wrap = $('userListWrap');
-  if(users.length === 0){
-    wrap.innerHTML = '<div class="empty">Nema korisnika.</div>';
-    return;
-  }
-  const me = currentUser();
+  if(!users.length){ wrap.innerHTML = '<div class="empty">Nema korisnika. Dodaj prvog iznad.</div>'; return; }
   wrap.innerHTML = `
     <table>
-      <thead><tr>
-        <th>Korisničko ime</th>
-        <th style="width:230px;"></th>
-      </tr></thead>
-      <tbody>
-        ${users.map(u => `
-          <tr>
-            <td style="font-family:'IBM Plex Mono',monospace;">
-              ${escapeHtml(u.username)}
-              ${u.username === me
-                ? '<span style="font-size:10.5px;color:var(--steel);margin-left:8px;font-family:\'IBM Plex Sans\',sans-serif;">(ti si prijavljen/a)</span>'
-                : ''}
-            </td>
-            <td class="row-actions">
-              <button class="btn-ghost" data-edit-u="${escapeHtml(u.username)}">Promeni lozinku</button>
-              ${users.length > 1
-                ? `<button class="btn-danger-ghost" data-del-u="${escapeHtml(u.username)}">Obriši</button>`
-                : '<span style="font-size:11px;color:var(--ink-soft);">jedini admin</span>'}
-            </td>
-          </tr>
-        `).join('')}
-      </tbody>
-    </table>
-  `;
-  wrap.querySelectorAll('[data-edit-u]').forEach(b =>
-    b.addEventListener('click', e => openEditUser(e.target.dataset.editU))
-  );
-  wrap.querySelectorAll('[data-del-u]').forEach(b =>
-    b.addEventListener('click', e => deleteUser(e.target.dataset.delU))
-  );
-}
-
-function openEditUser(username){
-  editingUsername = username;
-  $('uUsername').value = username;
-  $('uUsername').disabled = true;
-  $('uPassword').value = '';
-  $('uPassword2').value = '';
-  $('uFormTitle').textContent = `Promena lozinke za: ${username}`;
-  $('uSaveBtn').textContent = 'Sačuvaj novu lozinku';
-  $('uCancelBtn').style.display = 'inline-block';
-  $('uErr').textContent = '';
-  $('uInfo').classList.remove('visible');
-  $('uUsername').closest('.card').scrollIntoView({ behavior:'smooth', block:'start' });
-  $('uPassword').focus();
-}
-
-function resetUserForm(){
-  editingUsername = null;
-  $('uUsername').value = '';
-  $('uUsername').disabled = false;
-  $('uPassword').value = '';
-  $('uPassword2').value = '';
-  $('uErr').textContent = '';
-  $('uInfo').classList.remove('visible');
-  $('uFormTitle').textContent = 'Novi korisnik';
-  $('uSaveBtn').textContent = 'Dodaj korisnika';
-  $('uCancelBtn').style.display = 'none';
-}
-
-async function deleteUser(username){
-  const me = currentUser();
-  if(username === me){
-    alert('Ne možeš obrisati nalog na koji si trenutno prijavljen/a.');
-    return;
-  }
-  if(!confirm(`Obrisati korisnika "${username}"? Ova radnja se ne može poništiti.`)) return;
-  try{
-    const result = await apiPost('deleteUser', { username });
-    if(result && result.error){
-      alert('Greška: ' + result.error);
-    }else{
-      await loadUsers();
-    }
-  }catch(e){
-    alert('Brisanje nije uspelo. Proveri internet konekciju.');
-  }
-}
-
-$('uCancelBtn').addEventListener('click', resetUserForm);
-
-$('uSaveBtn').addEventListener('click', async ()=>{
-  $('uErr').textContent = '';
-  $('uInfo').classList.remove('visible');
-
-  const username = $('uUsername').value.trim();
-  const password = $('uPassword').value;
-  const password2 = $('uPassword2').value;
-
-  if(!username){
-    $('uErr').textContent = 'Korisničko ime je obavezno.'; return;
-  }
-  if(!/^[a-zA-Z0-9._\-]+$/.test(username)){
-    $('uErr').textContent = 'Korisničko ime sme sadržati samo slova, brojeve, tačke, crtice i donje crte.'; return;
-  }
-  if(password.length < 6){
-    $('uErr').textContent = 'Lozinka mora imati najmanje 6 karaktera.'; return;
-  }
-  if(password !== password2){
-    $('uErr').textContent = 'Lozinke se ne poklapaju.'; $('uPassword2').focus(); return;
-  }
-
-  $('uSaveBtn').disabled = true;
-  try{
-    const action = editingUsername ? 'updateUserPassword' : 'addUser';
-    const result = await apiPost(action, { username, password });
-    if(result && result.error){
-      $('uErr').textContent = result.error;
-    }else{
-      const msg = editingUsername
-        ? `Lozinka za "${username}" je uspešno promenjena.`
-        : `Korisnik "${username}" je uspešno dodat.`;
-      $('uInfo').textContent = msg;
-      $('uInfo').classList.add('visible');
-      resetUserForm();
-      await loadUsers();
-    }
-  }catch(e){
-    $('uErr').textContent = 'Greška pri čuvanju. Proveri internet konekciju.';
-  }
-  $('uSaveBtn').disabled = false;
-});
-
-/* ========================================================================
-   GRADILIŠTA + NALOZI — UČITAVANJE
-   ======================================================================== */
-let GRADILISTA = [];
-let NALOZI = [];
-let editingGradilisteKod = null;
-let editingNalogKod = null;
-
-async function loadAll(){
-  try{
-    const [gData, nData] = await Promise.all([apiGet('listGradilista'), apiGet('listNalozi')]);
-    GRADILISTA = (gData.gradilista || []).map(g => ({ kod:String(g.kod), naziv:g.naziv }));
-    NALOZI = (nData.nalozi || []).map(n => ({ kod:n.kod, opis:n.opis, gradiliste:n.gradiliste }));
-    renderGradilistaList();
-    renderNalogGrid();
-    renderNalogList();
-  }catch(e){
-    $('gradilisteListWrap').innerHTML = '<div class="empty">Greška pri učitavanju. Proveri SCRIPT_URL i konekciju.</div>';
-    $('nalogListWrap').innerHTML = '<div class="empty">Greška pri učitavanju. Proveri SCRIPT_URL i konekciju.</div>';
-  }
-}
-
-/* ========================================================================
-   GRADILIŠTA
-   ======================================================================== */
-function renderGradilistaList(){
-  const wrap = $('gradilisteListWrap');
-  if(GRADILISTA.length === 0){ wrap.innerHTML = '<div class="empty">Još uvek nema gradilišta.</div>'; return; }
-  const sorted = [...GRADILISTA].sort((a,b)=> a.kod.localeCompare(b.kod));
-  wrap.innerHTML = `
-    <table>
-      <thead><tr><th style="width:90px;">Kod</th><th>Naziv</th><th style="width:140px;"></th></tr></thead>
-      <tbody>${sorted.map(g=>`
+      <thead><tr><th>Korisničko ime</th><th style="width:230px;"></th></tr></thead>
+      <tbody>${users.map(u=>`
         <tr>
-          <td style="font-family:'IBM Plex Mono',monospace;">${escapeHtml(g.kod)}</td>
-          <td>${escapeHtml(g.naziv)}</td>
+          <td style="font-family:'IBM Plex Mono',monospace;">${escapeHtml(u.username)}</td>
           <td class="row-actions">
-            <button class="btn-ghost" data-edit-g="${g.kod}">Uredi</button>
-            <button class="btn-ghost" data-del-g="${g.kod}">Obriši</button>
+            <button class="btn-ghost" data-edit-u="${escapeHtml(u.username)}">Promeni lozinku</button>
+            ${users.length>1
+              ? `<button class="btn-danger-ghost" data-del-u="${escapeHtml(u.username)}">Obriši</button>`
+              : '<span style="font-size:11px;color:var(--ink-soft);">jedini korisnik</span>'}
           </td>
         </tr>`).join('')}
       </tbody>
     </table>`;
-  wrap.querySelectorAll('[data-edit-g]').forEach(b=>b.addEventListener('click',e=>openEditGradiliste(e.target.dataset.editG)));
-  wrap.querySelectorAll('[data-del-g]').forEach(b=>b.addEventListener('click',async e=>{
-    const kod=e.target.dataset.delG;
-    if(!confirm(`Obrisati gradilište ${kod}?`)) return;
-    try{ await apiPost('deleteGradiliste',{kod}); await loadAll(); }
-    catch(err){ alert('Brisanje nije uspelo.'); }
-  }));
+  wrap.querySelectorAll('[data-edit-u]').forEach(b=>b.addEventListener('click',e=>openEditUser(e.target.dataset.editU)));
+  wrap.querySelectorAll('[data-del-u]').forEach(b=>b.addEventListener('click',e=>deleteUser(e.target.dataset.delU)));
 }
 
+function openEditUser(username){
+  editingUsername = username;
+  $('uUsername').value = username; $('uUsername').disabled = true;
+  $('uPassword').value = ''; $('uPassword2').value = '';
+  $('uFormTitle').textContent = `Promena lozinke za: ${username}`;
+  $('uSaveBtn').textContent = 'Sačuvaj novu lozinku';
+  $('uCancelBtn').style.display = 'inline-block';
+  $('uErr').textContent = ''; $('uInfo').classList.remove('visible');
+  $('uUsername').closest('.card').scrollIntoView({behavior:'smooth',block:'start'});
+  $('uPassword').focus();
+}
+function resetUserForm(){
+  editingUsername = null;
+  $('uUsername').value = ''; $('uUsername').disabled = false;
+  $('uPassword').value = ''; $('uPassword2').value = '';
+  $('uErr').textContent = ''; $('uInfo').classList.remove('visible');
+  $('uFormTitle').textContent = 'Novi korisnik';
+  $('uSaveBtn').textContent = 'Dodaj korisnika';
+  $('uCancelBtn').style.display = 'none';
+}
+async function deleteUser(username){
+  if(!confirm(`Obrisati korisnika "${username}"?`)) return;
+  try{
+    const r = await apiPost('deleteUser',{username});
+    if(r&&r.error){ alert('Greška: '+r.error); return; }
+    await loadUsers();
+  }catch(e){ alert('Brisanje nije uspelo.'); }
+}
+$('uCancelBtn').addEventListener('click', resetUserForm);
+$('uSaveBtn').addEventListener('click', async ()=>{
+  $('uErr').textContent = ''; $('uInfo').classList.remove('visible');
+  const username = $('uUsername').value.trim();
+  const password = $('uPassword').value;
+  const password2 = $('uPassword2').value;
+  if(!username){ $('uErr').textContent='Korisničko ime je obavezno.'; return; }
+  if(!/^[a-zA-Z0-9._\-]+$/.test(username)){ $('uErr').textContent='Ime sme sadržati slova, brojeve, tačke, crtice i donje crte.'; return; }
+  if(password.length<6){ $('uErr').textContent='Lozinka mora imati najmanje 6 karaktera.'; return; }
+  if(password!==password2){ $('uErr').textContent='Lozinke se ne poklapaju.'; $('uPassword2').focus(); return; }
+  $('uSaveBtn').disabled = true;
+  try{
+    const action = editingUsername ? 'updateUserPassword' : 'addUser';
+    const r = await apiPost(action, {username, password});
+    if(r&&r.error){ $('uErr').textContent=r.error; }
+    else{
+      $('uInfo').textContent = editingUsername ? `Lozinka za "${username}" promenjena.` : `Korisnik "${username}" dodat.`;
+      $('uInfo').classList.add('visible');
+      resetUserForm(); await loadUsers();
+    }
+  }catch(e){ $('uErr').textContent='Greška pri čuvanju. Proveri konekciju.'; }
+  $('uSaveBtn').disabled = false;
+});
+
+/* ============================================================
+   GRADILIŠTA + NALOZI
+   ============================================================ */
+let GRADILISTA=[], NALOZI=[], editingGradilisteKod=null, editingNalogKod=null;
+
+async function loadAll(){
+  try{
+    const [gData,nData] = await Promise.all([apiGet('listGradilista'),apiGet('listNalozi')]);
+    GRADILISTA = (gData.gradilista||[]).map(g=>({kod:String(g.kod),naziv:g.naziv}));
+    NALOZI = (nData.nalozi||[]).map(n=>({kod:n.kod,opis:n.opis,gradiliste:n.gradiliste}));
+    renderGradilistaList(); renderNalogGrid(); renderNalogList();
+  }catch(e){
+    $('gradilisteListWrap').innerHTML='<div class="empty">Greška pri učitavanju. Proveri SCRIPT_URL.</div>';
+    $('nalogListWrap').innerHTML='<div class="empty">Greška pri učitavanju. Proveri SCRIPT_URL.</div>';
+  }
+}
+
+function renderGradilistaList(){
+  const wrap=$('gradilisteListWrap');
+  if(!GRADILISTA.length){wrap.innerHTML='<div class="empty">Još uvek nema gradilišta.</div>';return;}
+  const sorted=[...GRADILISTA].sort((a,b)=>a.kod.localeCompare(b.kod));
+  wrap.innerHTML=`<table><thead><tr><th style="width:90px;">Kod</th><th>Naziv</th><th style="width:140px;"></th></tr></thead><tbody>
+    ${sorted.map(g=>`<tr>
+      <td style="font-family:'IBM Plex Mono',monospace;">${escapeHtml(g.kod)}</td>
+      <td>${escapeHtml(g.naziv)}</td>
+      <td class="row-actions">
+        <button class="btn-ghost" data-edit-g="${g.kod}">Uredi</button>
+        <button class="btn-ghost" data-del-g="${g.kod}">Obriši</button>
+      </td></tr>`).join('')}
+  </tbody></table>`;
+  wrap.querySelectorAll('[data-edit-g]').forEach(b=>b.addEventListener('click',e=>openEditGradiliste(e.target.dataset.editG)));
+  wrap.querySelectorAll('[data-del-g]').forEach(b=>b.addEventListener('click',async e=>{
+    if(!confirm(`Obrisati gradilište ${e.target.dataset.delG}?`))return;
+    try{await apiPost('deleteGradiliste',{kod:e.target.dataset.delG});await loadAll();}catch(err){alert('Brisanje nije uspelo.');}
+  }));
+}
 function openEditGradiliste(kod){
-  const g=GRADILISTA.find(x=>x.kod===kod); if(!g) return;
-  editingGradilisteKod=kod;
-  $('gKod').value=g.kod; $('gKod').disabled=true;
-  $('gNaziv').value=g.naziv;
+  const g=GRADILISTA.find(x=>x.kod===kod);if(!g)return;
+  editingGradilisteKod=kod; $('gKod').value=g.kod; $('gKod').disabled=true; $('gNaziv').value=g.naziv;
   $('gradilisteFormTitle').textContent=`Izmena gradilišta ${kod}`;
-  $('gSaveBtn').textContent='Sačuvaj izmene';
-  $('gCancelBtn').style.display='inline-block';
+  $('gSaveBtn').textContent='Sačuvaj izmene'; $('gCancelBtn').style.display='inline-block';
   $('gKod').closest('.card').scrollIntoView({behavior:'smooth',block:'start'});
 }
 function resetGradilisteForm(){
-  editingGradilisteKod=null;
-  $('gKod').value=''; $('gKod').disabled=false;
-  $('gNaziv').value=''; $('gErr').textContent='';
-  $('gradilisteFormTitle').textContent='Novo gradilište';
-  $('gSaveBtn').textContent='Dodaj gradilište';
-  $('gCancelBtn').style.display='none';
+  editingGradilisteKod=null; $('gKod').value=''; $('gKod').disabled=false; $('gNaziv').value=''; $('gErr').textContent='';
+  $('gradilisteFormTitle').textContent='Novo gradilište'; $('gSaveBtn').textContent='Dodaj gradilište'; $('gCancelBtn').style.display='none';
 }
 $('gCancelBtn').addEventListener('click',resetGradilisteForm);
 $('gSaveBtn').addEventListener('click',async()=>{
   $('gErr').textContent='';
-  const kod=$('gKod').value.trim();
-  const naziv=$('gNaziv').value.trim();
-  if(!kod||parseInt(kod,10)<901||parseInt(kod,10)>999){ $('gErr').textContent='Oznaka mora biti broj od 901 do 999.'; return; }
-  if(!naziv){ $('gErr').textContent='Naziv je obavezan.'; return; }
+  const kod=$('gKod').value.trim(), naziv=$('gNaziv').value.trim();
+  if(!kod||parseInt(kod,10)<901||parseInt(kod,10)>999){$('gErr').textContent='Oznaka mora biti broj od 901 do 999.';return;}
+  if(!naziv){$('gErr').textContent='Naziv je obavezan.';return;}
   $('gSaveBtn').disabled=true;
   try{
-    const action=editingGradilisteKod?'updateGradiliste':'addGradiliste';
-    const result=await apiPost(action,{kod,naziv});
-    if(result&&result.error){ $('gErr').textContent=result.error; }
-    else{ resetGradilisteForm(); await loadAll(); }
-  }catch(e){ $('gErr').textContent='Čuvanje nije uspelo. Proveri konekciju.'; }
+    const r=await apiPost(editingGradilisteKod?'updateGradiliste':'addGradiliste',{kod,naziv});
+    if(r&&r.error){$('gErr').textContent=r.error;}else{resetGradilisteForm();await loadAll();}
+  }catch(e){$('gErr').textContent='Čuvanje nije uspelo.';}
   $('gSaveBtn').disabled=false;
 });
 
-/* ========================================================================
-   NALOZI
-   ======================================================================== */
 function renderNalogGrid(){
   const grid=$('nGradilistaGrid');
   const sorted=[...GRADILISTA].sort((a,b)=>a.kod.localeCompare(b.kod));
-  if(sorted.length===0){ grid.innerHTML='<div class="empty">Prvo dodaj bar jedno gradilište.</div>'; return; }
+  if(!sorted.length){grid.innerHTML='<div class="empty">Prvo dodaj bar jedno gradilište.</div>';return;}
   grid.innerHTML=sorted.map(g=>`<label><input type="checkbox" value="${g.kod}"> ${escapeHtml(g.kod)} — ${escapeHtml(g.naziv)}</label>`).join('');
 }
 $('nSva').addEventListener('change',()=>{ $('nGradilistaWrap').style.display=$('nSva').checked?'none':'block'; });
 
 function renderNalogList(){
   const wrap=$('nalogListWrap');
-  if(NALOZI.length===0){ wrap.innerHTML='<div class="empty">Još uvek nema naloga.</div>'; return; }
+  if(!NALOZI.length){wrap.innerHTML='<div class="empty">Još uvek nema naloga.</div>';return;}
   const sorted=[...NALOZI].sort((a,b)=>a.kod.localeCompare(b.kod));
-  wrap.innerHTML=`
-    <table>
-      <thead><tr><th style="width:120px;">Kod</th><th>Opis</th><th>Gradilišta</th><th style="width:140px;"></th></tr></thead>
-      <tbody>${sorted.map(n=>`
-        <tr>
-          <td style="font-family:'IBM Plex Mono',monospace;">${escapeHtml(n.kod)}</td>
-          <td>${escapeHtml(n.opis)||'<span class="hint">—</span>'}</td>
-          <td>${renderGradilistaTags(n.gradiliste)}</td>
-          <td class="row-actions">
-            <button class="btn-ghost" data-edit-n="${escapeHtml(n.kod)}">Uredi</button>
-            <button class="btn-ghost" data-del-n="${escapeHtml(n.kod)}">Obriši</button>
-          </td>
-        </tr>`).join('')}
-      </tbody>
-    </table>`;
+  wrap.innerHTML=`<table><thead><tr><th style="width:120px;">Kod</th><th>Opis</th><th>Gradilišta</th><th style="width:140px;"></th></tr></thead><tbody>
+    ${sorted.map(n=>`<tr>
+      <td style="font-family:'IBM Plex Mono',monospace;">${escapeHtml(n.kod)}</td>
+      <td>${escapeHtml(n.opis)||'<span class="hint">—</span>'}</td>
+      <td>${renderGradilistaTags(n.gradiliste)}</td>
+      <td class="row-actions">
+        <button class="btn-ghost" data-edit-n="${escapeHtml(n.kod)}">Uredi</button>
+        <button class="btn-ghost" data-del-n="${escapeHtml(n.kod)}">Obriši</button>
+      </td></tr>`).join('')}
+  </tbody></table>`;
   wrap.querySelectorAll('[data-edit-n]').forEach(b=>b.addEventListener('click',e=>openEditNalog(e.target.dataset.editN)));
   wrap.querySelectorAll('[data-del-n]').forEach(b=>b.addEventListener('click',async e=>{
-    const kod=e.target.dataset.delN;
-    if(!confirm(`Obrisati nalog ${kod}?`)) return;
-    try{ await apiPost('deleteNalog',{kod}); await loadAll(); }
-    catch(err){ alert('Brisanje nije uspelo.'); }
+    if(!confirm(`Obrisati nalog ${e.target.dataset.delN}?`))return;
+    try{await apiPost('deleteNalog',{kod:e.target.dataset.delN});await loadAll();}catch(err){alert('Brisanje nije uspelo.');}
   }));
 }
-
-function renderGradilistaTags(gradiliste){
-  if(gradiliste===null) return '<span class="tag sva">SVA</span>';
-  if(!gradiliste.length) return '<span class="tag nijedno">nijedno</span>';
-  return `<div class="tags">${gradiliste.map(k=>`<span class="tag">${escapeHtml(k)}</span>`).join('')}</div>`;
+function renderGradilistaTags(g){
+  if(g===null)return'<span class="tag sva">SVA</span>';
+  if(!g.length)return'<span class="tag nijedno">nijedno</span>';
+  return`<div class="tags">${g.map(k=>`<span class="tag">${escapeHtml(k)}</span>`).join('')}</div>`;
 }
-
 function openEditNalog(kod){
-  const n=NALOZI.find(x=>x.kod===kod); if(!n) return;
-  editingNalogKod=kod;
-  $('nKod').value=n.kod; $('nKod').disabled=true;
-  $('nOpis').value=n.opis;
-  const isSva=n.gradiliste===null;
-  $('nSva').checked=isSva;
+  const n=NALOZI.find(x=>x.kod===kod);if(!n)return;
+  editingNalogKod=kod; $('nKod').value=n.kod; $('nKod').disabled=true; $('nOpis').value=n.opis;
+  const isSva=n.gradiliste===null; $('nSva').checked=isSva;
   $('nGradilistaWrap').style.display=isSva?'none':'block';
-  $('nGradilistaGrid').querySelectorAll('input[type=checkbox]').forEach(cb=>{ cb.checked=!isSva&&n.gradiliste.includes(cb.value); });
+  $('nGradilistaGrid').querySelectorAll('input[type=checkbox]').forEach(cb=>{cb.checked=!isSva&&n.gradiliste.includes(cb.value);});
   $('nalogFormTitle').textContent=`Izmena naloga ${kod}`;
-  $('nSaveBtn').textContent='Sačuvaj izmene';
-  $('nCancelBtn').style.display='inline-block';
+  $('nSaveBtn').textContent='Sačuvaj izmene'; $('nCancelBtn').style.display='inline-block';
   $('nKod').closest('.card').scrollIntoView({behavior:'smooth',block:'start'});
 }
 function resetNalogForm(){
-  editingNalogKod=null;
-  $('nKod').value=''; $('nKod').disabled=false;
-  $('nOpis').value=''; $('nSva').checked=false;
-  $('nGradilistaWrap').style.display='block';
+  editingNalogKod=null; $('nKod').value=''; $('nKod').disabled=false; $('nOpis').value='';
+  $('nSva').checked=false; $('nGradilistaWrap').style.display='block';
   $('nGradilistaGrid').querySelectorAll('input[type=checkbox]').forEach(cb=>cb.checked=false);
-  $('nErr').textContent='';
-  $('nalogFormTitle').textContent='Novi nalog za realizaciju';
-  $('nSaveBtn').textContent='Dodaj nalog';
-  $('nCancelBtn').style.display='none';
+  $('nErr').textContent=''; $('nalogFormTitle').textContent='Novi nalog za realizaciju';
+  $('nSaveBtn').textContent='Dodaj nalog'; $('nCancelBtn').style.display='none';
 }
 $('nCancelBtn').addEventListener('click',resetNalogForm);
 $('nSaveBtn').addEventListener('click',async()=>{
   $('nErr').textContent='';
-  const kod=$('nKod').value.trim();
-  const opis=$('nOpis').value.trim();
-  if(!kod){ $('nErr').textContent='Kod naloga je obavezan.'; return; }
-  if(!/^\d+(\/\d+)*$/.test(kod)&&kod!=='SOPSTVENE'){
-    $('nErr').textContent='Kod mora biti niz brojeva odvojenih kosom crtom (npr. 720/26/011) ili "SOPSTVENE".'; return;
-  }
+  const kod=$('nKod').value.trim(), opis=$('nOpis').value.trim();
+  if(!kod){$('nErr').textContent='Kod naloga je obavezan.';return;}
+  if(!/^\d+(\/\d+)*$/.test(kod)&&kod!=='SOPSTVENE'){$('nErr').textContent='Kod mora biti npr. 720/26/011 ili "SOPSTVENE".';return;}
   const isSva=$('nSva').checked;
   const checked=[...$('nGradilistaGrid').querySelectorAll('input[type=checkbox]:checked')].map(cb=>cb.value);
   const gradiliste=isSva?null:checked;
   $('nSaveBtn').disabled=true;
   try{
-    const action=editingNalogKod?'updateNalog':'addNalog';
-    const result=await apiPost(action,{kod,opis,gradiliste});
-    if(result&&result.error){ $('nErr').textContent=result.error; }
-    else{ resetNalogForm(); await loadAll(); }
-  }catch(e){ $('nErr').textContent='Čuvanje nije uspelo. Proveri konekciju.'; }
+    const r=await apiPost(editingNalogKod?'updateNalog':'addNalog',{kod,opis,gradiliste});
+    if(r&&r.error){$('nErr').textContent=r.error;}else{resetNalogForm();await loadAll();}
+  }catch(e){$('nErr').textContent='Čuvanje nije uspelo.';}
   $('nSaveBtn').disabled=false;
 });
 
-/* ========================================================================
-   INICIJALIZACIJA
-   ======================================================================== */
+/* INICIJALIZACIJA */
 if(isLoggedIn()){
   showApp();
   loadAll();
