@@ -35,6 +35,7 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--steel);outline-o
 .row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;}
 .hint{font-size:11px;color:var(--ink-soft);margin-top:4px;}
 .err{font-size:11.5px;color:var(--danger);margin-top:4px;font-weight:500;}
+.success{font-size:11.5px;color:var(--good);margin-top:4px;font-weight:500;}
 
 .checkbox-row{display:flex;align-items:center;gap:8px;margin-bottom:10px;}
 .checkbox-row input[type=checkbox]{width:auto;}
@@ -78,6 +79,8 @@ td{padding:8px 8px 8px 0;border-bottom:1px solid var(--line-soft);font-size:13px
 .login-err{font-size:12px;color:var(--danger);font-weight:600;background:rgba(168,67,47,0.08);border:1px solid rgba(168,67,47,0.25);border-radius:var(--radius);padding:9px 12px;margin-bottom:16px;display:none;}
 .login-err.visible{display:block;}
 .login-box .btn-primary{width:100%;margin-top:6px;font-size:13.5px;padding:12px;}
+.login-spinner{display:none;font-size:12px;color:var(--ink-soft);text-align:center;margin-top:10px;}
+.login-spinner.visible{display:block;}
 </style>
 </head>
 <body>
@@ -88,7 +91,7 @@ td{padding:8px 8px 8px 0;border-bottom:1px solid var(--line-soft);font-size:13px
     <div class="login-title">Administracija</div>
     <div class="login-sub">Zahtev za nabavku — samo za administratora</div>
     <hr class="login-divider">
-    <div class="login-err" id="loginErr">Pogrešno korisničko ime ili lozinka.</div>
+    <div class="login-err" id="loginErr"></div>
     <div class="field">
       <label for="loginUser">Korisničko ime</label>
       <input type="text" id="loginUser" autocomplete="username" autofocus>
@@ -98,6 +101,7 @@ td{padding:8px 8px 8px 0;border-bottom:1px solid var(--line-soft);font-size:13px
       <input type="password" id="loginPass" autocomplete="current-password">
     </div>
     <button type="button" class="btn btn-primary" id="loginBtn">Prijavi se</button>
+    <div class="login-spinner" id="loginSpinner">Proveravanje…</div>
   </div>
 </div>
 
@@ -113,6 +117,25 @@ td{padding:8px 8px 8px 0;border-bottom:1px solid var(--line-soft);font-size:13px
       <a class="back-link" href="index.html">← Nazad na glavnu stranicu</a>
       <button type="button" class="btn-logout" id="logoutBtn">Odjavi se</button>
     </div>
+  </div>
+
+  <!-- 🔒 PROSLEDI ADMIN LOZINKU -->
+  <div class="card">
+    <h2>Prosledi admin lozinku</h2>
+    <p class="section-note">🔒 Admin lozinka je sada sačuvana u Google Sheets i nije vidljiva u kodu. Promeni je ovde.</p>
+    <div class="row2">
+      <div class="field">
+        <label for="adminPassNew">Nova admin lozinka</label>
+        <input type="password" id="adminPassNew" placeholder="najmanje 6 karaktera" autocomplete="new-password">
+      </div>
+      <div class="field">
+        <label for="adminPassNew2">Potvrda lozinke</label>
+        <input type="password" id="adminPassNew2" placeholder="ponovi lozinku" autocomplete="new-password">
+      </div>
+    </div>
+    <div class="err" id="adminPassErr"></div>
+    <div class="success" id="adminPassSuccess"></div>
+    <button type="button" class="btn btn-primary" id="adminPassSaveBtn">Prosledi novu admin lozinku</button>
   </div>
 
   <!-- KORISNICI — za pristup stranici "Zahtev za nabavku" (index.html) -->
@@ -210,11 +233,9 @@ td{padding:8px 8px 8px 0;border-bottom:1px solid var(--line-soft);font-size:13px
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycby9zpoac93iRvD7gavKdgKel7XaT_lmDBTfTc42-M0iKo3LIj7MSuVxXN36sTUDpBcU/exec";
 
 /* ============================================================
-   ADMIN LOGIN — samo hardkodovani admin/Nabavka2025
-   Za promenu: izmeni ADMIN_USER i ADMIN_PASS ovde u fajlu.
+   🔒 ADMIN LOGIN — server-strana validacija
+   Lozinka je sada sačuvana u Google Sheets Properties Service
    ============================================================ */
-const ADMIN_USER = 'admin';
-const ADMIN_PASS = 'Nabavka2025';
 const SESSION_KEY = 'zn_admin_session';
 
 const $ = id => document.getElementById(id);
@@ -231,23 +252,54 @@ function showLogin(){
   $('app').style.display = 'none';
   $('loginUser').value = '';
   $('loginPass').value = '';
+  $('loginErr').textContent = '';
   $('loginErr').classList.remove('visible');
+  $('loginSpinner').classList.remove('visible');
+  $('loginBtn').disabled = false;
   setTimeout(()=> $('loginUser').focus(), 50);
 }
 
-function doLogin(){
+// 🔒 POBOLJŠANA: Slanje lozinke na server za proveru
+async function doLogin(){
   const user = $('loginUser').value.trim();
   const pass = $('loginPass').value;
-  if(user === ADMIN_USER && pass === ADMIN_PASS){
-    sessionStorage.setItem(SESSION_KEY, '1');
-    showApp();
-    loadAll();
-    loadUsers();
-  }else{
+  
+  if(!user || !pass){
+    $('loginErr').textContent = 'Unesite korisničko ime i lozinku.';
     $('loginErr').classList.add('visible');
-    $('loginPass').value = '';
-    $('loginPass').focus();
+    return;
   }
+
+  $('loginBtn').disabled = true;
+  $('loginSpinner').classList.add('visible');
+  $('loginErr').classList.remove('visible');
+
+  try{
+    const res = await fetch(SCRIPT_URL, {
+      method: 'POST',
+      body: JSON.stringify({ action: 'checkLogin', username: user, password: pass })
+    });
+    const result = await res.json();
+    
+    if(result && result.ok){
+      sessionStorage.setItem(SESSION_KEY, '1');
+      showApp();
+      loadAll();
+      loadUsers();
+    } else {
+      const msg = (result && result.error) ? result.error : 'Pogrešno korisničko ime ili lozinka.';
+      $('loginErr').textContent = msg;
+      $('loginErr').classList.add('visible');
+      $('loginPass').value = '';
+      $('loginPass').focus();
+    }
+  }catch(e){
+    $('loginErr').textContent = 'Greška pri povezivanju. Proveri internet konekciju.';
+    $('loginErr').classList.add('visible');
+  }
+  
+  $('loginBtn').disabled = false;
+  $('loginSpinner').classList.remove('visible');
 }
 
 $('loginBtn').addEventListener('click', doLogin);
@@ -269,6 +321,43 @@ async function apiPost(action, payload){
   if(!res.ok) throw new Error('Greška pri čuvanju.');
   return res.json();
 }
+
+/* ============================================================
+   🔒 ADMIN LOZINKA — PROSLEDI NOVU
+   ============================================================ */
+$('adminPassSaveBtn').addEventListener('click', async ()=>{
+  const pass1 = $('adminPassNew').value;
+  const pass2 = $('adminPassNew2').value;
+  $('adminPassErr').textContent = '';
+  $('adminPassSuccess').textContent = '';
+  
+  if(pass1.length < 6){
+    $('adminPassErr').textContent = 'Lozinka mora imati najmanje 6 karaktera.';
+    return;
+  }
+  if(pass1 !== pass2){
+    $('adminPassErr').textContent = 'Lozinke se ne poklapaju.';
+    $('adminPassNew2').focus();
+    return;
+  }
+  
+  $('adminPassSaveBtn').disabled = true;
+  
+  try{
+    const r = await apiPost('setAdminPassword', {newPassword: pass1});
+    if(r && r.ok){
+      $('adminPassSuccess').textContent = '✓ Admin lozinka je promenjena. Novi login će biti potreban pri sledećoj prijavi.';
+      $('adminPassNew').value = '';
+      $('adminPassNew2').value = '';
+    } else {
+      $('adminPassErr').textContent = r.error || 'Greška pri čuvanju.';
+    }
+  }catch(e){
+    $('adminPassErr').textContent = 'Greška pri čuvanju. Proveri konekciju.';
+  }
+  
+  $('adminPassSaveBtn').disabled = false;
+});
 
 /* ============================================================
    UPRAVLJANJE KORISNICIMA (za index.html)
