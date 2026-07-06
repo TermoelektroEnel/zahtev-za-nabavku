@@ -176,7 +176,7 @@ table.spec td input{padding:7px 8px;font-size:13px;}
 }
 .doc-outer{display:flex;flex-direction:column;align-items:center;}
 .doc-toolbar{
-  width:210mm;max-width:100%;display:flex;justify-content:flex-end;gap:8px;margin-bottom:10px;
+  width:210mm;max-width:100%;display:flex;justify-content:flex-end;gap:8px;margin-bottom:10px;flex-wrap:wrap;
 }
 .doc h2{
   font-family:'Space Grotesk',sans-serif;font-size:20px;text-transform:uppercase;
@@ -388,6 +388,15 @@ async function apiUpdate(id, payload){
     body: JSON.stringify({ action: 'update', id, ...payload })
   });
   if(!res.ok) throw new Error('Greška pri čuvanju izmena.');
+  return res.json();
+}
+
+async function apiSendEmail(payload){
+  const res = await fetch(SCRIPT_URL, {
+    method: 'POST',
+    body: JSON.stringify({ action: 'sendEmail', ...payload })
+  });
+  if(!res.ok) throw new Error('Greška pri slanju mejla.');
   return res.json();
 }
 
@@ -1071,6 +1080,7 @@ function openDoc(id){
       <div class="doc-outer">
         <div class="doc-toolbar">
           <button class="btn-ghost" id="closeDoc" style="background:var(--ink-soft);color:#fff;border:none;">Zatvori</button>
+          <button class="btn-ghost" id="emailDocBtn" style="background:var(--good);color:#fff;border:none;">Pošalji mailom</button>
           <button class="btn btn-primary" style="width:auto;" id="printDoc">Štampaj / sačuvaj PDF</button>
         </div>
         <div class="doc">
@@ -1109,6 +1119,33 @@ function openDoc(id){
   $('closeDoc').addEventListener('click', ()=> $('modalRoot').innerHTML = '');
   $('printDoc').addEventListener('click', ()=> window.print());
   $('overlay').addEventListener('click', e=>{ if(e.target.id==='overlay') $('modalRoot').innerHTML=''; });
+  $('emailDocBtn').addEventListener('click', async ()=>{
+    const to = prompt('Unesi email adresu primaoca:');
+    if(!to) return;
+    const btn = $('emailDocBtn');
+    const originalText = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = 'Slanje…';
+    try{
+      const result = await apiSendEmail({
+        to,
+        redniBroj: r.redniBroj,
+        gradilisteText: `${r.gradiliste} — ${nazivGradilista(r.gradiliste)}`,
+        nalogKod: r.nalog,
+        nalogOpis: nazivNaloga(r.nalog) || '',
+        stavke: r.stavke
+      });
+      if(result && result.ok){
+        alert('Zahtev je uspešno poslat na ' + to + '.');
+      }else{
+        alert((result && result.error) || 'Slanje nije uspelo. Pokušaj ponovo.');
+      }
+    }catch(e){
+      alert('Slanje nije uspelo. Proveri internet konekciju.');
+    }
+    btn.disabled = false;
+    btn.textContent = originalText;
+  });
 }
 
 $('gradiliste').addEventListener('input', renderPlate);
