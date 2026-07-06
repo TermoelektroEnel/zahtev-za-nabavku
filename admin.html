@@ -238,7 +238,14 @@ td{padding:8px 8px 8px 0;border-bottom:1px solid var(--line-soft);font-size:13px
    ======================================================================== */
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycby9zpoac93iRvD7gavKdgKel7XaT_lmDBTfTc42-M0iKo3LIj7MSuVxXN36sTUDpBcU/exec";
 
-const SESSION_KEY = 'zn_admin_session'; // čuva korisničko ime aktivne sesije
+const SESSION_KEY = 'zn_admin_session';
+
+// Podrazumevani admin — koristi se kao REZERVA dok ne ažuriraš AppScript.
+// Kada ažuriraš AppScript i sheet "Korisnici" bude kreiran, ovaj nalog
+// možeš promeniti ili obrisati direktno kroz sekciju "Korisnici" u adminu.
+const FALLBACK_ADMINS = [
+  { username: 'admin', password: 'Nabavka2025' }
+];
 
 const $ = id => document.getElementById(id);
 function escapeHtml(s){ return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
@@ -282,6 +289,22 @@ function showLogin(){
   setTimeout(()=> $('loginUser').focus(), 50);
 }
 
+function loginSuccess(username){
+  sessionStorage.setItem(SESSION_KEY, username);
+  showApp();
+  loadAll();
+  loadUsers();
+}
+
+function loginFailed(msg){
+  $('loginErr').textContent = msg || 'Pogrešno korisničko ime ili lozinka.';
+  $('loginErr').classList.add('visible');
+  $('loginPass').value = '';
+  $('loginPass').focus();
+  $('loginBtn').disabled = false;
+  $('loginSpinner').classList.remove('visible');
+}
+
 async function doLogin(){
   const username = $('loginUser').value.trim();
   const password = $('loginPass').value;
@@ -295,23 +318,40 @@ async function doLogin(){
   $('loginErr').classList.remove('visible');
   try{
     const result = await apiPost('checkLogin', { username, password });
+
     if(result && result.ok){
-      sessionStorage.setItem(SESSION_KEY, username);
-      showApp();
-      loadAll();
-      loadUsers();
-    }else{
-      $('loginErr').textContent = (result && result.error) ? result.error : 'Pogrešno korisničko ime ili lozinka.';
-      $('loginErr').classList.add('visible');
-      $('loginPass').value = '';
-      $('loginPass').focus();
+      // Novi AppScript — provjera uspela u Google Sheets
+      loginSuccess(username);
+      return;
     }
+
+    if(result && result.error === 'Nepoznata akcija.'){
+      // Stari AppScript još nije ažuriran — koristimo lokalni fallback
+      const match = FALLBACK_ADMINS.find(a => a.username === username && a.password === password);
+      if(match){
+        loginSuccess(username);
+        return;
+      }else{
+        loginFailed('Pogrešno korisničko ime ili lozinka.');
+        return;
+      }
+    }
+
+    // Akcija je poznata ali vraća grešku (npr. pogrešni podaci)
+    loginFailed((result && result.error) ? result.error : 'Pogrešno korisničko ime ili lozinka.');
+
   }catch(e){
-    $('loginErr').textContent = 'Greška pri povezivanju sa serverom. Proveri internet konekciju.';
-    $('loginErr').classList.add('visible');
+    // Mreža nije dostupna — probamo lokalni fallback
+    const match = FALLBACK_ADMINS.find(a => a.username === username && a.password === password);
+    if(match){
+      loginSuccess(username);
+    }else{
+      $('loginErr').textContent = 'Greška pri povezivanju sa serverom. Proveri internet konekciju.';
+      $('loginErr').classList.add('visible');
+      $('loginBtn').disabled = false;
+      $('loginSpinner').classList.remove('visible');
+    }
   }
-  $('loginBtn').disabled = false;
-  $('loginSpinner').classList.remove('visible');
 }
 
 $('loginBtn').addEventListener('click', doLogin);
