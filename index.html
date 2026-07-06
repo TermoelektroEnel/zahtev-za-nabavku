@@ -1120,8 +1120,17 @@ function openDoc(id){
   $('printDoc').addEventListener('click', ()=> window.print());
   $('overlay').addEventListener('click', e=>{ if(e.target.id==='overlay') $('modalRoot').innerHTML=''; });
   $('emailDocBtn').addEventListener('click', async ()=>{
-    const to = prompt('Unesi email adresu primaoca:');
-    if(!to) return;
+    const input = prompt('Unesi email adresu(e) primaoca (ako ih ima više, odvoji sa ;):');
+    if(!input) return;
+    const adrese = input.split(';').map(a => a.trim()).filter(Boolean);
+    if(adrese.length === 0) return;
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const neispravne = adrese.filter(a => !emailRegex.test(a));
+    if(neispravne.length > 0){
+      alert('Neispravna email adresa: ' + neispravne.join(', '));
+      return;
+    }
+    const to = adrese.join(',');
     const btn = $('emailDocBtn');
     const originalText = btn.textContent;
     btn.disabled = true;
@@ -1136,7 +1145,7 @@ function openDoc(id){
         stavke: r.stavke
       });
       if(result && result.ok){
-        alert('Zahtev je uspešno poslat na ' + to + '.');
+        alert('Zahtev je uspešno poslat na: ' + adrese.join(', '));
       }else{
         alert((result && result.error) || 'Slanje nije uspelo. Pokušaj ponovo.');
       }
