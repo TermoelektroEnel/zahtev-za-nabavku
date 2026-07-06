@@ -41,6 +41,7 @@ body{
   letter-spacing:0.02em;margin:0;text-transform:uppercase;
 }
 .masthead .sub{font-family:'IBM Plex Mono',monospace;font-size:11.5px;color:var(--ink-soft);letter-spacing:0.04em;}
+.masthead-right{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
 .back-link{font-size:12.5px;color:var(--steel-dark);text-decoration:none;border:1px solid var(--line);padding:6px 12px;border-radius:var(--radius);white-space:nowrap;}
 .back-link:hover{border-color:var(--steel);}
 
@@ -51,7 +52,7 @@ body{
 }
 
 label{display:block;font-size:11.5px;font-weight:600;color:var(--ink-soft);text-transform:uppercase;letter-spacing:0.05em;margin:0 0 5px;}
-input[type=text],input[type=number],select,textarea{
+input[type=text],input[type=number],input[type=password],select,textarea{
   width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:var(--radius);
   background:#fff;font-family:'IBM Plex Sans',sans-serif;font-size:13.5px;color:var(--ink);
 }
@@ -85,6 +86,12 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--steel);outline-o
 .btn-primary:disabled{background:#9AA3A6;cursor:not-allowed;}
 .btn-ghost{background:none;border:1px solid var(--line);color:var(--ink);padding:7px 12px;font-size:12px;}
 .btn-ghost:hover{border-color:var(--steel);color:var(--steel-dark);}
+.btn-logout{
+  font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--ink-soft);
+  border:1px solid var(--line);padding:5px 11px;border-radius:var(--radius);
+  background:none;cursor:pointer;letter-spacing:0.04em;white-space:nowrap;
+}
+.btn-logout:hover{border-color:var(--danger);color:var(--danger);}
 
 table{width:100%;border-collapse:collapse;margin-bottom:6px;}
 th{text-align:left;font-size:10.5px;text-transform:uppercase;letter-spacing:0.05em;color:var(--ink-soft);padding:0 8px 8px 0;font-weight:600;border-bottom:1px solid var(--line-soft);}
@@ -99,16 +106,82 @@ td{padding:8px 8px 8px 0;border-bottom:1px solid var(--line-soft);font-size:13px
 .row-actions{display:flex;gap:6px;white-space:nowrap;}
 .empty{color:var(--ink-soft);font-size:13px;padding:16px 0;text-align:center;}
 .loading{color:var(--ink-soft);font-size:13px;padding:16px 0;text-align:center;}
+
+/* ============================================================
+   LOGIN OVERLAY
+   ============================================================ */
+.login-overlay{
+  position:fixed;inset:0;
+  background:var(--paper);
+  display:flex;align-items:center;justify-content:center;
+  z-index:999;
+  padding:20px;
+}
+.login-box{
+  background:var(--card);
+  border:1px solid var(--line);
+  border-radius:var(--radius);
+  padding:36px 40px 32px;
+  width:100%;max-width:380px;
+}
+.login-box .login-title{
+  font-family:'Space Grotesk',sans-serif;
+  font-size:18px;font-weight:700;text-transform:uppercase;letter-spacing:0.04em;
+  margin:0 0 4px;
+}
+.login-box .login-sub{
+  font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--ink-soft);
+  letter-spacing:0.04em;margin-bottom:28px;
+}
+.login-divider{
+  border:none;border-top:1px solid var(--line-soft);margin:0 0 22px;
+}
+.login-err{
+  font-size:12px;color:var(--danger);font-weight:600;
+  background:rgba(168,67,47,0.08);border:1px solid rgba(168,67,47,0.25);
+  border-radius:var(--radius);padding:9px 12px;
+  margin-bottom:16px;display:none;
+}
+.login-err.visible{display:block;}
+.login-box .btn-primary{width:100%;margin-top:6px;font-size:13.5px;padding:12px;}
 </style>
 </head>
 <body>
-<div class="app" id="app">
+
+<!-- ============================================================
+     LOGIN OVERLAY — prikazuje se dok korisnik nije prijavljen
+     ============================================================ -->
+<div class="login-overlay" id="loginOverlay">
+  <div class="login-box">
+    <div class="login-title">Administracija</div>
+    <div class="login-sub">Zahtev za nabavku — pristup samo za administratore</div>
+    <hr class="login-divider">
+    <div class="login-err" id="loginErr">Pogrešno korisničko ime ili lozinka.</div>
+    <div class="field">
+      <label for="loginUser">Korisničko ime</label>
+      <input type="text" id="loginUser" autocomplete="username" autofocus>
+    </div>
+    <div class="field">
+      <label for="loginPass">Lozinka</label>
+      <input type="password" id="loginPass" autocomplete="current-password">
+    </div>
+    <button type="button" class="btn btn-primary" id="loginBtn">Prijavi se</button>
+  </div>
+</div>
+
+<!-- ============================================================
+     GLAVNI SADRŽAJ — skriven dok korisnik nije prijavljen
+     ============================================================ -->
+<div class="app" id="app" style="display:none;">
   <div class="masthead">
     <div>
       <h1>Administracija</h1>
       <div class="sub">Gradilišta i nalozi za realizaciju — Zahtev za nabavku</div>
     </div>
-    <a class="back-link" href="index.html">← Nazad na glavnu stranicu</a>
+    <div class="masthead-right">
+      <a class="back-link" href="index.html">← Nazad na glavnu stranicu</a>
+      <button type="button" class="btn-logout" id="logoutBtn" title="Odjaviti se">Odjavi se</button>
+    </div>
   </div>
 
   <!-- GRADILIŠTA -->
@@ -169,57 +242,93 @@ td{padding:8px 8px 8px 0;border-bottom:1px solid var(--line-soft);font-size:13px
     <h2>Postojeći nalozi</h2>
     <div id="nalogListWrap"><div class="loading">Učitavanje…</div></div>
   </div>
-
-  <!-- KORISNICI -->
-  <div class="card">
-    <h2 id="korisnikFormTitle">Novi korisnik</h2>
-    <div class="row2">
-      <div class="field">
-        <label for="kUsername">Korisničko ime</label>
-        <input type="text" id="kUsername" placeholder="npr. petar.petrovic">
-      </div>
-      <div class="field">
-        <label for="kPassword" id="kPasswordLabel">Lozinka</label>
-        <input type="text" id="kPassword" placeholder="npr. tajna123">
-      </div>
-    </div>
-    <div class="hint" id="kPasswordHint" style="display:none;margin-top:-8px;margin-bottom:14px;">Ostavi prazno da zadržiš postojeću lozinku.</div>
-    <div class="checkbox-row">
-      <input type="checkbox" id="kSva">
-      <label for="kSva">Pristup svim gradilištima</label>
-    </div>
-    <div class="field" id="kGradilistaWrap">
-      <label>Gradilišta kojima korisnik sme da pristupi</label>
-      <div class="chip-grid" id="kGradilistaGrid"><div class="loading">Učitavanje…</div></div>
-    </div>
-    <div class="err" id="kErr"></div>
-    <div style="display:flex;gap:8px;">
-      <button type="button" class="btn btn-primary" id="kSaveBtn">Dodaj korisnika</button>
-      <button type="button" class="btn-ghost" id="kCancelBtn" style="display:none;">Otkaži</button>
-    </div>
-  </div>
-
-  <div class="card">
-    <h2>Postojeći korisnici</h2>
-    <div id="korisnikListWrap"><div class="loading">Učitavanje…</div></div>
-  </div>
 </div>
 
 <script>
+/* ========================================================================
+   PODEŠAVANJE PRISTUPA — izmeni korisničko ime i lozinku po potrebi
+   Možeš dodati više naloga u niz ADMINS.
+   ======================================================================== */
+const ADMINS = [
+  { username: 'admin', password: 'Nabavka2025' }
+  // Dodaj još naloga ovde ako treba:
+  // { username: 'petar', password: 'TajanaBroj1' }
+];
+
 /* ========================================================================
    PODEŠAVANJE: isti SCRIPT_URL kao u index.html
    ======================================================================== */
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycby9zpoac93iRvD7gavKdgKel7XaT_lmDBTfTc42-M0iKo3LIj7MSuVxXN36sTUDpBcU/exec";
 
+/* ========================================================================
+   LOGIN LOGIKA
+   ======================================================================== */
+const SESSION_KEY = 'zn_admin_auth';
+
+function isLoggedIn(){
+  return sessionStorage.getItem(SESSION_KEY) === '1';
+}
+
+function showApp(){
+  document.getElementById('loginOverlay').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+}
+
+function showLogin(){
+  document.getElementById('loginOverlay').style.display = 'flex';
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('loginUser').value = '';
+  document.getElementById('loginPass').value = '';
+  document.getElementById('loginErr').classList.remove('visible');
+  document.getElementById('loginUser').focus();
+}
+
+function doLogin(){
+  const user = document.getElementById('loginUser').value.trim();
+  const pass = document.getElementById('loginPass').value;
+  const match = ADMINS.find(a => a.username === user && a.password === pass);
+  if(match){
+    sessionStorage.setItem(SESSION_KEY, '1');
+    showApp();
+    loadAll();
+  }else{
+    document.getElementById('loginErr').classList.add('visible');
+    document.getElementById('loginPass').value = '';
+    document.getElementById('loginPass').focus();
+  }
+}
+
+document.getElementById('loginBtn').addEventListener('click', doLogin);
+
+document.getElementById('loginPass').addEventListener('keydown', function(e){
+  if(e.key === 'Enter') doLogin();
+});
+document.getElementById('loginUser').addEventListener('keydown', function(e){
+  if(e.key === 'Enter') document.getElementById('loginPass').focus();
+});
+
+document.getElementById('logoutBtn').addEventListener('click', function(){
+  sessionStorage.removeItem(SESSION_KEY);
+  showLogin();
+});
+
+/* Provjeri pri učitavanju */
+if(isLoggedIn()){
+  showApp();
+}else{
+  /* loadAll() se NE poziva — pozvaće se tek nakon prijave */
+}
+
+/* ========================================================================
+   OSTATAK KODA (nepromenjeno)
+   ======================================================================== */
 const $ = id => document.getElementById(id);
 function escapeHtml(s){ return String(s??'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 
 let GRADILISTA = [];
 let NALOZI = [];
-let KORISNICI = [];
 let editingGradilisteKod = null;
 let editingNalogKod = null;
-let editingKorisnikUsername = null;
 
 async function apiGet(action, params){
   const qs = new URLSearchParams({ action, ...(params||{}) });
@@ -237,23 +346,18 @@ async function loadAll(){
   if(SCRIPT_URL.includes('PASTE_YOUR')){
     $('gradilisteListWrap').innerHTML = '<div class="empty">Nije podešen SCRIPT_URL u fajlu admin.html.</div>';
     $('nalogListWrap').innerHTML = '<div class="empty">Nije podešen SCRIPT_URL u fajlu admin.html.</div>';
-    $('korisnikListWrap').innerHTML = '<div class="empty">Nije podešen SCRIPT_URL u fajlu admin.html.</div>';
     return;
   }
   try{
-    const [gData, nData, kData] = await Promise.all([apiGet('listGradilista'), apiGet('listNalozi'), apiGet('listKorisnici')]);
+    const [gData, nData] = await Promise.all([apiGet('listGradilista'), apiGet('listNalozi')]);
     GRADILISTA = (gData.gradilista || []).map(g => ({ kod:String(g.kod), naziv:g.naziv }));
     NALOZI = (nData.nalozi || []).map(n => ({ kod:n.kod, opis:n.opis, gradiliste:n.gradiliste }));
-    KORISNICI = (kData.korisnici || []).map(k => ({ username:k.username, gradiliste:k.gradiliste }));
     renderGradilistaList();
     renderNalogGrid();
     renderNalogList();
-    renderKorisnikGrid();
-    renderKorisnikList();
   }catch(e){
     $('gradilisteListWrap').innerHTML = '<div class="empty">Greška pri učitavanju. Proveri SCRIPT_URL i konekciju.</div>';
     $('nalogListWrap').innerHTML = '<div class="empty">Greška pri učitavanju. Proveri SCRIPT_URL i konekciju.</div>';
-    $('korisnikListWrap').innerHTML = '<div class="empty">Greška pri učitavanju. Proveri SCRIPT_URL i konekciju.</div>';
   }
 }
 
@@ -479,133 +583,10 @@ $('nSaveBtn').addEventListener('click', async ()=>{
   $('nSaveBtn').disabled = false;
 });
 
-/* ---------- KORISNICI ---------- */
-
-function renderKorisnikGrid(){
-  const grid = $('kGradilistaGrid');
-  const sorted = [...GRADILISTA].sort((a,b)=> a.kod.localeCompare(b.kod));
-  if(sorted.length === 0){
-    grid.innerHTML = '<div class="empty">Prvo dodaj bar jedno gradilište.</div>';
-    return;
-  }
-  grid.innerHTML = sorted.map(g => `
-    <label><input type="checkbox" value="${g.kod}"> ${escapeHtml(g.kod)} — ${escapeHtml(g.naziv)}</label>
-  `).join('');
+/* Ako je već prijavljen (reload stranice), učitaj podatke */
+if(isLoggedIn()){
+  loadAll();
 }
-
-$('kSva').addEventListener('change', ()=>{
-  $('kGradilistaWrap').style.display = $('kSva').checked ? 'none' : 'block';
-});
-
-function renderKorisnikList(){
-  const wrap = $('korisnikListWrap');
-  if(KORISNICI.length === 0){
-    wrap.innerHTML = '<div class="empty">Još uvek nema korisnika.</div>';
-    return;
-  }
-  const sorted = [...KORISNICI].sort((a,b)=> a.username.localeCompare(b.username));
-  wrap.innerHTML = `
-    <table>
-      <thead><tr><th style="width:180px;">Korisničko ime</th><th>Dozvoljena gradilišta</th><th style="width:140px;"></th></tr></thead>
-      <tbody>
-        ${sorted.map(k => `
-          <tr>
-            <td style="font-family:'IBM Plex Mono',monospace;">${escapeHtml(k.username)}</td>
-            <td>${renderGradilistaTags(k.gradiliste)}</td>
-            <td class="row-actions">
-              <button class="btn-ghost" data-edit-k="${escapeHtml(k.username)}">Uredi</button>
-              <button class="btn-ghost" data-del-k="${escapeHtml(k.username)}">Obriši</button>
-            </td>
-          </tr>
-        `).join('')}
-      </tbody>
-    </table>
-  `;
-  wrap.querySelectorAll('[data-edit-k]').forEach(b => b.addEventListener('click', e => openEditKorisnik(e.target.dataset.editK)));
-  wrap.querySelectorAll('[data-del-k]').forEach(b => b.addEventListener('click', async e => {
-    const username = e.target.dataset.delK;
-    if(!confirm(`Obrisati korisnika ${username}?`)) return;
-    try{
-      await apiPost('deleteKorisnik', { username });
-      await loadAll();
-    }catch(err){
-      alert('Brisanje nije uspelo.');
-    }
-  }));
-}
-
-function openEditKorisnik(username){
-  const k = KORISNICI.find(x => x.username === username);
-  if(!k) return;
-  editingKorisnikUsername = username;
-  $('kUsername').value = k.username;
-  $('kUsername').disabled = true;
-  $('kPassword').value = '';
-  $('kPasswordLabel').textContent = 'Nova lozinka';
-  $('kPasswordHint').style.display = 'block';
-  const isSva = k.gradiliste === null;
-  $('kSva').checked = isSva;
-  $('kGradilistaWrap').style.display = isSva ? 'none' : 'block';
-  $('kGradilistaGrid').querySelectorAll('input[type=checkbox]').forEach(cb=>{
-    cb.checked = !isSva && k.gradiliste.includes(cb.value);
-  });
-  $('korisnikFormTitle').textContent = `Izmena korisnika ${username}`;
-  $('kSaveBtn').textContent = 'Sačuvaj izmene';
-  $('kCancelBtn').style.display = 'inline-block';
-  $('kUsername').closest('.card').scrollIntoView({ behavior:'smooth', block:'start' });
-}
-
-function resetKorisnikForm(){
-  editingKorisnikUsername = null;
-  $('kUsername').value = '';
-  $('kUsername').disabled = false;
-  $('kPassword').value = '';
-  $('kPasswordLabel').textContent = 'Lozinka';
-  $('kPasswordHint').style.display = 'none';
-  $('kSva').checked = false;
-  $('kGradilistaWrap').style.display = 'block';
-  $('kGradilistaGrid').querySelectorAll('input[type=checkbox]').forEach(cb => cb.checked = false);
-  $('kErr').textContent = '';
-  $('korisnikFormTitle').textContent = 'Novi korisnik';
-  $('kSaveBtn').textContent = 'Dodaj korisnika';
-  $('kCancelBtn').style.display = 'none';
-}
-
-$('kCancelBtn').addEventListener('click', resetKorisnikForm);
-
-$('kSaveBtn').addEventListener('click', async ()=>{
-  $('kErr').textContent = '';
-  const username = $('kUsername').value.trim();
-  const password = $('kPassword').value;
-  if(!username){
-    $('kErr').textContent = 'Korisničko ime je obavezno.';
-    return;
-  }
-  if(!editingKorisnikUsername && !password){
-    $('kErr').textContent = 'Lozinka je obavezna za novog korisnika.';
-    return;
-  }
-  const isSva = $('kSva').checked;
-  const checked = [...$('kGradilistaGrid').querySelectorAll('input[type=checkbox]:checked')].map(cb => cb.value);
-  const gradiliste = isSva ? null : checked;
-
-  $('kSaveBtn').disabled = true;
-  try{
-    const action = editingKorisnikUsername ? 'updateKorisnik' : 'addKorisnik';
-    const result = await apiPost(action, { username, password, gradiliste });
-    if(result && result.error){
-      $('kErr').textContent = result.error;
-    }else{
-      resetKorisnikForm();
-      await loadAll();
-    }
-  }catch(e){
-    $('kErr').textContent = 'Čuvanje nije uspelo. Proveri konekciju.';
-  }
-  $('kSaveBtn').disabled = false;
-});
-
-loadAll();
 </script>
 </body>
 </html>
