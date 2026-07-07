@@ -21,5 +21,5 @@ const GITHUB_CONFIG = {
   repo: "zahtevi-data",              // ime repo-a iz koraka 1
   path: "data.json",                 // ne menjaj, osim ako želiš drugo ime fajla
   branch: "main",                    // proveri da li ti je podrazumevana grana "main" ili "master"
-  token: "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"
+  token: "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"
 };
