@@ -115,10 +115,31 @@ td{padding:8px 8px 8px 0;border-bottom:1px solid var(--line-soft);font-size:13px
     </div>
   </div>
 
-  <!-- KORISNICI — sada se njima upravlja u Supabase Dashboard-u -->
+  <!-- KORISNICI -->
   <div class="card">
-    <h2>Korisnici</h2>
-    <p class="section-note">Korisnicima (prijava na <strong>stranicu "Zahtev za nabavku"</strong>) sada se upravlja u <strong>Supabase Dashboard-u</strong>: <em>Authentication &rarr; Users &rarr; Add user</em>. Korisničko ime je deo email adrese pre <code>@</code> (npr. korisnik <code>petar</code> = email <code>petar@zahtev.local</code>). Za administratorska prava, u tabeli <code>profiles</code> postavi <code>role = 'admin'</code>.</p>
+    <h2 id="userFormTitle">Novi korisnik</h2>
+    <p class="section-note">Korisnici se prijavljuju na <strong>glavnu stranicu "Zahtev za nabavku"</strong>. Korisničko ime je deo email adrese pre <code>@</code> (npr. <code>petar</code> = <code>petar@zahtev.local</code>). Ovde se kreiraju <strong>samo obični korisnici</strong> — administratorski nalog se ne može kreirati odavde.</p>
+    <div class="row2">
+      <div class="field">
+        <label for="uName">Korisničko ime</label>
+        <input type="text" id="uName" placeholder="npr. petar" autocomplete="off">
+        <div class="hint">Mala slova, brojevi i znakovi . _ - (najmanje 3 znaka).</div>
+      </div>
+      <div class="field">
+        <label for="uPass">Lozinka</label>
+        <input type="password" id="uPass" autocomplete="new-password" placeholder="najmanje 8 znakova">
+      </div>
+    </div>
+    <div class="info-msg" id="uInfo"></div>
+    <div class="err" id="uErr"></div>
+    <div style="display:flex;gap:8px;">
+      <button type="button" class="btn btn-primary" id="uSaveBtn">Dodaj korisnika</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Postojeći korisnici</h2>
+    <div id="userListWrap"><div class="loading">Učitavanje…</div></div>
   </div>
 
   <!-- GRADILIŠTA -->
@@ -276,6 +297,7 @@ async function loadAll(){
     GRADILISTA = (gData.gradilista||[]).map(g=>({kod:String(g.kod),naziv:g.naziv}));
     NALOZI = (nData.nalozi||[]).map(n=>({kod:n.kod,opis:n.opis,gradiliste:n.gradiliste}));
     renderGradilistaList(); renderNalogGrid(); renderNalogList();
+    loadUsers();
   }catch(e){
     $('gradilisteListWrap').innerHTML='<div class="empty">Greška pri učitavanju. Proveri SCRIPT_URL.</div>';
     $('nalogListWrap').innerHTML='<div class="empty">Greška pri učitavanju. Proveri SCRIPT_URL.</div>';
@@ -391,6 +413,81 @@ $('nSaveBtn').addEventListener('click',async()=>{
     if(r&&r.error){$('nErr').textContent=r.error;}else{resetNalogForm();await loadAll();}
   }catch(e){$('nErr').textContent='Čuvanje nije uspelo.';}
   $('nSaveBtn').disabled=false;
+});
+
+/* ============================================================
+   KORISNICI (preko Edge Function-a "manage-users")
+   Kreira SAMO obične korisnike; admin se ne dira odavde.
+   ============================================================ */
+let USERS=[];
+
+async function usersApi(action, payload){
+  try{
+    const { data, error } = await sbClient.functions.invoke('manage-users', { body:{ action, ...(payload||{}) } });
+    if(error){
+      try{ const ctx = await error.context.json(); if(ctx&&ctx.error) return { error: ctx.error }; }catch(_){}
+      return { error: 'Greška u komunikaciji sa serverom.' };
+    }
+    return data || {};
+  }catch(e){ return { error: 'Greška u komunikaciji sa serverom.' }; }
+}
+
+async function loadUsers(){
+  const wrap=$('userListWrap');
+  const r=await usersApi('listUsers');
+  if(r.error){ wrap.innerHTML=`<div class="empty">${escapeHtml(r.error)}</div>`; return; }
+  USERS=(r.users||[]);
+  renderUserList();
+}
+
+function renderUserList(){
+  const wrap=$('userListWrap');
+  if(!USERS.length){ wrap.innerHTML='<div class="empty">Još uvek nema korisnika.</div>'; return; }
+  const sorted=[...USERS].sort((a,b)=>String(a.username).localeCompare(String(b.username)));
+  wrap.innerHTML=`<table><thead><tr><th>Korisničko ime</th><th style="width:90px;">Uloga</th><th style="width:210px;"></th></tr></thead><tbody>
+    ${sorted.map(u=>{
+      const isAdmin=u.role==='admin';
+      return `<tr>
+        <td style="font-family:'IBM Plex Mono',monospace;">${escapeHtml(u.username)}</td>
+        <td>${isAdmin?'<span class="tag sva">admin</span>':'<span class="hint">korisnik</span>'}</td>
+        <td class="row-actions">${isAdmin?'<span class="hint">upravljanje u Dashboard-u</span>':`
+          <button class="btn-ghost" data-reset-u="${escapeHtml(u.id)}" data-uname="${escapeHtml(u.username)}">Nova lozinka</button>
+          <button class="btn-danger-ghost" data-del-u="${escapeHtml(u.id)}" data-uname="${escapeHtml(u.username)}">Obriši</button>`}</td>
+      </tr>`;
+    }).join('')}
+  </tbody></table>`;
+  wrap.querySelectorAll('[data-reset-u]').forEach(b=>b.addEventListener('click',async e=>{
+    const btn=e.currentTarget, id=btn.dataset.resetU, uname=btn.dataset.uname;
+    const pass=prompt(`Nova lozinka za "${uname}" (najmanje 8 znakova):`);
+    if(pass===null) return;
+    if(String(pass).length<8){ alert('Lozinka mora imati bar 8 znakova.'); return; }
+    const r=await usersApi('resetPassword',{ id, password:pass });
+    if(r.error) alert(r.error); else alert(`Lozinka za "${uname}" je promenjena.`);
+  }));
+  wrap.querySelectorAll('[data-del-u]').forEach(b=>b.addEventListener('click',async e=>{
+    const btn=e.currentTarget, id=btn.dataset.delU, uname=btn.dataset.uname;
+    if(!confirm(`Obrisati korisnika "${uname}"? Ova radnja je trajna.`)) return;
+    const r=await usersApi('deleteUser',{ id });
+    if(r.error) alert(r.error); else loadUsers();
+  }));
+}
+
+$('uSaveBtn').addEventListener('click',async()=>{
+  $('uErr').textContent=''; $('uInfo').classList.remove('visible');
+  const username=$('uName').value.trim().toLowerCase();
+  const password=$('uPass').value;
+  if(!/^[a-z0-9._-]{3,}$/.test(username)){ $('uErr').textContent='Korisničko ime: najmanje 3 znaka (mala slova, brojevi, . _ -).'; return; }
+  if(password.length<8){ $('uErr').textContent='Lozinka mora imati bar 8 znakova.'; return; }
+  $('uSaveBtn').disabled=true;
+  const r=await usersApi('createUser',{ username, password });
+  if(r&&r.error){ $('uErr').textContent=r.error; }
+  else{
+    $('uName').value=''; $('uPass').value='';
+    $('uInfo').textContent=`Korisnik "${username}" je kreiran.`; $('uInfo').classList.add('visible');
+    setTimeout(()=>$('uInfo').classList.remove('visible'),4000);
+    await loadUsers();
+  }
+  $('uSaveBtn').disabled=false;
 });
 
 /* INICIJALIZACIJA */

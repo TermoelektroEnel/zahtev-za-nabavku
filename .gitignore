@@ -9,3 +9,6 @@ _datajson_dump.json
 # OS/editor
 Thumbs.db
 .DS_Store
+
+# Supabase CLI lokalni artefakti
+supabase/.temp/
