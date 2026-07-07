@@ -108,11 +108,6 @@
       if (error) throw error;
       return { nalozi: data.map(r => ({ kod: r.kod, opis: r.opis, gradiliste: parseGradiliste_(r.gradiliste_raw) })) };
     }
-    if (action === 'listUsers') {
-      const { data, error } = await sbClient.from('profiles').select('username').order('username');
-      if (error) throw error;
-      return { users: data.map(r => ({ username: r.username })) };
-    }
     return { error: 'Nepoznata akcija.' };
   }
 
@@ -131,10 +126,6 @@
       case 'addNalog': return addNalog_(body);
       case 'updateNalog': return updateNalog_(body);
       case 'deleteNalog': return deleteNalog_(body);
-      case 'addUser':
-      case 'deleteUser':
-      case 'updateUserPassword':
-        return { error: 'Korisnicima se upravlja u Supabase Dashboard-u (Authentication → Users).' };
       default: return { error: 'Nepoznata akcija.' };
     }
   }

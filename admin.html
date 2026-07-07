@@ -188,8 +188,9 @@ td{padding:8px 8px 8px 0;border-bottom:1px solid var(--line-soft);font-size:13px
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycby9zpoac93iRvD7gavKdgKel7XaT_lmDBTfTc42-M0iKo3LIj7MSuVxXN36sTUDpBcU/exec";
 
 /* ============================================================
-   ADMIN LOGIN — samo hardkodovani admin/Nabavka2025
-   Za promenu: izmeni ADMIN_USER i ADMIN_PASS ovde u fajlu.
+   ADMIN PRISTUP
+   Prijava ide preko Supabase Auth-a; pravo pristupa ovoj stranici
+   ima samo korisnik sa role = 'admin' u tabeli profiles (RLS).
    ============================================================ */
 const SESSION_KEY = 'zn_admin_session';
 

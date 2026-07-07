@@ -81,7 +81,7 @@ begin
   values (
     new.id,
     coalesce(new.raw_user_meta_data->>'username', split_part(new.email, '@', 1)),
-    coalesce(new.raw_user_meta_data->>'role', 'user')
+    'user'  -- uvek 'user'; admin se dodeljuje isključivo ručno u tabeli profiles (nikad iz metapodataka)
   )
   on conflict (id) do nothing;
   return new;
@@ -166,7 +166,7 @@ create or replace function public.add_request(
 )
 returns public.requests
 language plpgsql
-security invoker
+security definer
 set search_path = public
 as $$
 declare
@@ -210,9 +210,15 @@ begin
 end;
 $$;
 
+-- add_request je jedini (kontrolisani) put za upis u counters i requests.
+-- Radi kao SECURITY DEFINER da bi mogao da piše u counters (koji ima RLS
+-- bez INSERT/UPDATE politike). Izvršavanje je dozvoljeno samo prijavljenim
+-- korisnicima — anon (neprijavljeni) ne sme da ga poziva.
+revoke all on function public.add_request(text, text, text, jsonb, integer) from public, anon;
+grant execute on function public.add_request(text, text, text, jsonb, integer) to authenticated;
+
 -- ------------------------------------------------------------
 --  7) POČETNI PODACI (gradilišta + nalozi)
---     Zahtevi (requests) se seed-uju posebnom skriptom nakon migracije.
 -- ------------------------------------------------------------
 insert into public.gradilista (kod, naziv) values
   ('901','DIREKCIJA'), ('902','OBRENOVAC'), ('907','KOSTOLAC'),
