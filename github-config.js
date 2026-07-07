@@ -17,7 +17,7 @@
  */
 
 const GITHUB_CONFIG = {
-  owner: "TVOJ-GITHUB-USERNAME",     // npr. "pera123"
+  owner: "TermoelektroEnel",     // npr. "pera123"
   repo: "zahtevi-data",              // ime repo-a iz koraka 1
   path: "data.json",                 // ne menjaj, osim ako želiš drugo ime fajla
   branch: "main",                    // proveri da li ti je podrazumevana grana "main" ili "master"
