@@ -239,8 +239,9 @@ input[type=password]:focus{outline:2px solid var(--steel);outline-offset:1px;}
 
 <div id="modalRoot"></div>
 
-<script src="github-config.js"></script>
-<script src="github-backend.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="supabase-config.js"></script>
+<script src="supabase-backend.js"></script>
 <script>
 /* ============================================================
    PODEŠAVANJE
@@ -318,7 +319,7 @@ async function doLogin(){
 $i('loginBtn').addEventListener('click', doLogin);
 $i('loginPass').addEventListener('keydown', e => { if(e.key==='Enter') doLogin(); });
 $i('loginUser').addEventListener('keydown', e => { if(e.key==='Enter') $i('loginPass').focus(); });
-$i('logoutBtn').addEventListener('click', ()=>{ sessionStorage.removeItem(SESSION_KEY); showLogin(); });
+$i('logoutBtn').addEventListener('click', async ()=>{ await ZN.signOut(); sessionStorage.removeItem(SESSION_KEY); showLogin(); });
 
 /* ============================================================
    OSTATAK APLIKACIJE (neizmenjeno od originala)
@@ -467,6 +468,7 @@ select, input[type=date], input[type=number], input[type=text]{font-family:'IBM 
 @media print{.toolbar{display:none;}body{background:#fff;}.card{border:none;padding:0;overflow:visible;}table{width:auto;}th{white-space:normal;}}
 @page{ margin:10mm; }
 </style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"><\/script>
 </head>
 <body>
   <div class="toolbar">
@@ -497,7 +499,9 @@ select, input[type=date], input[type=number], input[type=text]{font-family:'IBM 
   </div>
 <script>
 const LOGO_DATA_URI = ${JSON.stringify(LOGO_DATA_URI)};
-const SCRIPT_URL = ${JSON.stringify(SCRIPT_URL)};
+const SB_URL = ${JSON.stringify(SUPABASE_CONFIG.url)};
+const SB_KEY = ${JSON.stringify(SUPABASE_CONFIG.anonKey)};
+const sbClient = window.supabase.createClient(SB_URL, SB_KEY);
 const NALOG = ${JSON.stringify(nalog)};
 let REQUESTS = ${JSON.stringify(requestsData)};
 function escapeHtml(s){ return String(s??'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
@@ -543,9 +547,8 @@ async function onFieldChange(e){
   }
   const statusMsg=document.getElementById('statusMsg'); statusMsg.textContent='Čuvanje…';
   try{
-    const res=await fetch(SCRIPT_URL,{method:'POST',body:JSON.stringify({action:'update',id:req.id,nalog:NALOG,stavke:req.stavke})});
-    const result=await res.json();
-    statusMsg.textContent=result&&result.error?'Greška: '+result.error:'Sačuvano '+new Date().toLocaleTimeString('sr-RS');
+    const { error }=await sbClient.from('requests').update({ nalog:NALOG, stavke:req.stavke }).eq('id', req.id);
+    statusMsg.textContent=error?'Greška: '+error.message:'Sačuvano '+new Date().toLocaleTimeString('sr-RS');
   }catch(err){ statusMsg.textContent='Greška pri čuvanju — proveri konekciju.'; }
   render();
 }
@@ -848,12 +851,16 @@ $('mastheadLogo').src = LOGO_DATA_URI;
 /* ============================================================
    INICIJALIZACIJA
    ============================================================ */
-if(isLoggedIn()){
-  showApp();
-  loadRefData();
-  loadData();
-  resetForm();
-}
+(async function initApp(){
+  const user = await ZN.currentUsername();
+  if(user){
+    sessionStorage.setItem(SESSION_KEY, user);
+    showApp();
+    loadRefData();
+    loadData();
+    resetForm();
+  }
+})();
 </script>
 </body>
 </html>

@@ -115,35 +115,10 @@ td{padding:8px 8px 8px 0;border-bottom:1px solid var(--line-soft);font-size:13px
     </div>
   </div>
 
-  <!-- KORISNICI — za pristup stranici "Zahtev za nabavku" (index.html) -->
+  <!-- KORISNICI — sada se njima upravlja u Supabase Dashboard-u -->
   <div class="card">
-    <h2 id="uFormTitle">Novi korisnik</h2>
-    <p class="section-note">Ovi korisnici mogu da se prijave na <strong>stranicu "Zahtev za nabavku"</strong> (index.html). Na ovu admin stranicu može samo <code>admin</code>.</p>
-    <div class="info-msg" id="uInfo"></div>
-    <div class="row3">
-      <div class="field">
-        <label for="uUsername">Korisničko ime</label>
-        <input type="text" id="uUsername" placeholder="npr. petar.petrovic" autocomplete="off">
-      </div>
-      <div class="field">
-        <label for="uPassword">Lozinka</label>
-        <input type="password" id="uPassword" placeholder="min. 6 karaktera" autocomplete="new-password">
-      </div>
-      <div class="field">
-        <label for="uPassword2">Potvrda lozinke</label>
-        <input type="password" id="uPassword2" placeholder="ponovi lozinku" autocomplete="new-password">
-      </div>
-    </div>
-    <div class="err" id="uErr"></div>
-    <div style="display:flex;gap:8px;">
-      <button type="button" class="btn btn-primary" id="uSaveBtn">Dodaj korisnika</button>
-      <button type="button" class="btn-ghost" id="uCancelBtn" style="display:none;">Otkaži</button>
-    </div>
-  </div>
-
-  <div class="card">
-    <h2>Postojeći korisnici (za index.html)</h2>
-    <div id="userListWrap"><div class="loading">Učitavanje…</div></div>
+    <h2>Korisnici</h2>
+    <p class="section-note">Korisnicima (prijava na <strong>stranicu "Zahtev za nabavku"</strong>) sada se upravlja u <strong>Supabase Dashboard-u</strong>: <em>Authentication &rarr; Users &rarr; Add user</em>. Korisničko ime je deo email adrese pre <code>@</code> (npr. korisnik <code>petar</code> = email <code>petar@zahtev.local</code>). Za administratorska prava, u tabeli <code>profiles</code> postavi <code>role = 'admin'</code>.</p>
   </div>
 
   <!-- GRADILIŠTA -->
@@ -206,8 +181,9 @@ td{padding:8px 8px 8px 0;border-bottom:1px solid var(--line-soft);font-size:13px
   </div>
 </div>
 
-<script src="github-config.js"></script>
-<script src="github-backend.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="supabase-config.js"></script>
+<script src="supabase-backend.js"></script>
 <script>
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycby9zpoac93iRvD7gavKdgKel7XaT_lmDBTfTc42-M0iKo3LIj7MSuVxXN36sTUDpBcU/exec";
 
@@ -215,8 +191,6 @@ const SCRIPT_URL = "https://script.google.com/macros/s/AKfycby9zpoac93iRvD7gavKd
    ADMIN LOGIN — samo hardkodovani admin/Nabavka2025
    Za promenu: izmeni ADMIN_USER i ADMIN_PASS ovde u fajlu.
    ============================================================ */
-const ADMIN_USER = 'admin';
-const ADMIN_PASS = 'Nabavka2025';
 const SESSION_KEY = 'zn_admin_session';
 
 const $ = id => document.getElementById(id);
@@ -237,25 +211,43 @@ function showLogin(){
   setTimeout(()=> $('loginUser').focus(), 50);
 }
 
-function doLogin(){
+async function doLogin(){
   const user = $('loginUser').value.trim();
   const pass = $('loginPass').value;
-  if(user === ADMIN_USER && pass === ADMIN_PASS){
-    sessionStorage.setItem(SESSION_KEY, '1');
-    showApp();
-    loadAll();
-    loadUsers();
-  }else{
+  if(!user || !pass){ $('loginErr').textContent='Unesite korisničko ime i lozinku.'; $('loginErr').classList.add('visible'); return; }
+  $('loginBtn').disabled = true;
+  $('loginErr').classList.remove('visible');
+  try{
+    const res = await fetch(SCRIPT_URL, { method:'POST', body: JSON.stringify({ action:'checkLogin', username:user, password:pass }) });
+    const result = await res.json();
+    if(result && result.ok){
+      if(!(await ZN.isAdmin())){
+        await ZN.signOut();
+        $('loginErr').textContent = 'Ovaj nalog nema administratorska prava.';
+        $('loginErr').classList.add('visible');
+        $('loginPass').value = '';
+      }else{
+        sessionStorage.setItem(SESSION_KEY, '1');
+        showApp();
+        loadAll();
+      }
+    }else{
+      $('loginErr').textContent = 'Pogrešno korisničko ime ili lozinka.';
+      $('loginErr').classList.add('visible');
+      $('loginPass').value = '';
+      $('loginPass').focus();
+    }
+  }catch(e){
+    $('loginErr').textContent = 'Greška pri povezivanju.';
     $('loginErr').classList.add('visible');
-    $('loginPass').value = '';
-    $('loginPass').focus();
   }
+  $('loginBtn').disabled = false;
 }
 
 $('loginBtn').addEventListener('click', doLogin);
 $('loginPass').addEventListener('keydown', e => { if(e.key==='Enter') doLogin(); });
 $('loginUser').addEventListener('keydown', e => { if(e.key==='Enter') $('loginPass').focus(); });
-$('logoutBtn').addEventListener('click', ()=>{ sessionStorage.removeItem(SESSION_KEY); showLogin(); });
+$('logoutBtn').addEventListener('click', async ()=>{ await ZN.signOut(); sessionStorage.removeItem(SESSION_KEY); showLogin(); });
 
 /* ============================================================
    API HELPERS
@@ -271,95 +263,6 @@ async function apiPost(action, payload){
   if(!res.ok) throw new Error('Greška pri čuvanju.');
   return res.json();
 }
-
-/* ============================================================
-   UPRAVLJANJE KORISNICIMA (za index.html)
-   ============================================================ */
-let editingUsername = null;
-
-async function loadUsers(){
-  $('userListWrap').innerHTML = '<div class="loading">Učitavanje…</div>';
-  try{
-    const data = await apiGet('listUsers');
-    renderUserList(data.users || []);
-  }catch(e){
-    $('userListWrap').innerHTML = '<div class="empty">Greška pri učitavanju. Ažuriraj AppScript pa pokušaj ponovo.</div>';
-  }
-}
-
-function renderUserList(users){
-  const wrap = $('userListWrap');
-  if(!users.length){ wrap.innerHTML = '<div class="empty">Nema korisnika. Dodaj prvog iznad.</div>'; return; }
-  wrap.innerHTML = `
-    <table>
-      <thead><tr><th>Korisničko ime</th><th style="width:230px;"></th></tr></thead>
-      <tbody>${users.map(u=>`
-        <tr>
-          <td style="font-family:'IBM Plex Mono',monospace;">${escapeHtml(u.username)}</td>
-          <td class="row-actions">
-            <button class="btn-ghost" data-edit-u="${escapeHtml(u.username)}">Promeni lozinku</button>
-            ${users.length>1
-              ? `<button class="btn-danger-ghost" data-del-u="${escapeHtml(u.username)}">Obriši</button>`
-              : '<span style="font-size:11px;color:var(--ink-soft);">jedini korisnik</span>'}
-          </td>
-        </tr>`).join('')}
-      </tbody>
-    </table>`;
-  wrap.querySelectorAll('[data-edit-u]').forEach(b=>b.addEventListener('click',e=>openEditUser(e.target.dataset.editU)));
-  wrap.querySelectorAll('[data-del-u]').forEach(b=>b.addEventListener('click',e=>deleteUser(e.target.dataset.delU)));
-}
-
-function openEditUser(username){
-  editingUsername = username;
-  $('uUsername').value = username; $('uUsername').disabled = true;
-  $('uPassword').value = ''; $('uPassword2').value = '';
-  $('uFormTitle').textContent = `Promena lozinke za: ${username}`;
-  $('uSaveBtn').textContent = 'Sačuvaj novu lozinku';
-  $('uCancelBtn').style.display = 'inline-block';
-  $('uErr').textContent = ''; $('uInfo').classList.remove('visible');
-  $('uUsername').closest('.card').scrollIntoView({behavior:'smooth',block:'start'});
-  $('uPassword').focus();
-}
-function resetUserForm(){
-  editingUsername = null;
-  $('uUsername').value = ''; $('uUsername').disabled = false;
-  $('uPassword').value = ''; $('uPassword2').value = '';
-  $('uErr').textContent = ''; $('uInfo').classList.remove('visible');
-  $('uFormTitle').textContent = 'Novi korisnik';
-  $('uSaveBtn').textContent = 'Dodaj korisnika';
-  $('uCancelBtn').style.display = 'none';
-}
-async function deleteUser(username){
-  if(!confirm(`Obrisati korisnika "${username}"?`)) return;
-  try{
-    const r = await apiPost('deleteUser',{username});
-    if(r&&r.error){ alert('Greška: '+r.error); return; }
-    await loadUsers();
-  }catch(e){ alert('Brisanje nije uspelo.'); }
-}
-$('uCancelBtn').addEventListener('click', resetUserForm);
-$('uSaveBtn').addEventListener('click', async ()=>{
-  $('uErr').textContent = ''; $('uInfo').classList.remove('visible');
-  const username = $('uUsername').value.trim();
-  const password = $('uPassword').value;
-  const password2 = $('uPassword2').value;
-  if(!username){ $('uErr').textContent='Korisničko ime je obavezno.'; return; }
-  if(!/^[a-zA-Z0-9._\-]+$/.test(username)){ $('uErr').textContent='Ime sme sadržati slova, brojeve, tačke, crtice i donje crte.'; return; }
-  if(password.length<6){ $('uErr').textContent='Lozinka mora imati najmanje 6 karaktera.'; return; }
-  if(password!==password2){ $('uErr').textContent='Lozinke se ne poklapaju.'; $('uPassword2').focus(); return; }
-  $('uSaveBtn').disabled = true;
-  try{
-    const action = editingUsername ? 'updateUserPassword' : 'addUser';
-    const r = await apiPost(action, {username, password});
-    if(r&&r.error){ $('uErr').textContent=r.error; }
-    else{
-      $('uInfo').textContent = editingUsername ? `Lozinka za "${username}" promenjena.` : `Korisnik "${username}" dodat.`;
-      $('uInfo').classList.add('visible');
-      resetUserForm(); await loadUsers();
-    }
-  }catch(e){ $('uErr').textContent='Greška pri čuvanju. Proveri konekciju.'; }
-  $('uSaveBtn').disabled = false;
-});
 
 /* ============================================================
    GRADILIŠTA + NALOZI
@@ -490,11 +393,13 @@ $('nSaveBtn').addEventListener('click',async()=>{
 });
 
 /* INICIJALIZACIJA */
-if(isLoggedIn()){
-  showApp();
-  loadAll();
-  loadUsers();
-}
+(async function initAdmin(){
+  if(await ZN.isAdmin()){
+    sessionStorage.setItem(SESSION_KEY, '1');
+    showApp();
+    loadAll();
+  }
+})();
 </script>
 </body>
 </html>

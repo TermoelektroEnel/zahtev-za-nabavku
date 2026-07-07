@@ -1,0 +1,11 @@
+# Lokalni podaci za migraciju (ne commit-uj poslovne podatke)
+data.json
+_datajson_dump.json
+
+# Tajne
+.env
+*.env
+
+# OS/editor
+Thumbs.db
+.DS_Store
