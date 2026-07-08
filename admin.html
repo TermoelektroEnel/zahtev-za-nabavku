@@ -128,12 +128,23 @@ td{padding:8px 8px 8px 0;border-bottom:1px solid var(--line-soft);font-size:13px
       <div class="field">
         <label for="uPass">Lozinka</label>
         <input type="password" id="uPass" autocomplete="new-password" placeholder="najmanje 8 znakova">
+        <div class="hint" id="uPassHint"></div>
       </div>
+    </div>
+    <div class="checkbox-row">
+      <input type="checkbox" id="uSva" checked>
+      <label for="uSva">Sva gradilišta</label>
+    </div>
+    <div class="field" id="uGradilistaWrap" style="display:none;">
+      <label>Gradilišta koja korisnik može da otvori</label>
+      <div class="chip-grid" id="uGradilistaGrid"><div class="loading">Učitavanje…</div></div>
+      <div class="hint">Ako ništa ne označiš, korisnik neće moći da otvori nijedno gradilište dok mu ga ne dodeliš.</div>
     </div>
     <div class="info-msg" id="uInfo"></div>
     <div class="err" id="uErr"></div>
     <div style="display:flex;gap:8px;">
       <button type="button" class="btn btn-primary" id="uSaveBtn">Dodaj korisnika</button>
+      <button type="button" class="btn-ghost" id="uCancelBtn" style="display:none;">Otkaži</button>
     </div>
   </div>
 
@@ -296,7 +307,7 @@ async function loadAll(){
     const [gData,nData] = await Promise.all([apiGet('listGradilista'),apiGet('listNalozi')]);
     GRADILISTA = (gData.gradilista||[]).map(g=>({kod:String(g.kod),naziv:g.naziv}));
     NALOZI = (nData.nalozi||[]).map(n=>({kod:n.kod,opis:n.opis,gradiliste:n.gradiliste}));
-    renderGradilistaList(); renderNalogGrid(); renderNalogList();
+    renderGradilistaList(); renderNalogGrid(); renderNalogList(); renderUserGradilistaGrid();
     loadUsers();
   }catch(e){
     $('gradilisteListWrap').innerHTML='<div class="empty">Greška pri učitavanju. Proveri SCRIPT_URL.</div>';
@@ -355,6 +366,14 @@ function renderNalogGrid(){
   grid.innerHTML=sorted.map(g=>`<label><input type="checkbox" value="${g.kod}"> ${escapeHtml(g.kod)} — ${escapeHtml(g.naziv)}</label>`).join('');
 }
 $('nSva').addEventListener('change',()=>{ $('nGradilistaWrap').style.display=$('nSva').checked?'none':'block'; });
+
+function renderUserGradilistaGrid(){
+  const grid=$('uGradilistaGrid');
+  const sorted=[...GRADILISTA].sort((a,b)=>a.kod.localeCompare(b.kod));
+  if(!sorted.length){grid.innerHTML='<div class="empty">Prvo dodaj bar jedno gradilište.</div>';return;}
+  grid.innerHTML=sorted.map(g=>`<label><input type="checkbox" value="${g.kod}"> ${escapeHtml(g.kod)} — ${escapeHtml(g.naziv)}</label>`).join('');
+}
+$('uSva').addEventListener('change',()=>{ $('uGradilistaWrap').style.display=$('uSva').checked?'none':'block'; });
 
 function renderNalogList(){
   const wrap=$('nalogListWrap');
@@ -444,18 +463,21 @@ function renderUserList(){
   const wrap=$('userListWrap');
   if(!USERS.length){ wrap.innerHTML='<div class="empty">Još uvek nema korisnika.</div>'; return; }
   const sorted=[...USERS].sort((a,b)=>String(a.username).localeCompare(String(b.username)));
-  wrap.innerHTML=`<table><thead><tr><th>Korisničko ime</th><th style="width:90px;">Uloga</th><th style="width:210px;"></th></tr></thead><tbody>
+  wrap.innerHTML=`<table><thead><tr><th>Korisničko ime</th><th style="width:90px;">Uloga</th><th>Gradilišta</th><th style="width:280px;"></th></tr></thead><tbody>
     ${sorted.map(u=>{
       const isAdmin=u.role==='admin';
       return `<tr>
         <td style="font-family:'IBM Plex Mono',monospace;">${escapeHtml(u.username)}</td>
         <td>${isAdmin?'<span class="tag sva">admin</span>':'<span class="hint">korisnik</span>'}</td>
+        <td>${isAdmin?'<span class="tag sva">SVA</span>':renderGradilistaTags(u.gradilista)}</td>
         <td class="row-actions">${isAdmin?'<span class="hint">upravljanje u Dashboard-u</span>':`
+          <button class="btn-ghost" data-edit-ug="${escapeHtml(u.id)}">Izmeni gradilišta</button>
           <button class="btn-ghost" data-reset-u="${escapeHtml(u.id)}" data-uname="${escapeHtml(u.username)}">Nova lozinka</button>
           <button class="btn-danger-ghost" data-del-u="${escapeHtml(u.id)}" data-uname="${escapeHtml(u.username)}">Obriši</button>`}</td>
       </tr>`;
     }).join('')}
   </tbody></table>`;
+  wrap.querySelectorAll('[data-edit-ug]').forEach(b=>b.addEventListener('click',e=>openEditUserGradilista(e.currentTarget.dataset.editUg)));
   wrap.querySelectorAll('[data-reset-u]').forEach(b=>b.addEventListener('click',async e=>{
     const btn=e.currentTarget, id=btn.dataset.resetU, uname=btn.dataset.uname;
     const pass=prompt(`Nova lozinka za "${uname}" (najmanje 8 znakova):`);
@@ -472,17 +494,63 @@ function renderUserList(){
   }));
 }
 
+let editingUserId=null;
+
+function openEditUserGradilista(id){
+  const u=USERS.find(x=>x.id===id); if(!u) return;
+  editingUserId=id;
+  $('uName').value=u.username; $('uName').disabled=true;
+  $('uPass').value=''; $('uPass').disabled=true; $('uPass').placeholder='(ostaje nepromenjena)';
+  $('uPassHint').textContent='Lozinka se ne menja ovde — koristi dugme "Nova lozinka" u listi.';
+  const isSva=u.gradilista===null;
+  $('uSva').checked=isSva;
+  $('uGradilistaWrap').style.display=isSva?'none':'block';
+  $('uGradilistaGrid').querySelectorAll('input[type=checkbox]').forEach(cb=>{cb.checked=!isSva&&u.gradilista.includes(cb.value);});
+  $('userFormTitle').textContent=`Izmena gradilišta — ${u.username}`;
+  $('uSaveBtn').textContent='Sačuvaj izmene'; $('uCancelBtn').style.display='inline-block';
+  $('uName').closest('.card').scrollIntoView({behavior:'smooth',block:'start'});
+}
+function resetUserForm(){
+  editingUserId=null;
+  $('uName').value=''; $('uName').disabled=false;
+  $('uPass').value=''; $('uPass').disabled=false; $('uPass').placeholder='najmanje 8 znakova';
+  $('uPassHint').textContent='';
+  $('uSva').checked=true; $('uGradilistaWrap').style.display='none';
+  $('uGradilistaGrid').querySelectorAll('input[type=checkbox]').forEach(cb=>cb.checked=false);
+  $('uErr').textContent=''; $('userFormTitle').textContent='Novi korisnik';
+  $('uSaveBtn').textContent='Dodaj korisnika'; $('uCancelBtn').style.display='none';
+}
+$('uCancelBtn').addEventListener('click',resetUserForm);
+
 $('uSaveBtn').addEventListener('click',async()=>{
   $('uErr').textContent=''; $('uInfo').classList.remove('visible');
+  const isSva=$('uSva').checked;
+  const checked=[...$('uGradilistaGrid').querySelectorAll('input[type=checkbox]:checked')].map(cb=>cb.value);
+  const gradiliste=isSva?null:checked;
+
+  if(editingUserId){
+    $('uSaveBtn').disabled=true;
+    const r=await usersApi('updateUserGradilista',{ id:editingUserId, gradiliste });
+    if(r&&r.error){ $('uErr').textContent=r.error; }
+    else{
+      $('uInfo').textContent='Gradilišta su ažurirana.'; $('uInfo').classList.add('visible');
+      setTimeout(()=>$('uInfo').classList.remove('visible'),4000);
+      resetUserForm();
+      await loadUsers();
+    }
+    $('uSaveBtn').disabled=false;
+    return;
+  }
+
   const username=$('uName').value.trim().toLowerCase();
   const password=$('uPass').value;
   if(!/^[a-z0-9._-]{3,}$/.test(username)){ $('uErr').textContent='Korisničko ime: najmanje 3 znaka (mala slova, brojevi, . _ -).'; return; }
   if(password.length<8){ $('uErr').textContent='Lozinka mora imati bar 8 znakova.'; return; }
   $('uSaveBtn').disabled=true;
-  const r=await usersApi('createUser',{ username, password });
+  const r=await usersApi('createUser',{ username, password, gradiliste });
   if(r&&r.error){ $('uErr').textContent=r.error; }
   else{
-    $('uName').value=''; $('uPass').value='';
+    resetUserForm();
     $('uInfo').textContent=`Korisnik "${username}" je kreiran.`; $('uInfo').classList.add('visible');
     setTimeout(()=>$('uInfo').classList.remove('visible'),4000);
     await loadUsers();

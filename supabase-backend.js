@@ -265,6 +265,18 @@
       const { data, error } = await sbClient.rpc('is_admin');
       return !error && !!data;
     },
+    // null = sva gradilišta, [] = nijedno, ['901','902',...] = dodeljena lista
+    async myGradilista() {
+      const { data: sessionData } = await sbClient.auth.getSession();
+      if (!sessionData.session) return null;
+      const { data, error } = await sbClient
+        .from('profiles')
+        .select('gradilista_raw')
+        .eq('id', sessionData.session.user.id)
+        .maybeSingle();
+      if (error || !data) return null; // fail-open: ne blokiraj ako nešto pođe po zlu
+      return parseGradiliste_(data.gradilista_raw);
+    },
     async signOut() {
       try { await sbClient.auth.signOut(); } catch (e) { /* ignore */ }
     }

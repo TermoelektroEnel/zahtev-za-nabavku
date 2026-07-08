@@ -355,7 +355,7 @@ async function apiUpdate(id, payload){
 
 const $ = id => document.getElementById(id);
 const yy = new Date().getFullYear().toString().slice(-2);
-let GRADILISTA = [], NALOZI = [];
+let GRADILISTA = [], NALOZI = [], MOJA_GRADILISTA = null; // null = sva
 
 function nazivGradilista(code){ const g=GRADILISTA.find(x=>x.code===String(code)); return g?g.naziv:''; }
 function nazivNaloga(code){ const n=NALOZI.find(x=>x.code===String(code)); return n?n.opis:''; }
@@ -390,20 +390,27 @@ $('nalog').addEventListener('change', ()=>{ $('nalogOpis').textContent = nazivNa
 function populateGradilisteSelect(){
   const sel = $('gradiliste');
   sel.innerHTML = '<option value="">— izaberi gradilište —</option>';
-  GRADILISTA.forEach(g => {
+  const dozvoljena = MOJA_GRADILISTA === null
+    ? GRADILISTA
+    : GRADILISTA.filter(g => MOJA_GRADILISTA.includes(g.code));
+  dozvoljena.forEach(g => {
     const opt = document.createElement('option');
     opt.value = g.code; opt.textContent = `${g.code} — ${g.naziv}`;
     sel.appendChild(opt);
   });
+  if (MOJA_GRADILISTA !== null && dozvoljena.length === 0) {
+    sel.innerHTML = '<option value="">— nemate dodeljeno nijedno gradilište —</option>';
+  }
 }
 
 async function loadRefData(){
   $('gradiliste').innerHTML = '<option value="">Učitavanje…</option>';
   $('gradiliste').disabled = true;
   try{
-    const [gData, nData] = await Promise.all([apiListGradilista(), apiListNalozi()]);
+    const [gData, nData, moja] = await Promise.all([apiListGradilista(), apiListNalozi(), ZN.myGradilista()]);
     GRADILISTA = (gData.gradilista||[]).map(g=>({ code:String(g.kod), naziv:g.naziv }));
     NALOZI = (nData.nalozi||[]).map(n=>({ code:n.kod, opis:n.opis, gradiliste:n.gradiliste }));
+    MOJA_GRADILISTA = moja;
     populateGradilisteSelect();
     populateNalogSelect(null);
     populateZbirniNalogSelect();
