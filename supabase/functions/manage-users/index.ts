@@ -42,6 +42,23 @@ function json(obj: unknown, status = 200): Response {
   });
 }
 
+/* ---- gradiliste <-> gradilista_raw (ista semantika kao supabase-backend.js) ----
+ *   null / 'SVA' -> 'SVA'  (sva gradilišta)
+ *   []           -> ''     (nijedno)
+ *   ['901','902']-> '901,902'
+ */
+function serializeGradiliste(g: unknown): string {
+  if (g === null || g === undefined || g === "SVA") return "SVA";
+  if (!Array.isArray(g) || g.length === 0) return "";
+  return g.map((s) => String(s).trim()).filter(Boolean).join(",");
+}
+function parseGradiliste(raw: unknown): null | string[] {
+  const v = String(raw ?? "").trim();
+  if (v === "SVA") return null;
+  if (v === "") return [];
+  return v.split(",").map((s) => s.trim()).filter(Boolean);
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -82,10 +99,17 @@ Deno.serve(async (req: Request) => {
     if (action === "listUsers") {
       const { data, error } = await admin
         .from("profiles")
-        .select("id, username, role, created_at")
+        .select("id, username, role, created_at, gradilista_raw")
         .order("username");
       if (error) return json({ error: error.message });
-      return json({ users: data });
+      const users = (data || []).map((u) => ({
+        id: u.id,
+        username: u.username,
+        role: u.role,
+        created_at: u.created_at,
+        gradilista: parseGradiliste(u.gradilista_raw),
+      }));
+      return json({ users });
     }
 
     /* ---- KREIRANJE OBIČNOG KORISNIKA ---- */
@@ -116,7 +140,17 @@ Deno.serve(async (req: Request) => {
       }
       // role ostaje 'user' (postavlja ga trigger handle_new_user).
       // Ovde se NIKAD ne dodeljuje admin.
-      return json({ ok: true, user: { id: data.user?.id, username } });
+      // Dodeli gradilišta za koja korisnik sme da pravi zahtev.
+      const newId = data.user?.id;
+      if (newId) {
+        const gradRaw = serializeGradiliste(body.gradiliste ?? null);
+        const { error: gErr } = await admin
+          .from("profiles")
+          .update({ gradilista_raw: gradRaw })
+          .eq("id", newId);
+        if (gErr) return json({ error: gErr.message });
+      }
+      return json({ ok: true, user: { id: newId, username } });
     }
 
     /* ---- RESET LOZINKE ---- */
@@ -138,6 +172,29 @@ Deno.serve(async (req: Request) => {
         });
       }
       const { error } = await admin.auth.admin.updateUserById(id, { password });
+      if (error) return json({ error: error.message });
+      return json({ ok: true });
+    }
+
+    /* ---- IZMENA DODELJENIH GRADILIŠTA ---- */
+    if (action === "updateUserGradilista") {
+      const id = String(body.id || "");
+      if (!id) return json({ error: "Nedostaje ID korisnika." });
+      const { data: prof } = await admin
+        .from("profiles")
+        .select("role")
+        .eq("id", id)
+        .maybeSingle();
+      if (prof?.role === "admin") {
+        return json({
+          error: "Administrator već ima sva gradilišta — ne dodeljuju se ovde.",
+        });
+      }
+      const gradRaw = serializeGradiliste(body.gradiliste ?? null);
+      const { error } = await admin
+        .from("profiles")
+        .update({ gradilista_raw: gradRaw })
+        .eq("id", id);
       if (error) return json({ error: error.message });
       return json({ ok: true });
     }
