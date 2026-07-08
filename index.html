@@ -885,10 +885,21 @@ async function sendDocByEmail(r){
   if(!to.length){ errEl.textContent='Izaberi bar jednog primaoca.'; return; }
 
   btn.disabled=true; btn.textContent='Pravljenje PDF-a…';
+  let stage=null;
   try{
     const docEl=$('docContent');
-    const opt={ margin:0, filename:'zahtev.pdf', image:{type:'jpeg',quality:0.98}, html2canvas:{scale:2,useCORS:true}, jsPDF:{unit:'mm',format:'a4',orientation:'portrait'} };
-    const pdfBlob=await html2pdf().set(opt).from(docEl).outputPdf('blob');
+    // PDF se pravi iz IZOLOVANE kopije dokumenta, okačene direktno na <body>
+    // van modala/skrola. html2canvas ume pogrešno da izračuna poziciju kad
+    // je original unutar skrolujućeg overlay-a (pravi praznine na vrhu i
+    // seče sadržaj na dnu) — ovako je hvatanje uvek čisto, bez obzira da li
+    // je mail panel otvoren ili je stranica skrolovana.
+    stage=document.createElement('div');
+    stage.style.cssText='position:fixed;left:-99999px;top:0;background:#fff;width:210mm;';
+    stage.appendChild(docEl.cloneNode(true));
+    document.body.appendChild(stage);
+
+    const opt={ margin:0, filename:'zahtev.pdf', image:{type:'jpeg',quality:0.98}, html2canvas:{scale:2,useCORS:true,windowWidth:stage.scrollWidth}, jsPDF:{unit:'mm',format:'a4',orientation:'portrait'} };
+    const pdfBlob=await html2pdf().set(opt).from(stage.firstChild).outputPdf('blob');
     const pdfBase64=await blobToBase64_(pdfBlob);
 
     btn.textContent='Slanje…';
@@ -906,6 +917,8 @@ async function sendDocByEmail(r){
     }
   }catch(err){
     errEl.textContent='Greška pri pravljenju/slanju PDF-a. Pokušaj ponovo.';
+  }finally{
+    if(stage) stage.remove();
   }
   btn.disabled=false; btn.textContent='Pošalji';
 }
