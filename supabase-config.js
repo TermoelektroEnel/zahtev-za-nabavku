@@ -13,7 +13,7 @@
  * interno mapira u email "<username>@<EMAIL_DOMAIN>".
  */
 const SUPABASE_CONFIG = {
-  url: "https://qxwrfrsjkhhrtepyliru.supabase.co",
-  anonKey: "sb_publishable_4JjbYj2zb8BEt5Z8YJGz9A_4BkF093v",
+  url: "https://yalsccrxelnswxdekzsf.supabase.co",
+  anonKey: "sb_publishable_PiwJNk84lByWzFnK2VE67A_05B8JKE-",
   emailDomain: "zahtev.local"
 };
