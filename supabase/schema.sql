@@ -8,21 +8,13 @@
 --  1) TABELE
 -- ------------------------------------------------------------
 
--- Profil po korisniku (mapira auth.users -> username + role + dodeljena gradilišta)
+-- Profil po korisniku (mapira auth.users -> username + role)
 create table if not exists public.profiles (
   id         uuid primary key references auth.users (id) on delete cascade,
   username   text not null,
   role       text not null default 'user' check (role in ('user', 'admin')),
   created_at timestamptz not null default now()
 );
-
--- Dodela gradilišta po korisniku (ista semantika kao nalozi/data.json):
---   'SVA' -> sva gradilišta (u JS -> null)
---   ''    -> nijedno (u JS -> [])
---   'a,b' -> lista dozvoljenih kodova gradilišta
--- Određuje za koja gradilišta korisnik sme da pravi "zahtev za nabavku".
-alter table public.profiles
-  add column if not exists gradilista_raw text not null default 'SVA';
 
 -- Gradilišta
 create table if not exists public.gradilista (
@@ -182,20 +174,7 @@ declare
   v_next integer;
   v_redni text;
   v_row public.requests;
-  v_grad text;
 begin
-  -- provera prava: sme li korisnik da pravi zahtev za ovo gradilište
-  -- admin sme za sva; ostali samo za dodeljena (gradilista_raw u profiles)
-  if not public.is_admin() then
-    select gradilista_raw into v_grad from public.profiles where id = auth.uid();
-    if v_grad is null or v_grad <> 'SVA' then
-      if coalesce(v_grad, '') = ''
-         or not (p_gradiliste = any (string_to_array(v_grad, ','))) then
-        raise exception 'Nemate dozvolu da pravite zahtev za gradilište %.', p_gradiliste;
-      end if;
-    end if;
-  end if;
-
   -- zaključaj/kreiraj red brojača za ovo gradilište
   insert into public.counters (gradiliste, last)
   values (p_gradiliste, 0)
