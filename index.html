@@ -894,7 +894,12 @@ async function sendDocByEmail(r){
     // seče sadržaj na dnu) — ovako je hvatanje uvek čisto, bez obzira da li
     // je mail panel otvoren ili je stranica skrolovana.
     stage=document.createElement('div');
-    stage.style.cssText='position:fixed;left:-99999px;top:0;background:#fff;width:210mm;';
+    // NAPOMENA: NE koristiti ekstremne negativne koordinate (npr. -99999px) —
+    // html2canvas tada pravi ogroman/neispravan interni canvas što unakazi
+    // sliku. Umesto toga, kopija ostaje na normalnoj (0,0) poziciji, ali
+    // vizuelno "iza" postojećeg overlay-a (koji je preko cele stranice),
+    // pa je korisnik i ne vidi dok se PDF generiše.
+    stage.style.cssText='position:fixed;top:0;left:0;z-index:-1;background:#fff;width:210mm;pointer-events:none;';
     stage.appendChild(docEl.cloneNode(true));
     document.body.appendChild(stage);
 
