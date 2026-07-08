@@ -61,6 +61,7 @@
       godina: r.godina,
       nalog: r.nalog,
       stavke: r.stavke,
+      createdBy: r.created_by,
       createdAt: r.created_at ? new Date(r.created_at).getTime() : Date.now()
     };
   }

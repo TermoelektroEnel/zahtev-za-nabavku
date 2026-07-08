@@ -78,6 +78,9 @@ table.spec td input{padding:7px 8px;font-size:13px;}
 .item-code{font-family:'IBM Plex Mono',monospace;font-weight:700;font-size:15px;color:var(--steel-dark);}
 .item-date{font-size:11px;color:var(--ink-soft);}
 .item-nalog{font-size:12px;color:var(--ink-soft);margin-top:4px;}
+.nalog-group-title{font-size:12px;font-weight:700;color:var(--steel-dark);text-transform:uppercase;letter-spacing:.02em;padding:8px 2px 2px;border-top:1px solid var(--line);}
+.nalog-group-title:first-child{border-top:none;padding-top:0;}
+.nalog-group-title .hint{font-weight:400;text-transform:none;color:var(--ink-soft);}
 .item-actions{margin-top:10px;display:flex;gap:8px;}
 .empty{color:var(--ink-soft);font-size:13px;padding:20px 0;text-align:center;}
 .loading{color:var(--ink-soft);font-size:13px;padding:20px 0;text-align:center;}
@@ -725,20 +728,39 @@ async function loadData(){
 function renderList(){
   const wrap = $('listWrap');
   if(!DATA.requests.length){ wrap.innerHTML = '<div class="empty">Još uvek nema evidentiranih zahteva.</div>'; return; }
-  const sorted = [...DATA.requests].sort((a,b)=>b.createdAt-a.createdAt);
-  wrap.innerHTML = `<div class="list">${sorted.map(r=>`
-    <div class="item">
-      <div class="item-top">
-        <span class="item-code">${escapeHtml(r.redniBroj)}</span>
-        <span class="item-date">${new Date(r.createdAt).toLocaleDateString('sr-RS')}</span>
-      </div>
-      <div class="item-nalog">Gradilište: ${escapeHtml(nazivGradilista(r.gradiliste)||r.gradiliste)} · Nalog za realizaciju: ${escapeHtml(r.nalog)}${nazivNaloga(r.nalog)?' — '+escapeHtml(nazivNaloga(r.nalog)):''} · ${r.stavke.length} stavk${r.stavke.length===1?'a':(r.stavke.length<5?'e':'i')}</div>
-      <div class="item-actions">
-        <button class="btn-ghost" data-view="${r.id}">Prikaži / štampaj</button>
-        <button class="btn-ghost" data-edit="${r.id}">Izmeni</button>
-        <button class="btn-ghost" data-del="${r.id}">Obriši</button>
-      </div>
-    </div>`).join('')}</div>`;
+
+  // Grupisanje po nalogu za realizaciju
+  const groups = {};
+  DATA.requests.forEach(r=>{
+    const key = r.nalog || '—';
+    (groups[key] = groups[key] || []).push(r);
+  });
+  // brojni deo rednog broja (poslednji segment posle '/') za sortiranje od manjeg ka većem
+  const brojZaSort = r => {
+    const parts = String(r.redniBroj||'').split('/');
+    const n = parseInt(parts[parts.length-1], 10);
+    return Number.isFinite(n) ? n : 0;
+  };
+  const groupKeys = Object.keys(groups).sort((a,b)=>a.localeCompare(b,'sr',{numeric:true}));
+
+  wrap.innerHTML = `<div class="list">${groupKeys.map(nalogKod=>{
+    const items = groups[nalogKod].slice().sort((a,b)=>brojZaSort(a)-brojZaSort(b));
+    const naziv = nazivNaloga(nalogKod);
+    return `<div class="nalog-group-title">Nalog za realizaciju: ${escapeHtml(nalogKod)}${naziv?' — '+escapeHtml(naziv):''} <span class="hint">(${items.length})</span></div>`
+      + items.map(r=>`
+      <div class="item">
+        <div class="item-top">
+          <span class="item-code">${escapeHtml(r.redniBroj)}</span>
+          <span class="item-date">${new Date(r.createdAt).toLocaleDateString('sr-RS')}</span>
+        </div>
+        <div class="item-nalog">Gradilište: ${escapeHtml(nazivGradilista(r.gradiliste)||r.gradiliste)} · ${r.stavke.length} stavk${r.stavke.length===1?'a':(r.stavke.length<5?'e':'i')}</div>
+        <div class="item-actions">
+          <button class="btn-ghost" data-view="${r.id}">Prikaži / štampaj</button>
+          <button class="btn-ghost" data-edit="${r.id}">Izmeni</button>
+          <button class="btn-ghost" data-del="${r.id}">Obriši</button>
+        </div>
+      </div>`).join('');
+  }).join('')}</div>`;
   wrap.querySelectorAll('[data-view]').forEach(b=>b.addEventListener('click',e=>openDoc(e.target.dataset.view)));
   wrap.querySelectorAll('[data-edit]').forEach(b=>b.addEventListener('click',e=>openEdit(e.target.dataset.edit)));
   wrap.querySelectorAll('[data-del]').forEach(b=>b.addEventListener('click',async e=>{
