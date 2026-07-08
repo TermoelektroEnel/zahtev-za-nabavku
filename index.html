@@ -64,17 +64,12 @@ table.spec td input{padding:7px 8px;font-size:13px;}
 .add-row{background:none;border:1px dashed var(--line);color:var(--steel-dark);padding:8px;width:100%;border-radius:var(--radius);cursor:pointer;font-size:12.5px;font-weight:600;letter-spacing:0.03em;margin-bottom:16px;}
 .add-row:hover{border-color:var(--steel);background:rgba(53,86,107,0.06);}
 
-.btn{font-family:'IBM Plex Sans',sans-serif;font-weight:600;font-size:13px;padding:11px 18px;border-radius:var(--radius);border:none;cursor:pointer;letter-spacing:0.02em;transition:background .15s ease,border-color .15s ease,color .15s ease,box-shadow .15s ease,transform .05s ease;}
-.btn:active{transform:translateY(1px);}
-.btn-primary{background:var(--steel-dark);color:#fff;width:100%;box-shadow:0 1px 2px rgba(30,42,46,0.18);}
-.btn-primary:hover{background:var(--steel);box-shadow:0 2px 6px rgba(30,42,46,0.22);}
-.btn-primary:disabled{background:#9AA3A6;cursor:not-allowed;box-shadow:none;}
-.btn-ghost{font-family:'IBM Plex Sans',sans-serif;font-weight:600;letter-spacing:0.02em;background:#fff;border:1px solid var(--line);color:var(--ink);padding:7px 12px;font-size:12px;border-radius:var(--radius);cursor:pointer;transition:background .15s ease,border-color .15s ease,color .15s ease,box-shadow .15s ease,transform .05s ease;}
-.btn-ghost:hover{border-color:var(--steel);color:#fff;background:var(--steel);box-shadow:0 2px 6px rgba(53,86,107,0.22);}
-.btn-ghost:active{transform:translateY(1px);}
-/* Zatvori (close) button — filled */
-#closeDoc{background:var(--danger);border:1px solid var(--danger);color:#fff;padding:9px 18px;font-size:13px;box-shadow:0 1px 2px rgba(168,67,47,0.25);}
-#closeDoc:hover{background:#8f351f;border-color:#8f351f;color:#fff;box-shadow:0 2px 6px rgba(168,67,47,0.3);}
+.btn{font-family:'IBM Plex Sans',sans-serif;font-weight:600;font-size:13px;padding:11px 18px;border-radius:var(--radius);border:none;cursor:pointer;letter-spacing:0.02em;}
+.btn-primary{background:var(--steel-dark);color:#fff;width:100%;}
+.btn-primary:hover{background:var(--steel);}
+.btn-primary:disabled{background:#9AA3A6;cursor:not-allowed;}
+.btn-ghost{background:none;border:1px solid var(--line);color:var(--ink);padding:7px 12px;font-size:12px;}
+.btn-ghost:hover{border-color:var(--steel);color:var(--steel-dark);}
 
 /* list */
 .list{display:flex;flex-direction:column;gap:10px;max-height:640px;overflow-y:auto;padding-right:2px;}
@@ -107,6 +102,15 @@ table.spec td input{padding:7px 8px;font-size:13px;}
 .sign-row{display:grid;grid-template-columns:1fr 1fr;gap:40px;margin-top:60px;}
 .sign-block .line{border-top:1px solid #1a1a1a;margin-top:36px;padding-top:6px;font-size:11px;color:#555;}
 
+.mail-panel{width:210mm;max-width:100%;background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:16px 18px;margin-bottom:12px;}
+.mail-panel-title{font-family:'Space Grotesk',sans-serif;font-size:13px;text-transform:uppercase;letter-spacing:0.06em;color:var(--steel-dark);margin-bottom:10px;}
+.mail-recipients{display:grid;grid-template-columns:1fr 1fr;gap:6px 16px;margin-bottom:10px;}
+.mail-recipients label{display:flex;align-items:center;gap:7px;font-size:13px;font-weight:400;text-transform:none;letter-spacing:0;color:var(--ink);margin:0;}
+.mail-recipients input{width:auto;}
+.mail-cc-note{font-size:11px;color:var(--ink-soft);margin-bottom:10px;}
+.info-msg{font-size:12.5px;color:var(--good);margin-top:6px;font-weight:500;display:none;}
+.info-msg.visible{display:block;}
+
 @page{ size:A4; margin:12mm; }
 @media print{
   html,body{height:auto;}
@@ -115,6 +119,7 @@ table.spec td input{padding:7px 8px;font-size:13px;}
   .overlay{position:static;inset:auto;padding:0;margin:0;background:none;display:block;}
   .doc-outer{display:block;width:100%;}
   .doc-toolbar{display:none;}
+  .mail-panel{display:none !important;}
   .doc{box-shadow:none;width:100%;max-width:none;min-height:0;margin:0;padding:0;}
 }
 
@@ -247,6 +252,7 @@ input[type=password]:focus{outline:2px solid var(--steel);outline-offset:1px;}
 
 <div id="modalRoot"></div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="supabase-config.js"></script>
 <script src="supabase-backend.js"></script>
@@ -805,9 +811,20 @@ function openDoc(id){
       <div class="doc-outer">
         <div class="doc-toolbar">
           <button class="btn-ghost" id="closeDoc">Zatvori</button>
+          <button class="btn-ghost" id="mailToggleBtn">Pošalji mejlom</button>
           <button class="btn btn-primary" style="width:auto;" id="printDoc">Štampaj / sačuvaj PDF</button>
         </div>
-        <div class="doc">
+        <div class="mail-panel" id="mailPanel" style="display:none;">
+          <div class="mail-panel-title">Pošalji zahtev mejlom</div>
+          <div class="mail-recipients" id="mailRecipients">
+            ${MAIL_RECIPIENTS.map((p,i)=>`<label><input type="checkbox" value="${escapeHtml(p.email)}" id="mailR${i}"> ${escapeHtml(p.name)}</label>`).join('')}
+          </div>
+          <div class="mail-cc-note">Kopija (CC) automatski ide na tvoju adresu.</div>
+          <div class="err" id="mailErr"></div>
+          <div class="info-msg" id="mailInfo"></div>
+          <button class="btn btn-primary" style="width:auto;" id="mailSendBtn">Pošalji</button>
+        </div>
+        <div class="doc" id="docContent">
           <img src="${LOGO_DATA_URI}" alt="Termoelektro Enel AD" style="height:40px;width:auto;display:block;margin-bottom:12px;">
           <h2>Zahtev za nabavku</h2>
           <div class="doc-sub">Dokument generisan ${new Date(r.createdAt).toLocaleString('sr-RS')}</div>
@@ -837,6 +854,60 @@ function openDoc(id){
   $('closeDoc').addEventListener('click',()=>$('modalRoot').innerHTML='');
   $('printDoc').addEventListener('click',()=>window.print());
   $('overlay').addEventListener('click',e=>{ if(e.target.id==='overlay') $('modalRoot').innerHTML=''; });
+  $('mailToggleBtn').addEventListener('click',()=>{
+    const p=$('mailPanel'); p.style.display = p.style.display==='none' ? 'block' : 'none';
+  });
+  $('mailSendBtn').addEventListener('click',()=>sendDocByEmail(r));
+}
+
+const MAIL_RECIPIENTS = [
+  { name:'Radosav Đurić',    email:'Radosav.Djuric@te-enel.rs' },
+  { name:'Adam Živković',    email:'Adam.Zivkovic@te-enel.rs' },
+  { name:'Darko Knežević',   email:'Darko.Knezevic@te-enel.rs' },
+  { name:'Dejan Erić',       email:'Dejan.Eric@te-enel.rs' },
+  { name:'Dejan Pajović',    email:'Dejan.Pajovic@te-enel.rs' },
+  { name:'Dejan Cvetković',  email:'Dejan.Cvetkovic@te-enel.rs' }
+];
+
+function blobToBase64_(blob){
+  return new Promise((resolve,reject)=>{
+    const reader=new FileReader();
+    reader.onloadend=()=>resolve(String(reader.result).split(',')[1]);
+    reader.onerror=reject;
+    reader.readAsDataURL(blob);
+  });
+}
+
+async function sendDocByEmail(r){
+  const errEl=$('mailErr'), infoEl=$('mailInfo'), btn=$('mailSendBtn');
+  errEl.textContent=''; infoEl.classList.remove('visible');
+  const to=MAIL_RECIPIENTS.map(p=>p.email).filter((_,i)=>$('mailR'+i).checked);
+  if(!to.length){ errEl.textContent='Izaberi bar jednog primaoca.'; return; }
+
+  btn.disabled=true; btn.textContent='Pravljenje PDF-a…';
+  try{
+    const docEl=$('docContent');
+    const opt={ margin:0, filename:'zahtev.pdf', image:{type:'jpeg',quality:0.98}, html2canvas:{scale:2,useCORS:true}, jsPDF:{unit:'mm',format:'a4',orientation:'portrait'} };
+    const pdfBlob=await html2pdf().set(opt).from(docEl).outputPdf('blob');
+    const pdfBase64=await blobToBase64_(pdfBlob);
+
+    btn.textContent='Slanje…';
+    const naziv=nazivNaloga(r.nalog)||'';
+    const subject=`Zahtev za nabavku - ${r.redniBroj} - ${r.nalog}${naziv?' - '+naziv:''}`;
+    const filename=`Zahtev-${String(r.redniBroj).replace(/\//g,'-')}.pdf`;
+
+    const { data, error } = await sbClient.functions.invoke('send-request-email', {
+      body: { to, subject, filename, pdfBase64 }
+    });
+    if(error || (data && data.error)){
+      errEl.textContent=(data&&data.error)||'Slanje mejla nije uspelo.';
+    }else{
+      infoEl.textContent='Mejl je uspešno poslat.'; infoEl.classList.add('visible');
+    }
+  }catch(err){
+    errEl.textContent='Greška pri pravljenju/slanju PDF-a. Pokušaj ponovo.';
+  }
+  btn.disabled=false; btn.textContent='Pošalji';
 }
 
 $('gradiliste').addEventListener('input', renderPlate);
