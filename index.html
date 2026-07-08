@@ -885,26 +885,21 @@ async function sendDocByEmail(r){
   if(!to.length){ errEl.textContent='Izaberi bar jednog primaoca.'; return; }
 
   btn.disabled=true; btn.textContent='Pravljenje PDF-a…';
-  let stage=null;
+  const docEl=$('docContent');
+  const mailPanel=$('mailPanel');
+  const overlay=$('overlay');
+  // Hvatamo PDF iz originalnog, VIDLJIVOG dokumenta (bez kloniranja/pomeranja
+  // van ekrana — to je pravilo dodatne izobličenosti). Umesto toga, samo
+  // sklonimo mail panel i vratimo skrol na vrh pre hvatanja, jer html2canvas
+  // pogrešno računa poziciju kad je sadržaj unutar skrolovanog kontejnera.
+  const prevMailDisplay=mailPanel.style.display;
+  const prevScrollTop=overlay.scrollTop;
+  mailPanel.style.display='none';
+  overlay.scrollTop=0;
   try{
-    const docEl=$('docContent');
-    // PDF se pravi iz IZOLOVANE kopije dokumenta, okačene direktno na <body>
-    // van modala/skrola. html2canvas ume pogrešno da izračuna poziciju kad
-    // je original unutar skrolujućeg overlay-a (pravi praznine na vrhu i
-    // seče sadržaj na dnu) — ovako je hvatanje uvek čisto, bez obzira da li
-    // je mail panel otvoren ili je stranica skrolovana.
-    stage=document.createElement('div');
-    // NAPOMENA: NE koristiti ekstremne negativne koordinate (npr. -99999px) —
-    // html2canvas tada pravi ogroman/neispravan interni canvas što unakazi
-    // sliku. Umesto toga, kopija ostaje na normalnoj (0,0) poziciji, ali
-    // vizuelno "iza" postojećeg overlay-a (koji je preko cele stranice),
-    // pa je korisnik i ne vidi dok se PDF generiše.
-    stage.style.cssText='position:fixed;top:0;left:0;z-index:-1;background:#fff;width:210mm;pointer-events:none;';
-    stage.appendChild(docEl.cloneNode(true));
-    document.body.appendChild(stage);
-
-    const opt={ margin:0, filename:'zahtev.pdf', image:{type:'jpeg',quality:0.98}, html2canvas:{scale:2,useCORS:true,windowWidth:stage.scrollWidth}, jsPDF:{unit:'mm',format:'a4',orientation:'portrait'} };
-    const pdfBlob=await html2pdf().set(opt).from(stage.firstChild).outputPdf('blob');
+    await new Promise(res=>requestAnimationFrame(()=>requestAnimationFrame(res))); // sačekaj da se layout smiri
+    const opt={ margin:0, filename:'zahtev.pdf', image:{type:'jpeg',quality:0.98}, html2canvas:{scale:2,useCORS:true,scrollX:0,scrollY:0}, jsPDF:{unit:'mm',format:'a4',orientation:'portrait'} };
+    const pdfBlob=await html2pdf().set(opt).from(docEl).outputPdf('blob');
     const pdfBase64=await blobToBase64_(pdfBlob);
 
     btn.textContent='Slanje…';
@@ -923,7 +918,8 @@ async function sendDocByEmail(r){
   }catch(err){
     errEl.textContent='Greška pri pravljenju/slanju PDF-a. Pokušaj ponovo.';
   }finally{
-    if(stage) stage.remove();
+    mailPanel.style.display=prevMailDisplay;
+    overlay.scrollTop=prevScrollTop;
   }
   btn.disabled=false; btn.textContent='Pošalji';
 }
