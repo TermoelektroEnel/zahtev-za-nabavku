@@ -252,7 +252,8 @@ input[type=password]:focus{outline:2px solid var(--steel);outline-offset:1px;}
 
 <div id="modalRoot"></div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="supabase-config.js"></script>
 <script src="supabase-backend.js"></script>
@@ -878,6 +879,100 @@ function blobToBase64_(blob){
   });
 }
 
+function loadImageDims_(dataUri){
+  return new Promise((resolve)=>{
+    const img=new Image();
+    img.onload=()=>resolve({w:img.naturalWidth,h:img.naturalHeight});
+    img.onerror=()=>resolve({w:280,h:60});
+    img.src=dataUri;
+  });
+}
+
+// PDF se pravi PROGRAMSKI (tekst/tabela/linije kao prave PDF komande), a ne
+// hvatanjem "slike" ekrana — tako nema šanse za pomeranje/izobličenje
+// sadržaja, bez obzira na modal, skrol ili veličinu prozora.
+async function buildRequestPdfBlob_(r){
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ unit:'mm', format:'a4', orientation:'portrait' });
+  const marginX = 16, pageWidth = 210, contentWidth = pageWidth - marginX*2;
+  let y = 18;
+
+  const dims = await loadImageDims_(LOGO_DATA_URI);
+  const logoH = 10, logoW = logoH * (dims.w / dims.h);
+  try{ doc.addImage(LOGO_DATA_URI, 'JPEG', marginX, y, logoW, logoH); }catch(e){}
+  y += logoH + 7;
+
+  doc.setFont('helvetica','bold'); doc.setFontSize(16); doc.setTextColor(20,20,20);
+  doc.text('ZAHTEV ZA NABAVKU', marginX, y);
+  y += 5.5;
+  doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(110,110,110);
+  doc.text(`Dokument generisan ${new Date(r.createdAt).toLocaleString('sr-RS')}`, marginX, y);
+  y += 8;
+
+  const col2X = marginX + contentWidth/2 + 8;
+  const colW = contentWidth/2 - 8;
+  doc.setFont('helvetica','normal'); doc.setFontSize(7.5); doc.setTextColor(130,130,130);
+  doc.text('REDNI BROJ', marginX, y);
+  doc.text('NALOG ZA REALIZACIJU', col2X, y);
+  y += 5.5;
+  doc.setFont('helvetica','bold'); doc.setFontSize(13); doc.setTextColor(20,20,20);
+  doc.text(String(r.redniBroj||''), marginX, y);
+  doc.text(String(r.nalog||''), col2X, y);
+  let yRight = y;
+  const nalogNaziv = nazivNaloga(r.nalog) || '';
+  if(nalogNaziv){
+    yRight += 4;
+    doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(85,85,85);
+    const lines = doc.splitTextToSize(nalogNaziv, colW);
+    doc.text(lines, col2X, yRight);
+    yRight += (lines.length-1)*3.4;
+  }
+  y = Math.max(y, yRight) + 6;
+
+  doc.setFont('helvetica','normal'); doc.setFontSize(7.5); doc.setTextColor(130,130,130);
+  doc.text('OZNAKA GRADILIŠTA', marginX, y);
+  y += 5.5;
+  doc.setFont('helvetica','bold'); doc.setFontSize(13); doc.setTextColor(20,20,20);
+  doc.text(`${r.gradiliste} — ${nazivGradilista(r.gradiliste)||''}`, marginX, y);
+  y += 5;
+
+  doc.setDrawColor(20,20,20); doc.setLineWidth(0.5);
+  doc.line(marginX, y, marginX+contentWidth, y);
+  y += 6;
+
+  const head=[['Rb.','Broj poz. spec.','Opis','Jed. mere','Količina','Od postojećeg','Za nabavku','Rok isporuke','Atest']];
+  const body=r.stavke.map((s,idx)=>[
+    String(idx+1), s.sifra||'—', s.opis||'', s.jm||'',
+    String(s.kolicina!==undefined?s.kolicina:''),
+    String(s.odPostojeceg||'0'),
+    String(s.zaNabavku!==undefined?s.zaNabavku:''),
+    formatDatumSr(s.rok)||'', s.atest||'—'
+  ]);
+  doc.autoTable({
+    head, body, startY:y,
+    margin:{ left:marginX, right:marginX },
+    styles:{ font:'helvetica', fontSize:8.3, cellPadding:2.2, lineColor:[221,221,221], lineWidth:0.1, textColor:[26,26,26] },
+    headStyles:{ fillColor:[255,255,255], textColor:[68,68,68], fontStyle:'bold', fontSize:7.3, lineWidth:{bottom:0.4}, lineColor:[20,20,20] },
+    columnStyles:{ 0:{cellWidth:8}, 4:{halign:'right'}, 5:{halign:'right'}, 6:{halign:'right',fontStyle:'bold'}, 8:{halign:'center'} }
+  });
+  y = doc.lastAutoTable.finalY + 22;
+
+  if(y > 255){ doc.addPage(); y = 24; }
+  const signColW = contentWidth/2 - 10;
+  const signLabels=['IZRADIO: Rukovodilac OC / datum','OBRADIO: Ruk. realizacije / datum','OVERIO: Zamenik gen.dir. / datum','ODOBRIO: Generalni direktor / datum'];
+  signLabels.forEach((txt,i)=>{
+    const col=i%2, row=Math.floor(i/2);
+    const x=marginX+col*(signColW+20);
+    const ySig=y+row*20;
+    doc.setDrawColor(20,20,20); doc.setLineWidth(0.3);
+    doc.line(x, ySig, x+signColW, ySig);
+    doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(85,85,85);
+    doc.text(txt, x, ySig+4);
+  });
+
+  return doc.output('blob');
+}
+
 async function sendDocByEmail(r){
   const errEl=$('mailErr'), infoEl=$('mailInfo'), btn=$('mailSendBtn');
   errEl.textContent=''; infoEl.classList.remove('visible');
@@ -885,21 +980,8 @@ async function sendDocByEmail(r){
   if(!to.length){ errEl.textContent='Izaberi bar jednog primaoca.'; return; }
 
   btn.disabled=true; btn.textContent='Pravljenje PDF-a…';
-  const docEl=$('docContent');
-  const mailPanel=$('mailPanel');
-  const overlay=$('overlay');
-  // Hvatamo PDF iz originalnog, VIDLJIVOG dokumenta (bez kloniranja/pomeranja
-  // van ekrana — to je pravilo dodatne izobličenosti). Umesto toga, samo
-  // sklonimo mail panel i vratimo skrol na vrh pre hvatanja, jer html2canvas
-  // pogrešno računa poziciju kad je sadržaj unutar skrolovanog kontejnera.
-  const prevMailDisplay=mailPanel.style.display;
-  const prevScrollTop=overlay.scrollTop;
-  mailPanel.style.display='none';
-  overlay.scrollTop=0;
   try{
-    await new Promise(res=>requestAnimationFrame(()=>requestAnimationFrame(res))); // sačekaj da se layout smiri
-    const opt={ margin:0, filename:'zahtev.pdf', image:{type:'jpeg',quality:0.98}, html2canvas:{scale:2,useCORS:true,scrollX:0,scrollY:0}, jsPDF:{unit:'mm',format:'a4',orientation:'portrait'} };
-    const pdfBlob=await html2pdf().set(opt).from(docEl).outputPdf('blob');
+    const pdfBlob=await buildRequestPdfBlob_(r);
     const pdfBase64=await blobToBase64_(pdfBlob);
 
     btn.textContent='Slanje…';
@@ -917,9 +999,6 @@ async function sendDocByEmail(r){
     }
   }catch(err){
     errEl.textContent='Greška pri pravljenju/slanju PDF-a. Pokušaj ponovo.';
-  }finally{
-    mailPanel.style.display=prevMailDisplay;
-    overlay.scrollTop=prevScrollTop;
   }
   btn.disabled=false; btn.textContent='Pošalji';
 }
