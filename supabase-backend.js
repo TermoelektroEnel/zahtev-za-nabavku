@@ -66,6 +66,24 @@
     };
   }
 
+  function mapPonuda_(p) {
+    return {
+      id: p.id,
+      brojIzvestaja: p.broj_izvestaja,
+      requestId: p.request_id,
+      vrstaRadova: p.vrsta_radova,
+      adresaIsporuke: p.adresa_isporuke,
+      kursEur: p.kurs_eur,
+      avans: p.avans,
+      nacinPlacanja: p.nacin_placanja,
+      garancijaZaPlacanje: p.garancija_za_placanje,
+      stavke: p.stavke,
+      status: p.status,
+      createdAt: p.created_at ? new Date(p.created_at).getTime() : Date.now(),
+      updatedAt: p.updated_at ? new Date(p.updated_at).getTime() : Date.now()
+    };
+  }
+
   /* ============================================================
      AUTH
      ============================================================ */
@@ -109,6 +127,11 @@
       if (error) throw error;
       return { nalozi: data.map(r => ({ kod: r.kod, opis: r.opis, gradiliste: parseGradiliste_(r.gradiliste_raw) })) };
     }
+    if (action === 'listPonude') {
+      const { data, error } = await sbClient.from('ponude_izvestaji').select('*').order('created_at', { ascending: false });
+      if (error) throw error;
+      return { ponude: data.map(mapPonuda_) };
+    }
     return { error: 'Nepoznata akcija.' };
   }
 
@@ -127,6 +150,9 @@
       case 'addNalog': return addNalog_(body);
       case 'updateNalog': return updateNalog_(body);
       case 'deleteNalog': return deleteNalog_(body);
+      case 'addPonuda': return addPonuda_(body);
+      case 'updatePonuda': return updatePonuda_(body);
+      case 'deletePonuda': return deletePonuda_(body);
       default: return { error: 'Nepoznata akcija.' };
     }
   }
@@ -223,6 +249,51 @@
 
   async function deleteNalog_(body) {
     const { error } = await sbClient.from('nalozi').delete().eq('kod', String(body.kod));
+    if (error) return { error: error.message };
+    return { ok: true };
+  }
+
+  /* ---- Ponude (izveštaji o prispelim ponudama) ---- */
+  async function addPonuda_(body) {
+    if (!body.requestId) return { error: 'Nedostaje zahtev za nabavku.' };
+    const godina = String(body.godina || new Date().getFullYear()).slice(-2);
+    const { data, error } = await sbClient.rpc('add_ponuda_izvestaj', {
+      p_request_id: body.requestId,
+      p_godina: godina,
+      p_vrsta_radova: body.vrstaRadova || '',
+      p_adresa_isporuke: body.adresaIsporuke || '',
+      p_kurs_eur: body.kursEur ?? null,
+      p_avans: body.avans || '',
+      p_nacin_placanja: body.nacinPlacanja || '',
+      p_garancija_za_placanje: body.garancijaZaPlacanje || '',
+      p_stavke: body.stavke || []
+    });
+    if (error) return { error: error.message };
+    const row = Array.isArray(data) ? data[0] : data;
+    return { ponuda: mapPonuda_(row) };
+  }
+
+  async function updatePonuda_(body) {
+    const patch = {
+      vrsta_radova: body.vrstaRadova ?? '',
+      adresa_isporuke: body.adresaIsporuke ?? '',
+      kurs_eur: body.kursEur ?? null,
+      avans: body.avans ?? '',
+      nacin_placanja: body.nacinPlacanja ?? '',
+      garancija_za_placanje: body.garancijaZaPlacanje ?? '',
+      stavke: body.stavke ?? [],
+      status: body.status || 'u_izradi',
+      updated_at: new Date().toISOString()
+    };
+    const { data, error } = await sbClient.from('ponude_izvestaji')
+      .update(patch).eq('id', body.id).select().maybeSingle();
+    if (error) return { error: error.message };
+    if (!data) return { error: 'Izveštaj nije pronađen.' };
+    return { ponuda: mapPonuda_(data) };
+  }
+
+  async function deletePonuda_(body) {
+    const { error } = await sbClient.from('ponude_izvestaji').delete().eq('id', body.id);
     if (error) return { error: error.message };
     return { ok: true };
   }

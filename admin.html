@@ -44,6 +44,19 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--steel);outline-o
 .chip-grid label{display:flex;align-items:center;gap:6px;font-size:12.5px;text-transform:none;font-weight:500;color:var(--ink);margin:0;cursor:pointer;}
 .chip-grid input{width:auto;}
 
+.pozicija-block{border:1px solid var(--line);border-radius:var(--radius);padding:14px 16px;margin-bottom:14px;background:#fff;}
+.pozicija-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px;padding-bottom:8px;border-bottom:1px dashed var(--line-soft);}
+.pozicija-head .naziv{font-weight:600;font-size:13.5px;}
+.pozicija-head .meta{font-size:11.5px;color:var(--ink-soft);font-family:'IBM Plex Mono',monospace;}
+.ponude-mini-table{width:100%;border-collapse:collapse;margin-bottom:10px;font-size:12.5px;}
+.ponude-mini-table th{font-size:10px;text-transform:uppercase;color:var(--ink-soft);padding:0 6px 6px 0;border-bottom:1px solid var(--line-soft);text-align:left;}
+.ponude-mini-table td{padding:6px 6px 6px 0;border-bottom:1px solid var(--line-soft);vertical-align:middle;}
+.ponude-mini-table input[type=text],.ponude-mini-table input[type=number]{padding:5px 7px;font-size:12.5px;}
+.add-ponuda-row{display:grid;grid-template-columns:1.6fr 1fr 1fr 0.8fr auto;gap:8px;align-items:end;margin-bottom:12px;}
+.add-ponuda-row .field{margin-bottom:0;}
+.pozicija-extra{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px;}
+.pozicija-extra .field{margin-bottom:0;}
+
 .btn{font-family:'IBM Plex Sans',sans-serif;font-weight:600;font-size:13px;padding:11px 18px;border-radius:var(--radius);border:none;cursor:pointer;letter-spacing:0.02em;}
 .btn-primary{background:var(--steel-dark);color:#fff;}
 .btn-primary:hover{background:var(--steel);}
@@ -211,6 +224,81 @@ td{padding:8px 8px 8px 0;border-bottom:1px solid var(--line-soft);font-size:13px
     <h2>Postojeći nalozi</h2>
     <div id="nalogListWrap"><div class="loading">Učitavanje…</div></div>
   </div>
+
+  <!-- PONUDE I IZBOR DOBAVLJAČA -->
+  <div class="card">
+    <h2>Novi izveštaj o ponudama</h2>
+    <p class="section-note">Izaberi postojeći zahtev za nabavku — pozicije će se automatski učitati, pa dodaješ ponude dobavljača za svaku.</p>
+    <div class="row2">
+      <div class="field">
+        <label for="pZahtev">Zahtev za nabavku</label>
+        <select id="pZahtev"><option value="">— izaberi zahtev —</option></select>
+      </div>
+      <div class="field">
+        <label for="pGodina">Godina izveštaja</label>
+        <input type="text" id="pGodina" placeholder="npr. 26" maxlength="2">
+      </div>
+    </div>
+    <div class="err" id="pNoviErr"></div>
+    <button type="button" class="btn btn-primary" id="pKreirajBtn">Kreiraj izveštaj</button>
+  </div>
+
+  <div class="card">
+    <h2>Postojeći izveštaji o ponudama</h2>
+    <div id="ponudaListWrap"><div class="loading">Učitavanje…</div></div>
+  </div>
+
+  <!-- EDITOR IZVEŠTAJA O PONUDAMA -->
+  <div class="card" id="ponudaEditorCard" style="display:none;">
+    <h2 id="ponudaEditorTitle">Izveštaj o ponudama</h2>
+    <div class="row3">
+      <div class="field">
+        <label for="peVrstaRadova">Vrsta radova</label>
+        <input type="text" id="peVrstaRadova" placeholder="npr. Isporuka kablova">
+      </div>
+      <div class="field">
+        <label for="peAdresa">Adresa isporuke</label>
+        <input type="text" id="peAdresa" placeholder="npr. Uralska 9, 11060 Beograd">
+      </div>
+      <div class="field">
+        <label for="peKurs">Kurs € (RSD)</label>
+        <div style="display:flex;gap:6px;">
+          <input type="number" id="peKurs" step="0.0001" style="flex:1;">
+          <button type="button" class="btn-ghost" id="peOsveziKursBtn" style="white-space:nowrap;">Osveži (NBS)</button>
+        </div>
+        <div class="hint" id="peKursHint"></div>
+      </div>
+    </div>
+    <div class="row3">
+      <div class="field">
+        <label for="peAvans">Avans</label>
+        <input type="text" id="peAvans" placeholder="npr. 30%">
+      </div>
+      <div class="field">
+        <label for="peNacinPlacanja">Način plaćanja</label>
+        <input type="text" id="peNacinPlacanja" placeholder="npr. Virmanski, 30 dana">
+      </div>
+      <div class="field">
+        <label for="peGarancija">Garancija za plaćanje</label>
+        <input type="text" id="peGarancija" placeholder="npr. Menica">
+      </div>
+    </div>
+
+    <div id="peStavkeWrap"></div>
+
+    <div style="display:flex;justify-content:flex-end;gap:24px;margin:16px 0;padding-top:12px;border-top:1px solid var(--line-soft);font-family:'IBM Plex Mono',monospace;">
+      <div>Ukupno bez PDV: <strong id="peUkupnoBezPdv">0</strong> RSD</div>
+      <div>Ukupno sa PDV (20%): <strong id="peUkupnoSaPdv">0</strong> RSD</div>
+    </div>
+    <div class="hint">Napomena: PDV je pretpostavljen na 20% (standardna stopa u Srbiji) — javi ako treba drugačije.</div>
+
+    <div class="err" id="peErr"></div>
+    <div class="info-msg" id="peInfo"></div>
+    <div style="display:flex;gap:8px;margin-top:10px;">
+      <button type="button" class="btn btn-primary" id="peSaveBtn">Sačuvaj izveštaj</button>
+      <button type="button" class="btn-ghost" id="peCloseBtn">Zatvori</button>
+    </div>
+  </div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -263,6 +351,7 @@ async function doLogin(){
         sessionStorage.setItem(SESSION_KEY, '1');
         showApp();
         loadAll();
+        loadPonudeSection();
       }
     }else{
       $('loginErr').textContent = 'Pogrešno korisničko ime ili lozinka.';
@@ -558,12 +647,246 @@ $('uSaveBtn').addEventListener('click',async()=>{
   $('uSaveBtn').disabled=false;
 });
 
+/* ============================================================
+   PONUDE I IZBOR DOBAVLJAČA (samo admin)
+   ============================================================ */
+let ZAHTEVI=[], PONUDE=[], currentPonuda=null;
+
+async function loadPonudeSection(){
+  try{
+    const [zData, pData] = await Promise.all([apiGet('list'), apiGet('listPonude')]);
+    ZAHTEVI = (zData.requests||[]);
+    PONUDE = (pData.ponude||[]);
+    populateZahtevSelect();
+    renderPonudaList();
+  }catch(e){
+    $('ponudaListWrap').innerHTML='<div class="empty">Greška pri učitavanju izveštaja o ponudama.</div>';
+  }
+}
+
+function populateZahtevSelect(){
+  const sel=$('pZahtev');
+  sel.innerHTML='<option value="">— izaberi zahtev —</option>';
+  [...ZAHTEVI].sort((a,b)=>b.createdAt-a.createdAt).forEach(z=>{
+    const opt=document.createElement('option');
+    opt.value=z.id; opt.textContent=`${z.redniBroj} — nalog ${z.nalog}`;
+    sel.appendChild(opt);
+  });
+  const g = String(new Date().getFullYear()).slice(-2);
+  if(!$('pGodina').value) $('pGodina').value = g;
+}
+
+function renderPonudaList(){
+  const wrap=$('ponudaListWrap');
+  if(!PONUDE.length){ wrap.innerHTML='<div class="empty">Još uvek nema izveštaja o ponudama.</div>'; return; }
+  wrap.innerHTML=`<table><thead><tr><th>Broj izveštaja</th><th>Zahtev</th><th style="width:110px;">Status</th><th style="width:180px;"></th></tr></thead><tbody>
+    ${PONUDE.map(p=>{
+      const z = ZAHTEVI.find(x=>x.id===p.requestId);
+      return `<tr>
+        <td style="font-family:'IBM Plex Mono',monospace;">${escapeHtml(p.brojIzvestaja)}</td>
+        <td>${z ? escapeHtml(z.redniBroj)+' — nalog '+escapeHtml(z.nalog) : '<span class="hint">zahtev obrisan</span>'}</td>
+        <td>${p.status==='odobreno'?'<span class="tag sva">odobreno</span>':'<span class="hint">u izradi</span>'}</td>
+        <td class="row-actions">
+          <button class="btn-ghost" data-open-p="${p.id}">Otvori</button>
+          <button class="btn-danger-ghost" data-del-p="${p.id}" data-broj="${escapeHtml(p.brojIzvestaja)}">Obriši</button>
+        </td>
+      </tr>`;
+    }).join('')}
+  </tbody></table>`;
+  wrap.querySelectorAll('[data-open-p]').forEach(b=>b.addEventListener('click',e=>openPonudaEditor(e.currentTarget.dataset.openP)));
+  wrap.querySelectorAll('[data-del-p]').forEach(b=>b.addEventListener('click',async e=>{
+    const id=e.currentTarget.dataset.delP, broj=e.currentTarget.dataset.broj;
+    if(!confirm(`Obrisati izveštaj ${broj}? Ova radnja je trajna.`)) return;
+    const r=await apiPost('deletePonuda',{id});
+    if(r&&r.error) alert(r.error); else { if(currentPonuda&&currentPonuda.id===id) closePonudaEditor(); await loadPonudeSection(); }
+  }));
+}
+
+$('pKreirajBtn').addEventListener('click', async ()=>{
+  $('pNoviErr').textContent='';
+  const requestId=$('pZahtev').value;
+  const godina=$('pGodina').value.trim();
+  if(!requestId){ $('pNoviErr').textContent='Izaberi zahtev za nabavku.'; return; }
+  if(!/^\d{2}$/.test(godina)){ $('pNoviErr').textContent='Godina mora imati tačno 2 cifre (npr. 26).'; return; }
+  const zahtev = ZAHTEVI.find(z=>z.id===requestId);
+  if(!zahtev){ $('pNoviErr').textContent='Zahtev nije pronađen.'; return; }
+  const stavke = (zahtev.stavke||[]).map(s=>({
+    sifra:s.sifra||'', opis:s.opis||'', jm:s.jm||'',
+    kolicina:s.kolicina, zaNabavku: s.zaNabavku!==undefined?s.zaNabavku:s.kolicina,
+    rok:s.rok||'', atest:s.atest||'',
+    ponude:[], izabranaPonudaIdx:null,
+    rokIsporuke:'', predlogRukovodioca:'', ugovorBroj:'', racunBroj:''
+  }));
+  $('pKreirajBtn').disabled=true;
+  const r=await apiPost('addPonuda',{ requestId, godina, stavke });
+  $('pKreirajBtn').disabled=false;
+  if(r&&r.error){ $('pNoviErr').textContent=r.error; return; }
+  await loadPonudeSection();
+  openPonudaEditor(r.ponuda.id);
+});
+
+function openPonudaEditor(id){
+  const p=PONUDE.find(x=>x.id===id); if(!p) return;
+  currentPonuda = JSON.parse(JSON.stringify(p)); // radna kopija
+  const z = ZAHTEVI.find(x=>x.id===p.requestId);
+  $('ponudaEditorTitle').textContent = `Izveštaj o ponudama — ${p.brojIzvestaja}${z?' (zahtev '+z.redniBroj+')':''}`;
+  $('peVrstaRadova').value = p.vrstaRadova||'';
+  $('peAdresa').value = p.adresaIsporuke||'';
+  $('peKurs').value = p.kursEur||'';
+  $('peKursHint').textContent='';
+  $('peAvans').value = p.avans||'';
+  $('peNacinPlacanja').value = p.nacinPlacanja||'';
+  $('peGarancija').value = p.garancijaZaPlacanje||'';
+  $('peErr').textContent=''; $('peInfo').classList.remove('visible');
+  renderPeStavke();
+  $('ponudaEditorCard').style.display='block';
+  $('ponudaEditorCard').scrollIntoView({behavior:'smooth',block:'start'});
+}
+function closePonudaEditor(){
+  currentPonuda=null;
+  $('ponudaEditorCard').style.display='none';
+}
+$('peCloseBtn').addEventListener('click', closePonudaEditor);
+
+function jedCena_(o){ return (Number(o.bruto)||0) * (1 - (Number(o.rabat)||0)/100); }
+function ukupnoRSD_(o, kolicina){
+  const kurs = Number($('peKurs').value)||0;
+  const jc = jedCena_(o);
+  const faktor = (o.valuta==='EUR') ? kurs : 1;
+  return jc * (Number(kolicina)||0) * faktor;
+}
+function fmtBroj_(n){ return (Number(n)||0).toLocaleString('sr-RS',{maximumFractionDigits:2}); }
+
+function renderPeStavke(){
+  const wrap=$('peStavkeWrap');
+  if(!currentPonuda.stavke.length){ wrap.innerHTML='<div class="empty">Ovaj zahtev nema pozicija.</div>'; renderPeTotals(); return; }
+  wrap.innerHTML = currentPonuda.stavke.map((s,posIdx)=>{
+    const ponudeRows = s.ponude.map((o,offIdx)=>`
+      <tr>
+        <td>${escapeHtml(o.dobavljac)}</td>
+        <td class="num">${fmtBroj_(o.bruto)}</td>
+        <td class="num">${fmtBroj_(o.rabat)}%</td>
+        <td>${escapeHtml(o.valuta)}</td>
+        <td class="num">${fmtBroj_(jedCena_(o))}</td>
+        <td class="num">${fmtBroj_(ukupnoRSD_(o, s.zaNabavku))} RSD</td>
+        <td style="text-align:center;"><input type="radio" name="izabran-${posIdx}" value="${offIdx}" ${s.izabranaPonudaIdx===offIdx?'checked':''} data-izabran-pos="${posIdx}" data-izabran-off="${offIdx}"></td>
+        <td><button class="btn-danger-ghost" data-del-off-pos="${posIdx}" data-del-off-idx="${offIdx}" style="padding:3px 8px;font-size:11px;">✕</button></td>
+      </tr>`).join('');
+    return `
+    <div class="pozicija-block">
+      <div class="pozicija-head">
+        <div class="naziv">${posIdx+1}. ${escapeHtml(s.opis)}</div>
+        <div class="meta">${escapeHtml(s.jm)} · za nabavku: ${escapeHtml(s.zaNabavku)}</div>
+      </div>
+      ${s.ponude.length?`<table class="ponude-mini-table"><thead><tr>
+        <th>Dobavljač</th><th>Bruto cena</th><th>Rabat</th><th>Valuta</th><th>Jed. cena</th><th>Ukupno</th><th>Izabran</th><th></th>
+      </tr></thead><tbody>${ponudeRows}</tbody></table>`:'<div class="hint" style="margin-bottom:10px;">Još uvek nema unetih ponuda za ovu poziciju.</div>'}
+      <div class="add-ponuda-row">
+        <div class="field"><label>Dobavljač</label><input type="text" data-add-dobavljac="${posIdx}" placeholder="Naziv dobavljača"></div>
+        <div class="field"><label>Bruto cena</label><input type="number" step="0.01" data-add-bruto="${posIdx}"></div>
+        <div class="field"><label>Rabat %</label><input type="number" step="0.01" data-add-rabat="${posIdx}" value="0"></div>
+        <div class="field"><label>Valuta</label>
+          <select data-add-valuta="${posIdx}"><option value="RSD">RSD</option><option value="EUR">EUR</option></select>
+        </div>
+        <button type="button" class="btn-ghost" data-add-ponuda-btn="${posIdx}">+ Dodaj</button>
+      </div>
+      <div class="pozicija-extra">
+        <div class="field"><label>Rok isporuke</label><input type="text" data-rok="${posIdx}" value="${escapeHtml(s.rokIsporuke||'')}"></div>
+        <div class="field"><label>Predlog rukovodioca</label><input type="text" data-predlog="${posIdx}" value="${escapeHtml(s.predlogRukovodioca||'')}"></div>
+        <div class="field"><label>Ugovor/porudžbenica br.</label><input type="text" data-ugovor="${posIdx}" value="${escapeHtml(s.ugovorBroj||'')}"></div>
+        <div class="field"><label>Račun br.</label><input type="text" data-racun="${posIdx}" value="${escapeHtml(s.racunBroj||'')}"></div>
+      </div>
+    </div>`;
+  }).join('');
+
+  wrap.querySelectorAll('[data-add-ponuda-btn]').forEach(b=>b.addEventListener('click',e=>{
+    const posIdx=Number(e.currentTarget.dataset.addPonudaBtn);
+    const dobavljac=wrap.querySelector(`[data-add-dobavljac="${posIdx}"]`).value.trim();
+    const bruto=Number(wrap.querySelector(`[data-add-bruto="${posIdx}"]`).value);
+    const rabat=Number(wrap.querySelector(`[data-add-rabat="${posIdx}"]`).value)||0;
+    const valuta=wrap.querySelector(`[data-add-valuta="${posIdx}"]`).value;
+    if(!dobavljac){ alert('Unesi naziv dobavljača.'); return; }
+    if(!bruto || bruto<=0){ alert('Unesi ispravnu bruto cenu.'); return; }
+    currentPonuda.stavke[posIdx].ponude.push({ dobavljac, bruto, rabat, valuta });
+    renderPeStavke();
+  }));
+  wrap.querySelectorAll('[data-del-off-pos]').forEach(b=>b.addEventListener('click',e=>{
+    const posIdx=Number(e.currentTarget.dataset.delOffPos), offIdx=Number(e.currentTarget.dataset.delOffIdx);
+    const s=currentPonuda.stavke[posIdx];
+    s.ponude.splice(offIdx,1);
+    if(s.izabranaPonudaIdx===offIdx) s.izabranaPonudaIdx=null;
+    else if(s.izabranaPonudaIdx>offIdx) s.izabranaPonudaIdx--;
+    renderPeStavke();
+  }));
+  wrap.querySelectorAll('[data-izabran-pos]').forEach(r=>r.addEventListener('change',e=>{
+    const posIdx=Number(e.currentTarget.dataset.izabranPos), offIdx=Number(e.currentTarget.dataset.izabranOff);
+    currentPonuda.stavke[posIdx].izabranaPonudaIdx=offIdx;
+    renderPeTotals();
+  }));
+  wrap.querySelectorAll('[data-rok]').forEach(i=>i.addEventListener('input',e=>{ currentPonuda.stavke[Number(e.currentTarget.dataset.rok)].rokIsporuke=e.currentTarget.value; }));
+  wrap.querySelectorAll('[data-predlog]').forEach(i=>i.addEventListener('input',e=>{ currentPonuda.stavke[Number(e.currentTarget.dataset.predlog)].predlogRukovodioca=e.currentTarget.value; }));
+  wrap.querySelectorAll('[data-ugovor]').forEach(i=>i.addEventListener('input',e=>{ currentPonuda.stavke[Number(e.currentTarget.dataset.ugovor)].ugovorBroj=e.currentTarget.value; }));
+  wrap.querySelectorAll('[data-racun]').forEach(i=>i.addEventListener('input',e=>{ currentPonuda.stavke[Number(e.currentTarget.dataset.racun)].racunBroj=e.currentTarget.value; }));
+
+  renderPeTotals();
+}
+
+function renderPeTotals(){
+  let bezPdv=0;
+  currentPonuda.stavke.forEach(s=>{
+    if(s.izabranaPonudaIdx!==null && s.ponude[s.izabranaPonudaIdx]){
+      bezPdv += ukupnoRSD_(s.ponude[s.izabranaPonudaIdx], s.zaNabavku);
+    }
+  });
+  $('peUkupnoBezPdv').textContent = fmtBroj_(bezPdv);
+  $('peUkupnoSaPdv').textContent = fmtBroj_(bezPdv*1.2);
+}
+
+$('peKurs').addEventListener('input', renderPeTotals);
+
+$('peOsveziKursBtn').addEventListener('click', async ()=>{
+  $('peKursHint').textContent='Preuzimanje kursa…';
+  try{
+    const res = await fetch('https://kurs.resenje.org/api/v1/rates/today');
+    const data = await res.json();
+    const eur = (data.rates||[]).find(r=>r.code==='EUR');
+    if(!eur){ $('peKursHint').textContent='Kurs nije pronađen u odgovoru servisa.'; return; }
+    $('peKurs').value = eur.exchange_middle;
+    $('peKursHint').textContent = `Srednji kurs NBS na dan ${eur.date}.`;
+    renderPeTotals();
+  }catch(e){
+    $('peKursHint').textContent='Preuzimanje nije uspelo — unesi kurs ručno.';
+  }
+});
+
+$('peSaveBtn').addEventListener('click', async ()=>{
+  $('peErr').textContent=''; $('peInfo').classList.remove('visible');
+  const payload = {
+    id: currentPonuda.id,
+    vrstaRadova: $('peVrstaRadova').value.trim(),
+    adresaIsporuke: $('peAdresa').value.trim(),
+    kursEur: Number($('peKurs').value)||null,
+    avans: $('peAvans').value.trim(),
+    nacinPlacanja: $('peNacinPlacanja').value.trim(),
+    garancijaZaPlacanje: $('peGarancija').value.trim(),
+    stavke: currentPonuda.stavke
+  };
+  $('peSaveBtn').disabled=true;
+  const r=await apiPost('updatePonuda', payload);
+  $('peSaveBtn').disabled=false;
+  if(r&&r.error){ $('peErr').textContent=r.error; return; }
+  $('peInfo').textContent='Izveštaj je sačuvan.'; $('peInfo').classList.add('visible');
+  setTimeout(()=>$('peInfo').classList.remove('visible'),4000);
+  await loadPonudeSection();
+});
+
 /* INICIJALIZACIJA */
 (async function initAdmin(){
   if(await ZN.isAdmin()){
     sessionStorage.setItem(SESSION_KEY, '1');
     showApp();
     loadAll();
+    loadPonudeSection();
   }
 })();
 </script>
