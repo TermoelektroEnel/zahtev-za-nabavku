@@ -441,12 +441,15 @@ function populateZbirniNalogSelect(){
   const sel = $('zbirniNalog');
   const current = sel.value;
   sel.innerHTML = '<option value="">— izaberi nalog —</option>';
-  [...NALOZI].sort((a,b)=>a.code.localeCompare(b.code)).forEach(n => {
+  const dozvoljeni = MOJA_GRADILISTA === null
+    ? NALOZI
+    : NALOZI.filter(n => MOJA_GRADILISTA.includes(n.gradiliste));
+  [...dozvoljeni].sort((a,b)=>a.code.localeCompare(b.code)).forEach(n => {
     const opt = document.createElement('option');
     opt.value = n.code; opt.textContent = n.code;
     sel.appendChild(opt);
   });
-  if(current) sel.value = current;
+  if(current && dozvoljeni.some(n=>n.code===current)) sel.value = current;
 }
 
 $('zbirniNalog').addEventListener('change', ()=>{
