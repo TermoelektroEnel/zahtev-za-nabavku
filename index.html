@@ -893,9 +893,35 @@ function loadImageDims_(dataUri){
 // PDF se pravi PROGRAMSKI (tekst/tabela/linije kao prave PDF komande), a ne
 // hvatanjem "slike" ekrana — tako nema šanse za pomeranje/izobličenje
 // sadržaja, bez obzira na modal, skrol ili veličinu prozora.
+function arrayBufferToBase64_(buffer){
+  let binary=''; const bytes=new Uint8Array(buffer); const chunk=8192;
+  for(let i=0;i<bytes.length;i+=chunk){ binary+=String.fromCharCode.apply(null, bytes.subarray(i,i+chunk)); }
+  return btoa(binary);
+}
+
+// jsPDF-ov ugrađeni font (helvetica) nema č/ć/š/đ/ž — učitavamo IBM Plex Sans
+// (isti font koji sajt već koristi) sa punom podrškom za srpsku latinicu.
+// Preuzima se samo JEDNOM (keširano u memoriji) i registruje u svaki novi
+// jsPDF dokument.
+async function ensurePdfFonts_(doc){
+  if(!ensurePdfFonts_.regularB64){
+    const [regBuf, boldBuf] = await Promise.all([
+      fetch('https://raw.githubusercontent.com/IBM/plex/master/packages/plex-sans/fonts/complete/ttf/IBMPlexSans-Regular.ttf').then(r=>r.arrayBuffer()),
+      fetch('https://raw.githubusercontent.com/IBM/plex/master/packages/plex-sans/fonts/complete/ttf/IBMPlexSans-Bold.ttf').then(r=>r.arrayBuffer())
+    ]);
+    ensurePdfFonts_.regularB64 = arrayBufferToBase64_(regBuf);
+    ensurePdfFonts_.boldB64 = arrayBufferToBase64_(boldBuf);
+  }
+  doc.addFileToVFS('IBMPlexSans-Regular.ttf', ensurePdfFonts_.regularB64);
+  doc.addFont('IBMPlexSans-Regular.ttf','IBMPlexSans','normal');
+  doc.addFileToVFS('IBMPlexSans-Bold.ttf', ensurePdfFonts_.boldB64);
+  doc.addFont('IBMPlexSans-Bold.ttf','IBMPlexSans','bold');
+}
+
 async function buildRequestPdfBlob_(r){
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({ unit:'mm', format:'a4', orientation:'portrait' });
+  await ensurePdfFonts_(doc);
   const marginX = 16, pageWidth = 210, contentWidth = pageWidth - marginX*2;
   let y = 18;
 
@@ -904,37 +930,37 @@ async function buildRequestPdfBlob_(r){
   try{ doc.addImage(LOGO_DATA_URI, 'JPEG', marginX, y, logoW, logoH); }catch(e){}
   y += logoH + 7;
 
-  doc.setFont('helvetica','bold'); doc.setFontSize(16); doc.setTextColor(20,20,20);
+  doc.setFont('IBMPlexSans','bold'); doc.setFontSize(16); doc.setTextColor(20,20,20);
   doc.text('ZAHTEV ZA NABAVKU', marginX, y);
   y += 5.5;
-  doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(110,110,110);
+  doc.setFont('IBMPlexSans','normal'); doc.setFontSize(9); doc.setTextColor(110,110,110);
   doc.text(`Dokument generisan ${new Date(r.createdAt).toLocaleString('sr-RS')}`, marginX, y);
   y += 8;
 
   const col2X = marginX + contentWidth/2 + 8;
   const colW = contentWidth/2 - 8;
-  doc.setFont('helvetica','normal'); doc.setFontSize(7.5); doc.setTextColor(130,130,130);
+  doc.setFont('IBMPlexSans','normal'); doc.setFontSize(7.5); doc.setTextColor(130,130,130);
   doc.text('REDNI BROJ', marginX, y);
   doc.text('NALOG ZA REALIZACIJU', col2X, y);
   y += 5.5;
-  doc.setFont('helvetica','bold'); doc.setFontSize(13); doc.setTextColor(20,20,20);
+  doc.setFont('IBMPlexSans','bold'); doc.setFontSize(13); doc.setTextColor(20,20,20);
   doc.text(String(r.redniBroj||''), marginX, y);
   doc.text(String(r.nalog||''), col2X, y);
   let yRight = y;
   const nalogNaziv = nazivNaloga(r.nalog) || '';
   if(nalogNaziv){
     yRight += 4;
-    doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(85,85,85);
+    doc.setFont('IBMPlexSans','normal'); doc.setFontSize(8); doc.setTextColor(85,85,85);
     const lines = doc.splitTextToSize(nalogNaziv, colW);
     doc.text(lines, col2X, yRight);
     yRight += (lines.length-1)*3.4;
   }
   y = Math.max(y, yRight) + 6;
 
-  doc.setFont('helvetica','normal'); doc.setFontSize(7.5); doc.setTextColor(130,130,130);
+  doc.setFont('IBMPlexSans','normal'); doc.setFontSize(7.5); doc.setTextColor(130,130,130);
   doc.text('OZNAKA GRADILIŠTA', marginX, y);
   y += 5.5;
-  doc.setFont('helvetica','bold'); doc.setFontSize(13); doc.setTextColor(20,20,20);
+  doc.setFont('IBMPlexSans','bold'); doc.setFontSize(13); doc.setTextColor(20,20,20);
   doc.text(`${r.gradiliste} — ${nazivGradilista(r.gradiliste)||''}`, marginX, y);
   y += 5;
 
@@ -953,7 +979,7 @@ async function buildRequestPdfBlob_(r){
   doc.autoTable({
     head, body, startY:y,
     margin:{ left:marginX, right:marginX },
-    styles:{ font:'helvetica', fontSize:8.3, cellPadding:2.2, lineColor:[221,221,221], lineWidth:0.1, textColor:[26,26,26] },
+    styles:{ font:'IBMPlexSans', fontSize:8.3, cellPadding:2.2, lineColor:[221,221,221], lineWidth:0.1, textColor:[26,26,26] },
     headStyles:{ fillColor:[255,255,255], textColor:[68,68,68], fontStyle:'bold', fontSize:7.3, lineWidth:{bottom:0.4}, lineColor:[20,20,20] },
     columnStyles:{ 0:{cellWidth:8}, 4:{halign:'right'}, 5:{halign:'right'}, 6:{halign:'right',fontStyle:'bold'}, 8:{halign:'center'} }
   });
@@ -968,7 +994,7 @@ async function buildRequestPdfBlob_(r){
     const ySig=y+row*20;
     doc.setDrawColor(20,20,20); doc.setLineWidth(0.3);
     doc.line(x, ySig, x+signColW, ySig);
-    doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(85,85,85);
+    doc.setFont('IBMPlexSans','normal'); doc.setFontSize(8); doc.setTextColor(85,85,85);
     doc.text(txt, x, ySig+4);
   });
 
