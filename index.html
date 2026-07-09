@@ -448,7 +448,7 @@ function populateZbirniNalogSelect(){
   );
   [...dozvoljeni].sort((a,b)=>a.code.localeCompare(b.code)).forEach(n => {
     const opt = document.createElement('option');
-    opt.value = n.code; opt.textContent = n.code;
+    opt.value = n.code; opt.textContent = n.opis ? `${n.code} — ${n.opis}` : n.code;
     sel.appendChild(opt);
   });
   if(current && dozvoljeni.some(n=>n.code===current)) sel.value = current;
