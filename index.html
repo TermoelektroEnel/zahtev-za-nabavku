@@ -441,9 +441,11 @@ function populateZbirniNalogSelect(){
   const sel = $('zbirniNalog');
   const current = sel.value;
   sel.innerHTML = '<option value="">— izaberi nalog —</option>';
-  const dozvoljeni = MOJA_GRADILISTA === null
-    ? NALOZI
-    : NALOZI.filter(n => MOJA_GRADILISTA.includes(n.gradiliste));
+  const dozvoljeni = NALOZI.filter(n =>
+    MOJA_GRADILISTA === null ||           // korisnik ima sva gradilišta
+    n.gradiliste === null ||              // nalog važi za sva gradilišta
+    (Array.isArray(n.gradiliste) && n.gradiliste.some(g => MOJA_GRADILISTA.includes(g)))
+  );
   [...dozvoljeni].sort((a,b)=>a.code.localeCompare(b.code)).forEach(n => {
     const opt = document.createElement('option');
     opt.value = n.code; opt.textContent = n.code;
