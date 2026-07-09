@@ -1063,7 +1063,8 @@ $('peExportBtn').addEventListener('click', async ()=>{
     document.body.appendChild(a); a.click(); a.remove();
     setTimeout(()=>URL.revokeObjectURL(url), 5000);
   }catch(e){
-    alert('Greška pri pravljenju PDF-a. Pokušaj ponovo.');
+    console.error('Greška pri izvozu PDF-a:', e);
+    alert('Greška pri pravljenju PDF-a: ' + (e && e.message ? e.message : e));
   }
   btn.disabled=false; btn.textContent='Izvezi PDF';
 });
