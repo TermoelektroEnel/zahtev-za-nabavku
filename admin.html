@@ -296,11 +296,14 @@ td{padding:8px 8px 8px 0;border-bottom:1px solid var(--line-soft);font-size:13px
     <div class="info-msg" id="peInfo"></div>
     <div style="display:flex;gap:8px;margin-top:10px;">
       <button type="button" class="btn btn-primary" id="peSaveBtn">Sačuvaj izveštaj</button>
+      <button type="button" class="btn-ghost" id="peExportBtn">Izvezi PDF</button>
       <button type="button" class="btn-ghost" id="peCloseBtn">Zatvori</button>
     </div>
   </div>
 </div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="supabase-config.js"></script>
 <script src="supabase-backend.js"></script>
@@ -857,6 +860,212 @@ $('peOsveziKursBtn').addEventListener('click', async ()=>{
   }catch(e){
     $('peKursHint').textContent='Preuzimanje nije uspelo — unesi kurs ručno.';
   }
+});
+
+function arrayBufferToBase64_(buffer){
+  let binary=''; const bytes=new Uint8Array(buffer); const chunk=8192;
+  for(let i=0;i<bytes.length;i+=chunk){ binary+=String.fromCharCode.apply(null, bytes.subarray(i,i+chunk)); }
+  return btoa(binary);
+}
+function loadImageDims_(dataUri){
+  return new Promise((resolve)=>{
+    const img=new Image();
+    img.onload=()=>resolve({w:img.naturalWidth,h:img.naturalHeight});
+    img.onerror=()=>resolve({w:280,h:60});
+    img.src=dataUri;
+  });
+}
+// jsPDF-ov ugrađeni font (helvetica) nema č/ć/š/đ/ž — učitavamo IBM Plex Sans
+// (isti font koji sajt već koristi) sa punom podrškom za srpsku latinicu.
+async function ensurePdfFonts_(doc){
+  if(!ensurePdfFonts_.regularB64){
+    const [regBuf, boldBuf] = await Promise.all([
+      fetch('https://raw.githubusercontent.com/IBM/plex/master/packages/plex-sans/fonts/complete/ttf/IBMPlexSans-Regular.ttf').then(r=>r.arrayBuffer()),
+      fetch('https://raw.githubusercontent.com/IBM/plex/master/packages/plex-sans/fonts/complete/ttf/IBMPlexSans-Bold.ttf').then(r=>r.arrayBuffer())
+    ]);
+    ensurePdfFonts_.regularB64 = arrayBufferToBase64_(regBuf);
+    ensurePdfFonts_.boldB64 = arrayBufferToBase64_(boldBuf);
+  }
+  doc.addFileToVFS('IBMPlexSans-Regular.ttf', ensurePdfFonts_.regularB64);
+  doc.addFont('IBMPlexSans-Regular.ttf','IBMPlexSans','normal');
+  doc.addFileToVFS('IBMPlexSans-Bold.ttf', ensurePdfFonts_.boldB64);
+  doc.addFont('IBMPlexSans-Bold.ttf','IBMPlexSans','bold');
+}
+
+// Fiksni potpisnici (isto kao u postojećem Excel obrascu firme) — javi ako
+// treba da postanu izmenljivi.
+const IZVESTAJ_POTPISNICI = [
+  { uloga:'IZRADIO', ime:'Radosav Đurić', funkcija:'Rukovodilac nabavke' },
+  { uloga:'OVERIO',  ime:'Dejan Erić',    funkcija:'Direktor TS' },
+  { uloga:'ODOBRIO',  ime:'Miodrag Kušljević', funkcija:'Generalni direktor' }
+];
+
+async function buildPonudaPdfBlob_(p, zahtev){
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ unit:'mm', format:'a4', orientation:'portrait' });
+  await ensurePdfFonts_(doc);
+  const marginX = 16, pageWidth = 210, contentWidth = pageWidth - marginX*2;
+  let y = 18;
+
+  const dims = await loadImageDims_(LOGO_DATA_URI);
+  const logoH = 10, logoW = logoH * (dims.w/dims.h);
+  try{ doc.addImage(LOGO_DATA_URI, 'JPEG', marginX, y, logoW, logoH); }catch(e){}
+  y += logoH + 7;
+
+  doc.setFont('IBMPlexSans','bold'); doc.setFontSize(14); doc.setTextColor(20,20,20);
+  doc.text('IZVEŠTAJ O PRISPELIM PONUDAMA', marginX, y);
+  y += 5.5;
+  doc.setFont('IBMPlexSans','normal'); doc.setFontSize(9); doc.setTextColor(110,110,110);
+  doc.text(`Broj: ${p.brojIzvestaja}  ·  Dokument generisan ${new Date().toLocaleString('sr-RS')}`, marginX, y);
+  y += 8;
+
+  const nalogNaziv = zahtev ? (NALOZI.find(n=>n.kod===zahtev.nalog)||{}).opis||'' : '';
+  const gradilisteNaziv = zahtev ? (GRADILISTA.find(g=>g.kod===zahtev.gradiliste)||{}).naziv||'' : '';
+  const col2X = marginX + contentWidth/2 + 8;
+  doc.setFont('IBMPlexSans','normal'); doc.setFontSize(7.5); doc.setTextColor(130,130,130);
+  doc.text('ZAHTEV ZA NABAVKU', marginX, y);
+  doc.text('NALOG ZA REALIZACIJU', col2X, y);
+  y += 5;
+  doc.setFont('IBMPlexSans','bold'); doc.setFontSize(12); doc.setTextColor(20,20,20);
+  doc.text(zahtev?String(zahtev.redniBroj):'—', marginX, y);
+  doc.text(zahtev?String(zahtev.nalog):'—', col2X, y);
+  let yR=y;
+  if(nalogNaziv){
+    yR+=4; doc.setFont('IBMPlexSans','normal'); doc.setFontSize(8); doc.setTextColor(85,85,85);
+    const lines=doc.splitTextToSize(nalogNaziv, contentWidth/2-8);
+    doc.text(lines, col2X, yR); yR += (lines.length-1)*3.4;
+  }
+  y = Math.max(y,yR) + 6;
+
+  doc.setFont('IBMPlexSans','normal'); doc.setFontSize(7.5); doc.setTextColor(130,130,130);
+  doc.text('GRADILIŠTE', marginX, y);
+  doc.text('OBJEKAT', col2X, y);
+  y += 5;
+  doc.setFont('IBMPlexSans','bold'); doc.setFontSize(11); doc.setTextColor(20,20,20);
+  doc.text(zahtev?`${zahtev.gradiliste} — ${gradilisteNaziv}`:'—', marginX, y);
+  doc.text('TE Enel AD', col2X, y);
+  y += 6;
+
+  doc.setFont('IBMPlexSans','normal'); doc.setFontSize(7.5); doc.setTextColor(130,130,130);
+  doc.text('VRSTA RADOVA', marginX, y);
+  doc.text('ADRESA ISPORUKE', col2X, y);
+  y += 5;
+  doc.setFont('IBMPlexSans','bold'); doc.setFontSize(10); doc.setTextColor(20,20,20);
+  doc.text(p.vrstaRadova||'—', marginX, y);
+  doc.text(p.adresaIsporuke||'—', col2X, y);
+  y += 6;
+
+  doc.setFont('IBMPlexSans','normal'); doc.setFontSize(8); doc.setTextColor(85,85,85);
+  doc.text(`Kurs €: ${p.kursEur?fmtBroj_(p.kursEur):'—'} RSD`, marginX, y);
+  y += 5;
+  doc.setDrawColor(20,20,20); doc.setLineWidth(0.5);
+  doc.line(marginX, y, marginX+contentWidth, y);
+  y += 6;
+
+  let ukupnoBezPdv = 0;
+
+  p.stavke.forEach((s, idx)=>{
+    if(y > 250){ doc.addPage(); y = 20; }
+    doc.setFont('IBMPlexSans','bold'); doc.setFontSize(10); doc.setTextColor(20,20,20);
+    doc.text(`${idx+1}. ${s.opis}`, marginX, y);
+    y += 4.5;
+    doc.setFont('IBMPlexSans','normal'); doc.setFontSize(8); doc.setTextColor(110,110,110);
+    doc.text(`${s.jm} · za nabavku: ${s.zaNabavku}`, marginX, y);
+    y += 3;
+
+    if(s.ponude.length){
+      const head=[['Dobavljač','Bruto cena','Rabat %','Valuta','Jed. cena','Ukupno (RSD)','Izabran']];
+      const body=s.ponude.map((o,offIdx)=>{
+        const total=ukupnoRSD_(o, s.zaNabavku);
+        return [o.dobavljac, fmtBroj_(o.bruto), fmtBroj_(o.rabat)+'%', o.valuta, fmtBroj_(jedCena_(o)), fmtBroj_(total), s.izabranaPonudaIdx===offIdx?'DA':''];
+      });
+      doc.autoTable({
+        head, body, startY:y, margin:{left:marginX,right:marginX},
+        styles:{ font:'IBMPlexSans', fontSize:8, cellPadding:1.8, lineColor:[221,221,221], lineWidth:0.1, textColor:[26,26,26] },
+        headStyles:{ fillColor:[255,255,255], textColor:[68,68,68], fontStyle:'bold', fontSize:7, lineWidth:{bottom:0.4}, lineColor:[20,20,20] },
+        columnStyles:{ 6:{halign:'center', fontStyle:'bold'} }
+      });
+      y = doc.lastAutoTable.finalY + 3;
+      if(s.izabranaPonudaIdx!==null && s.ponude[s.izabranaPonudaIdx]){
+        ukupnoBezPdv += ukupnoRSD_(s.ponude[s.izabranaPonudaIdx], s.zaNabavku);
+      }
+    }else{
+      doc.setFont('IBMPlexSans','normal'); doc.setFontSize(8); doc.setTextColor(150,150,150);
+      doc.text('(nema unetih ponuda za ovu poziciju)', marginX, y+3);
+      y += 6;
+    }
+
+    const extras=[];
+    if(s.rokIsporuke) extras.push(`Rok isporuke: ${s.rokIsporuke}`);
+    if(s.predlogRukovodioca) extras.push(`Predlog: ${s.predlogRukovodioca}`);
+    if(s.ugovorBroj) extras.push(`Ugovor/porudžbenica: ${s.ugovorBroj}`);
+    if(s.racunBroj) extras.push(`Račun: ${s.racunBroj}`);
+    if(extras.length){
+      doc.setFont('IBMPlexSans','normal'); doc.setFontSize(7.8); doc.setTextColor(90,90,90);
+      doc.text(extras.join('   ·   '), marginX, y+3);
+      y += 6;
+    }
+    y += 6;
+  });
+
+  if(y > 240){ doc.addPage(); y = 20; }
+  doc.setDrawColor(20,20,20); doc.setLineWidth(0.5);
+  doc.line(marginX, y, marginX+contentWidth, y);
+  y += 7;
+  doc.setFont('IBMPlexSans','bold'); doc.setFontSize(11); doc.setTextColor(20,20,20);
+  doc.text(`Ukupno bez PDV: ${fmtBroj_(ukupnoBezPdv)} RSD`, marginX, y);
+  y += 6;
+  doc.text(`Ukupno sa PDV (20%): ${fmtBroj_(ukupnoBezPdv*1.2)} RSD`, marginX, y);
+  y += 9;
+  doc.setFont('IBMPlexSans','normal'); doc.setFontSize(9); doc.setTextColor(60,60,60);
+  const placanjeLine=[];
+  if(p.avans) placanjeLine.push(`Avans: ${p.avans}`);
+  if(p.nacinPlacanja) placanjeLine.push(`Način plaćanja: ${p.nacinPlacanja}`);
+  if(p.garancijaZaPlacanje) placanjeLine.push(`Garancija za plaćanje: ${p.garancijaZaPlacanje}`);
+  if(placanjeLine.length){ doc.text(placanjeLine.join('   ·   '), marginX, y); y += 10; }
+
+  if(y > 260){ doc.addPage(); y = 24; }
+  const signColW = contentWidth/3 - 8;
+  IZVESTAJ_POTPISNICI.forEach((pot, i)=>{
+    const x = marginX + i*(signColW+12);
+    doc.setDrawColor(20,20,20); doc.setLineWidth(0.3);
+    doc.line(x, y+14, x+signColW, y+14);
+    doc.setFont('IBMPlexSans','bold'); doc.setFontSize(8); doc.setTextColor(20,20,20);
+    doc.text(pot.uloga, x, y);
+    doc.setFont('IBMPlexSans','normal'); doc.setFontSize(8.5); doc.setTextColor(60,60,60);
+    doc.text(pot.ime, x, y+18);
+    doc.setFontSize(7.5); doc.setTextColor(120,120,120);
+    doc.text(pot.funkcija, x, y+22);
+  });
+
+  return doc.output('blob');
+}
+
+$('peExportBtn').addEventListener('click', async ()=>{
+  if(!currentPonuda) return;
+  const btn=$('peExportBtn');
+  btn.disabled=true; btn.textContent='Pravljenje PDF-a…';
+  try{
+    const p = {
+      ...currentPonuda,
+      vrstaRadova: $('peVrstaRadova').value.trim(),
+      adresaIsporuke: $('peAdresa').value.trim(),
+      kursEur: Number($('peKurs').value)||null,
+      avans: $('peAvans').value.trim(),
+      nacinPlacanja: $('peNacinPlacanja').value.trim(),
+      garancijaZaPlacanje: $('peGarancija').value.trim()
+    };
+    const zahtev = ZAHTEVI.find(z=>z.id===p.requestId);
+    const blob = await buildPonudaPdfBlob_(p, zahtev);
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = `Izvestaj-${String(p.brojIzvestaja).replace(/\//g,'-')}.pdf`;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url), 5000);
+  }catch(e){
+    alert('Greška pri pravljenju PDF-a. Pokušaj ponovo.');
+  }
+  btn.disabled=false; btn.textContent='Izvezi PDF';
 });
 
 $('peSaveBtn').addEventListener('click', async ()=>{
