@@ -256,10 +256,8 @@
   /* ---- Ponude (izveštaji o prispelim ponudama) ---- */
   async function addPonuda_(body) {
     if (!body.requestId) return { error: 'Nedostaje zahtev za nabavku.' };
-    const godina = String(body.godina || new Date().getFullYear()).slice(-2);
     const { data, error } = await sbClient.rpc('add_ponuda_izvestaj', {
       p_request_id: body.requestId,
-      p_godina: godina,
       p_vrsta_radova: body.vrstaRadova || '',
       p_adresa_isporuke: body.adresaIsporuke || '',
       p_kurs_eur: body.kursEur ?? null,

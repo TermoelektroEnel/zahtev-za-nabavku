@@ -228,16 +228,10 @@ td{padding:8px 8px 8px 0;border-bottom:1px solid var(--line-soft);font-size:13px
   <!-- PONUDE I IZBOR DOBAVLJAČA -->
   <div class="card">
     <h2>Novi izveštaj o ponudama</h2>
-    <p class="section-note">Izaberi postojeći zahtev za nabavku — pozicije će se automatski učitati, pa dodaješ ponude dobavljača za svaku.</p>
-    <div class="row2">
-      <div class="field">
-        <label for="pZahtev">Zahtev za nabavku</label>
-        <select id="pZahtev"><option value="">— izaberi zahtev —</option></select>
-      </div>
-      <div class="field">
-        <label for="pGodina">Godina izveštaja</label>
-        <input type="text" id="pGodina" placeholder="npr. 26" maxlength="2">
-      </div>
+    <p class="section-note">Izaberi postojeći zahtev za nabavku — pozicije će se automatski učitati, pa dodaješ ponude dobavljača za svaku. Broj izveštaja (IP) automatski se poklapa sa brojem zahteva (ZN) radi sledljivosti.</p>
+    <div class="field">
+      <label for="pZahtev">Zahtev za nabavku</label>
+      <select id="pZahtev"><option value="">— izaberi zahtev —</option></select>
     </div>
     <div class="err" id="pNoviErr"></div>
     <button type="button" class="btn btn-primary" id="pKreirajBtn">Kreiraj izveštaj</button>
@@ -676,8 +670,6 @@ function populateZahtevSelect(){
     opt.value=z.id; opt.textContent=`${z.redniBroj} — nalog ${z.nalog}`;
     sel.appendChild(opt);
   });
-  const g = String(new Date().getFullYear()).slice(-2);
-  if(!$('pGodina').value) $('pGodina').value = g;
 }
 
 function renderPonudaList(){
@@ -709,9 +701,7 @@ function renderPonudaList(){
 $('pKreirajBtn').addEventListener('click', async ()=>{
   $('pNoviErr').textContent='';
   const requestId=$('pZahtev').value;
-  const godina=$('pGodina').value.trim();
   if(!requestId){ $('pNoviErr').textContent='Izaberi zahtev za nabavku.'; return; }
-  if(!/^\d{2}$/.test(godina)){ $('pNoviErr').textContent='Godina mora imati tačno 2 cifre (npr. 26).'; return; }
   const zahtev = ZAHTEVI.find(z=>z.id===requestId);
   if(!zahtev){ $('pNoviErr').textContent='Zahtev nije pronađen.'; return; }
   const stavke = (zahtev.stavke||[]).map(s=>({
@@ -719,10 +709,11 @@ $('pKreirajBtn').addEventListener('click', async ()=>{
     kolicina:s.kolicina, zaNabavku: s.zaNabavku!==undefined?s.zaNabavku:s.kolicina,
     rok:s.rok||'', atest:s.atest||'',
     ponude:[], izabranaPonudaIdx:null,
+    ugovorenaCena:null,
     rokIsporuke:'', predlogRukovodioca:'', ugovorBroj:'', racunBroj:''
   }));
   $('pKreirajBtn').disabled=true;
-  const r=await apiPost('addPonuda',{ requestId, godina, stavke });
+  const r=await apiPost('addPonuda',{ requestId, stavke });
   $('pKreirajBtn').disabled=false;
   if(r&&r.error){ $('pNoviErr').textContent=r.error; return; }
   await loadPonudeSection();
@@ -800,6 +791,15 @@ function renderPeStavke(){
         <div class="field"><label>Ugovor/porudžbenica br.</label><input type="text" data-ugovor="${posIdx}" value="${escapeHtml(s.ugovorBroj||'')}"></div>
         <div class="field"><label>Račun br.</label><input type="text" data-racun="${posIdx}" value="${escapeHtml(s.racunBroj||'')}"></div>
       </div>
+      <div class="pozicija-extra" style="margin-top:8px;">
+        <div class="field">
+          <label>Ugovorena cena (RSD)</label>
+          <input type="number" step="0.01" data-ugovorena-cena="${posIdx}" value="${s.ugovorenaCena!=null?s.ugovorenaCena:''}" placeholder="cena prema investitoru">
+        </div>
+        <div class="field" style="grid-column:span 3;display:flex;align-items:end;">
+          <div class="hint" id="marza-${posIdx}" style="margin:0;"></div>
+        </div>
+      </div>
     </div>`;
   }).join('');
 
@@ -826,13 +826,34 @@ function renderPeStavke(){
     const posIdx=Number(e.currentTarget.dataset.izabranPos), offIdx=Number(e.currentTarget.dataset.izabranOff);
     currentPonuda.stavke[posIdx].izabranaPonudaIdx=offIdx;
     renderPeTotals();
+    updateMarzaLine_(posIdx);
   }));
   wrap.querySelectorAll('[data-rok]').forEach(i=>i.addEventListener('input',e=>{ currentPonuda.stavke[Number(e.currentTarget.dataset.rok)].rokIsporuke=e.currentTarget.value; }));
   wrap.querySelectorAll('[data-predlog]').forEach(i=>i.addEventListener('input',e=>{ currentPonuda.stavke[Number(e.currentTarget.dataset.predlog)].predlogRukovodioca=e.currentTarget.value; }));
   wrap.querySelectorAll('[data-ugovor]').forEach(i=>i.addEventListener('input',e=>{ currentPonuda.stavke[Number(e.currentTarget.dataset.ugovor)].ugovorBroj=e.currentTarget.value; }));
   wrap.querySelectorAll('[data-racun]').forEach(i=>i.addEventListener('input',e=>{ currentPonuda.stavke[Number(e.currentTarget.dataset.racun)].racunBroj=e.currentTarget.value; }));
+  wrap.querySelectorAll('[data-ugovorena-cena]').forEach(i=>i.addEventListener('input',e=>{
+    const posIdx=Number(e.currentTarget.dataset.ugovorenaCena);
+    const v=e.currentTarget.value;
+    currentPonuda.stavke[posIdx].ugovorenaCena = v===''?null:Number(v);
+    updateMarzaLine_(posIdx);
+  }));
 
+  currentPonuda.stavke.forEach((s,posIdx)=>updateMarzaLine_(posIdx));
   renderPeTotals();
+}
+
+function updateMarzaLine_(posIdx){
+  const s=currentPonuda.stavke[posIdx];
+  const el=$('marza-'+posIdx); if(!el) return;
+  if(s.ugovorenaCena==null || s.izabranaPonudaIdx===null || !s.ponude[s.izabranaPonudaIdx]){
+    el.textContent=''; return;
+  }
+  const nabavna = ukupnoRSD_(s.ponude[s.izabranaPonudaIdx], s.zaNabavku);
+  const marza = s.ugovorenaCena - nabavna;
+  const pct = nabavna ? (marza/nabavna*100) : 0;
+  el.textContent = `Nabavna cena (izabrani dobavljač): ${fmtBroj_(nabavna)} RSD  ·  Marža: ${fmtBroj_(marza)} RSD (${fmtBroj_(pct)}%)`;
+  el.style.color = marza>=0 ? 'var(--good)' : 'var(--danger)';
 }
 
 function renderPeTotals(){
@@ -903,129 +924,135 @@ const IZVESTAJ_POTPISNICI = [
 
 async function buildPonudaPdfBlob_(p, zahtev){
   const { jsPDF } = window.jspdf;
-  const doc = new jsPDF({ unit:'mm', format:'a4', orientation:'portrait' });
+  const doc = new jsPDF({ unit:'mm', format:'a4', orientation:'landscape' });
   await ensurePdfFonts_(doc);
-  const marginX = 16, pageWidth = 210, contentWidth = pageWidth - marginX*2;
-  let y = 18;
+  const marginX = 12, pageWidth = 297, contentWidth = pageWidth - marginX*2;
+  let y = 14;
 
   const dims = await loadImageDims_(LOGO_DATA_URI);
-  const logoH = 10, logoW = logoH * (dims.w/dims.h);
+  const logoH = 9, logoW = logoH * (dims.w/dims.h);
   try{ doc.addImage(LOGO_DATA_URI, 'JPEG', marginX, y, logoW, logoH); }catch(e){}
-  y += logoH + 7;
 
-  doc.setFont('IBMPlexSans','bold'); doc.setFontSize(14); doc.setTextColor(20,20,20);
-  doc.text('IZVEŠTAJ O PRISPELIM PONUDAMA', marginX, y);
-  y += 5.5;
-  doc.setFont('IBMPlexSans','normal'); doc.setFontSize(9); doc.setTextColor(110,110,110);
-  doc.text(`Broj: ${p.brojIzvestaja}  ·  Dokument generisan ${new Date().toLocaleString('sr-RS')}`, marginX, y);
-  y += 8;
+  doc.setFont('IBMPlexSans','bold'); doc.setFontSize(13); doc.setTextColor(20,20,20);
+  doc.text('IZVEŠTAJ O PRISPELIM PONUDAMA SA NALOGOM ZA NABAVKU', marginX+logoW+8, y+4);
+  doc.setFont('IBMPlexSans','normal'); doc.setFontSize(8); doc.setTextColor(110,110,110);
+  doc.text(`Broj: ${p.brojIzvestaja}   ·   Dokument generisan ${new Date().toLocaleString('sr-RS')}`, marginX+logoW+8, y+8.5);
+  y += logoH + 5;
 
+  // --- Zaglavlje: 4 kolone informacija, u stilu Excel obrasca ---
   const nalogNaziv = zahtev ? (NALOZI.find(n=>n.kod===zahtev.nalog)||{}).opis||'' : '';
   const gradilisteNaziv = zahtev ? (GRADILISTA.find(g=>g.kod===zahtev.gradiliste)||{}).naziv||'' : '';
-  const col2X = marginX + contentWidth/2 + 8;
-  doc.setFont('IBMPlexSans','normal'); doc.setFontSize(7.5); doc.setTextColor(130,130,130);
-  doc.text('ZAHTEV ZA NABAVKU', marginX, y);
-  doc.text('NALOG ZA REALIZACIJU', col2X, y);
-  y += 5;
-  doc.setFont('IBMPlexSans','bold'); doc.setFontSize(12); doc.setTextColor(20,20,20);
-  doc.text(zahtev?String(zahtev.redniBroj):'—', marginX, y);
-  doc.text(zahtev?String(zahtev.nalog):'—', col2X, y);
-  let yR=y;
-  if(nalogNaziv){
-    yR+=4; doc.setFont('IBMPlexSans','normal'); doc.setFontSize(8); doc.setTextColor(85,85,85);
-    const lines=doc.splitTextToSize(nalogNaziv, contentWidth/2-8);
-    doc.text(lines, col2X, yR); yR += (lines.length-1)*3.4;
-  }
-  y = Math.max(y,yR) + 6;
+  const colW4 = contentWidth/4;
+  const headInfo = [
+    ['ZAHTEV ZA NABAVKU', zahtev?String(zahtev.redniBroj):'—'],
+    ['NALOG ZA REALIZACIJU', zahtev?`${zahtev.nalog}${nalogNaziv?' — '+nalogNaziv:''}`:'—'],
+    ['GRADILIŠTE / OBJEKAT', zahtev?`${zahtev.gradiliste} — ${gradilisteNaziv} / TE Enel AD`:'—'],
+    ['KURS €', p.kursEur?`${fmtBroj_(p.kursEur)} RSD`:'—']
+  ];
+  doc.setDrawColor(20,20,20); doc.setLineWidth(0.3);
+  doc.rect(marginX, y, contentWidth, 14);
+  headInfo.forEach((h,i)=>{
+    const x = marginX + i*colW4;
+    if(i>0){ doc.line(x, y, x, y+14); }
+    doc.setFont('IBMPlexSans','normal'); doc.setFontSize(6.8); doc.setTextColor(120,120,120);
+    doc.text(h[0], x+2, y+4);
+    doc.setFont('IBMPlexSans','bold'); doc.setFontSize(9); doc.setTextColor(20,20,20);
+    const lines = doc.splitTextToSize(h[1], colW4-4);
+    doc.text(lines.slice(0,2), x+2, y+8.5);
+  });
+  y += 14;
 
-  doc.setFont('IBMPlexSans','normal'); doc.setFontSize(7.5); doc.setTextColor(130,130,130);
-  doc.text('GRADILIŠTE', marginX, y);
-  doc.text('OBJEKAT', col2X, y);
-  y += 5;
-  doc.setFont('IBMPlexSans','bold'); doc.setFontSize(11); doc.setTextColor(20,20,20);
-  doc.text(zahtev?`${zahtev.gradiliste} — ${gradilisteNaziv}`:'—', marginX, y);
-  doc.text('TE Enel AD', col2X, y);
-  y += 6;
-
-  doc.setFont('IBMPlexSans','normal'); doc.setFontSize(7.5); doc.setTextColor(130,130,130);
-  doc.text('VRSTA RADOVA', marginX, y);
-  doc.text('ADRESA ISPORUKE', col2X, y);
-  y += 5;
-  doc.setFont('IBMPlexSans','bold'); doc.setFontSize(10); doc.setTextColor(20,20,20);
-  doc.text(p.vrstaRadova||'—', marginX, y);
-  doc.text(p.adresaIsporuke||'—', col2X, y);
-  y += 6;
-
-  doc.setFont('IBMPlexSans','normal'); doc.setFontSize(8); doc.setTextColor(85,85,85);
-  doc.text(`Kurs €: ${p.kursEur?fmtBroj_(p.kursEur):'—'} RSD`, marginX, y);
-  y += 5;
-  doc.setDrawColor(20,20,20); doc.setLineWidth(0.5);
-  doc.line(marginX, y, marginX+contentWidth, y);
-  y += 6;
+  const headInfo2 = [
+    ['VRSTA RADOVA', p.vrstaRadova||'—'],
+    ['ADRESA ISPORUKE', p.adresaIsporuke||'—'],
+    ['AVANS', p.avans||'—'],
+    ['NAČIN PLAĆANJA / GARANCIJA', `${p.nacinPlacanja||'—'}${p.garancijaZaPlacanje?' / '+p.garancijaZaPlacanje:''}`]
+  ];
+  doc.rect(marginX, y, contentWidth, 12);
+  headInfo2.forEach((h,i)=>{
+    const x = marginX + i*colW4;
+    if(i>0){ doc.line(x, y, x, y+12); }
+    doc.setFont('IBMPlexSans','normal'); doc.setFontSize(6.8); doc.setTextColor(120,120,120);
+    doc.text(h[0], x+2, y+4);
+    doc.setFont('IBMPlexSans','bold'); doc.setFontSize(8.5); doc.setTextColor(20,20,20);
+    const lines = doc.splitTextToSize(h[1], colW4-4);
+    doc.text(lines.slice(0,1), x+2, y+9);
+  });
+  y += 12 + 5;
 
   let ukupnoBezPdv = 0;
+  let ukupnoUgovoreno = 0;
 
   p.stavke.forEach((s, idx)=>{
-    if(y > 250){ doc.addPage(); y = 20; }
-    doc.setFont('IBMPlexSans','bold'); doc.setFontSize(10); doc.setTextColor(20,20,20);
-    doc.text(`${idx+1}. ${s.opis}`, marginX, y);
-    y += 4.5;
-    doc.setFont('IBMPlexSans','normal'); doc.setFontSize(8); doc.setTextColor(110,110,110);
-    doc.text(`${s.jm} · za nabavku: ${s.zaNabavku}`, marginX, y);
-    y += 3;
+    if(y > 175){ doc.addPage(); y = 14; }
+    doc.setFillColor(240,240,236);
+    doc.rect(marginX, y, contentWidth, 6, 'F');
+    doc.setDrawColor(20,20,20); doc.setLineWidth(0.3);
+    doc.rect(marginX, y, contentWidth, 6);
+    doc.setFont('IBMPlexSans','bold'); doc.setFontSize(9); doc.setTextColor(20,20,20);
+    doc.text(`${idx+1}. ${s.opis}`, marginX+2, y+4.2);
+    doc.setFont('IBMPlexSans','normal'); doc.setFontSize(7.5); doc.setTextColor(90,90,90);
+    doc.text(`JM: ${s.jm}   Količina: ${s.kolicina}   Za nabavku: ${s.zaNabavku}`, marginX+contentWidth-2, y+4.2, { align:'right' });
+    y += 6;
 
     if(s.ponude.length){
-      const head=[['Dobavljač','Bruto cena','Rabat %','Valuta','Jed. cena','Ukupno (RSD)','Izabran']];
+      const head=[['Dobavljač','Bruto cena','Rabat %','Valuta','Jed. cena','Ukupno (RSD)','Izabran','Rok isporuke']];
       const body=s.ponude.map((o,offIdx)=>{
         const total=ukupnoRSD_(o, s.zaNabavku);
-        return [o.dobavljac, fmtBroj_(o.bruto), fmtBroj_(o.rabat)+'%', o.valuta, fmtBroj_(jedCena_(o)), fmtBroj_(total), s.izabranaPonudaIdx===offIdx?'DA':''];
+        return [o.dobavljac, fmtBroj_(o.bruto), fmtBroj_(o.rabat)+'%', o.valuta, fmtBroj_(jedCena_(o)), fmtBroj_(total), s.izabranaPonudaIdx===offIdx?'✓ DA':'', s.izabranaPonudaIdx===offIdx?(s.rokIsporuke||'—'):''];
       });
       doc.autoTable({
-        head, body, startY:y, margin:{left:marginX,right:marginX},
-        styles:{ font:'IBMPlexSans', fontSize:8, cellPadding:1.8, lineColor:[221,221,221], lineWidth:0.1, textColor:[26,26,26] },
-        headStyles:{ fillColor:[255,255,255], textColor:[68,68,68], fontStyle:'bold', fontSize:7, lineWidth:{bottom:0.4}, lineColor:[20,20,20] },
-        columnStyles:{ 6:{halign:'center', fontStyle:'bold'} }
+        head, body, startY:y, margin:{left:marginX,right:marginX}, theme:'grid',
+        styles:{ font:'IBMPlexSans', fontSize:7.8, cellPadding:1.6, lineColor:[180,180,175], lineWidth:0.2, textColor:[26,26,26] },
+        headStyles:{ fillColor:[250,250,247], textColor:[68,68,68], fontStyle:'bold', fontSize:7, lineColor:[20,20,20], lineWidth:0.3 },
+        columnStyles:{ 6:{halign:'center', fontStyle:'bold', textColor:[63,107,74]} }
       });
-      y = doc.lastAutoTable.finalY + 3;
+      y = doc.lastAutoTable.finalY;
       if(s.izabranaPonudaIdx!==null && s.ponude[s.izabranaPonudaIdx]){
         ukupnoBezPdv += ukupnoRSD_(s.ponude[s.izabranaPonudaIdx], s.zaNabavku);
       }
     }else{
-      doc.setFont('IBMPlexSans','normal'); doc.setFontSize(8); doc.setTextColor(150,150,150);
-      doc.text('(nema unetih ponuda za ovu poziciju)', marginX, y+3);
+      doc.setDrawColor(180,180,175); doc.setLineWidth(0.2);
+      doc.rect(marginX, y, contentWidth, 6);
+      doc.setFont('IBMPlexSans','normal'); doc.setFontSize(7.5); doc.setTextColor(150,150,150);
+      doc.text('(nema unetih ponuda za ovu poziciju)', marginX+2, y+4);
       y += 6;
     }
 
-    const extras=[];
-    if(s.rokIsporuke) extras.push(`Rok isporuke: ${s.rokIsporuke}`);
-    if(s.predlogRukovodioca) extras.push(`Predlog: ${s.predlogRukovodioca}`);
-    if(s.ugovorBroj) extras.push(`Ugovor/porudžbenica: ${s.ugovorBroj}`);
-    if(s.racunBroj) extras.push(`Račun: ${s.racunBroj}`);
-    if(extras.length){
-      doc.setFont('IBMPlexSans','normal'); doc.setFontSize(7.8); doc.setTextColor(90,90,90);
-      doc.text(extras.join('   ·   '), marginX, y+3);
-      y += 6;
+    // Footer traka pozicije: ugovorena cena, marža, predlog/ugovor/racun
+    const nabavna = (s.izabranaPonudaIdx!==null && s.ponude[s.izabranaPonudaIdx]) ? ukupnoRSD_(s.ponude[s.izabranaPonudaIdx], s.zaNabavku) : null;
+    const marza = (s.ugovorenaCena!=null && nabavna!=null) ? s.ugovorenaCena - nabavna : null;
+    if(s.ugovorenaCena!=null) ukupnoUgovoreno += s.ugovorenaCena;
+    doc.setDrawColor(20,20,20); doc.setLineWidth(0.2);
+    doc.line(marginX, y, marginX+contentWidth, y);
+    const footBits=[];
+    if(s.ugovorenaCena!=null) footBits.push(`Ugovorena cena: ${fmtBroj_(s.ugovorenaCena)} RSD`);
+    if(marza!=null) footBits.push(`Marža: ${fmtBroj_(marza)} RSD`);
+    if(s.predlogRukovodioca) footBits.push(`Predlog: ${s.predlogRukovodioca}`);
+    if(s.ugovorBroj) footBits.push(`Ugovor/porudžbenica: ${s.ugovorBroj}`);
+    if(s.racunBroj) footBits.push(`Račun: ${s.racunBroj}`);
+    if(footBits.length){
+      doc.setFont('IBMPlexSans','normal'); doc.setFontSize(7.3); doc.setTextColor(80,80,80);
+      doc.text(footBits.join('   ·   '), marginX+1, y+3.2);
+      y += 5.5;
     }
-    y += 6;
+    y += 4;
   });
 
-  if(y > 240){ doc.addPage(); y = 20; }
+  if(y > 178){ doc.addPage(); y = 16; }
   doc.setDrawColor(20,20,20); doc.setLineWidth(0.5);
   doc.line(marginX, y, marginX+contentWidth, y);
-  y += 7;
-  doc.setFont('IBMPlexSans','bold'); doc.setFontSize(11); doc.setTextColor(20,20,20);
-  doc.text(`Ukupno bez PDV: ${fmtBroj_(ukupnoBezPdv)} RSD`, marginX, y);
   y += 6;
-  doc.text(`Ukupno sa PDV (20%): ${fmtBroj_(ukupnoBezPdv*1.2)} RSD`, marginX, y);
-  y += 9;
-  doc.setFont('IBMPlexSans','normal'); doc.setFontSize(9); doc.setTextColor(60,60,60);
-  const placanjeLine=[];
-  if(p.avans) placanjeLine.push(`Avans: ${p.avans}`);
-  if(p.nacinPlacanja) placanjeLine.push(`Način plaćanja: ${p.nacinPlacanja}`);
-  if(p.garancijaZaPlacanje) placanjeLine.push(`Garancija za plaćanje: ${p.garancijaZaPlacanje}`);
-  if(placanjeLine.length){ doc.text(placanjeLine.join('   ·   '), marginX, y); y += 10; }
+  const ukupnaMarza = ukupnoUgovoreno - ukupnoBezPdv;
+  doc.setFont('IBMPlexSans','bold'); doc.setFontSize(10); doc.setTextColor(20,20,20);
+  doc.text(`Ukupno bez PDV: ${fmtBroj_(ukupnoBezPdv)} RSD`, marginX, y);
+  doc.text(`Ukupno sa PDV (20%): ${fmtBroj_(ukupnoBezPdv*1.2)} RSD`, marginX+90, y);
+  if(ukupnoUgovoreno>0){
+    doc.text(`Ukupno ugovoreno: ${fmtBroj_(ukupnoUgovoreno)} RSD`, marginX+190, y);
+  }
+  y += 14;
 
-  if(y > 260){ doc.addPage(); y = 24; }
+  if(y > 178){ doc.addPage(); y = 20; }
   const signColW = contentWidth/3 - 8;
   IZVESTAJ_POTPISNICI.forEach((pot, i)=>{
     const x = marginX + i*(signColW+12);
