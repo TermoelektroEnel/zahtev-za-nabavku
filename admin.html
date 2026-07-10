@@ -997,7 +997,7 @@ async function buildPonudaPdfBlob_(p, zahtev){
     'Rb.', 'Naziv',
     ...SUPPLIERS,
     'JM', 'Količina', 'Za nabavku',
-    'Ugovorena cena (bez PDV)', 'Ugovorena cena (sa PDV)', 'Marža',
+    'Ugovorena cena (bez PDV)', 'Ugovorena cena (sa PDV)',
     'Rok isporuke', 'Predlog rukovodioca', 'Odabrani isporučilac'
   ]];
 
@@ -1008,7 +1008,6 @@ async function buildPonudaPdfBlob_(p, zahtev){
     const nabavna = selectedOffer ? ukupnoRSD_(selectedOffer, s.zaNabavku) : null;
     if(nabavna!=null) ukupnoBezPdv += nabavna;
     const ugovorenaSaPdv = s.ugovorenaCena!=null ? s.ugovorenaCena*1.2 : null;
-    const marza = (s.ugovorenaCena!=null && nabavna!=null) ? s.ugovorenaCena - nabavna : null;
     if(s.ugovorenaCena!=null) ukupnoUgovoreno += s.ugovorenaCena;
 
     const supplierCells = SUPPLIERS.map(name=>{
@@ -1026,7 +1025,6 @@ async function buildPonudaPdfBlob_(p, zahtev){
       s.jm, String(s.kolicina), String(s.zaNabavku),
       s.ugovorenaCena!=null?fmtCena_(s.ugovorenaCena):'—',
       ugovorenaSaPdv!=null?fmtCena_(ugovorenaSaPdv):'—',
-      marza!=null?fmtCena_(marza):'—',
       selectedOffer?(s.rokIsporuke||'—'):'—',
       s.predlogRukovodioca||'—',
       odabraniText
@@ -1037,7 +1035,6 @@ async function buildPonudaPdfBlob_(p, zahtev){
   for(let i=0;i<n;i++){ columnStyles[2+i] = {halign:'right'}; }
   columnStyles[2+n+3] = {halign:'right'}; // ugovorena bez PDV
   columnStyles[2+n+4] = {halign:'right'}; // ugovorena sa PDV
-  columnStyles[2+n+5] = {halign:'right'}; // marža
 
   doc.autoTable({
     head, body, startY:y, margin:{left:marginX,right:marginX}, theme:'grid',
@@ -1068,7 +1065,9 @@ async function buildPonudaPdfBlob_(p, zahtev){
   doc.text(`Ukupno bez PDV: ${fmtCena_(ukupnoBezPdv)} RSD`, marginX, y);
   doc.text(`Ukupno sa PDV (20%): ${fmtCena_(ukupnoBezPdv*1.2)} RSD`, marginX+90, y);
   if(ukupnoUgovoreno>0){
-    doc.text(`Ukupno ugovoreno: ${fmtCena_(ukupnoUgovoreno)} RSD`, marginX+190, y);
+    doc.text(`Ukupno ugovoreno (bez PDV): ${fmtCena_(ukupnoUgovoreno)} RSD`, marginX+190, y);
+    y += 6;
+    doc.text(`Ukupno ugovoreno (sa PDV): ${fmtCena_(ukupnoUgovoreno*1.2)} RSD`, marginX+190, y);
   }
   y += 14;
 
