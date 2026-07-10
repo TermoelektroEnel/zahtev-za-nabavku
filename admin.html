@@ -751,6 +751,8 @@ function ukupnoRSD_(o, kolicina){
   return jc * (Number(kolicina)||0) * faktor;
 }
 function fmtBroj_(n){ return (Number(n)||0).toLocaleString('sr-RS',{maximumFractionDigits:2}); }
+// Za CENE uvek tačno 2 decimale (za razliku od količina, koje ostaju "prirodne")
+function fmtCena_(n){ return (Number(n)||0).toLocaleString('sr-RS',{minimumFractionDigits:2,maximumFractionDigits:2}); }
 
 function renderPeStavke(){
   const wrap=$('peStavkeWrap');
@@ -985,22 +987,19 @@ async function buildPonudaPdfBlob_(p, zahtev){
   // Bruto cena / Rabat / Jed. cena; ćelije pobedničkog dobavljača su istaknute)
   const SUPPLIERS = [];
   p.stavke.forEach(s => s.ponude.forEach(o => { if(!SUPPLIERS.includes(o.dobavljac)) SUPPLIERS.push(o.dobavljac); }));
+  const n = SUPPLIERS.length;
 
   let ukupnoBezPdv = 0;
   let ukupnoUgovoreno = 0;
   const selectedGroupIdxByRow = [];
 
-  const head = [
-    [
-      {content:'Rb.', rowSpan:2}, {content:'Naziv', rowSpan:2},
-      ...SUPPLIERS.map(name=>({content:name, colSpan:3, styles:{halign:'center'}})),
-      {content:'JM', rowSpan:2}, {content:'Količina', rowSpan:2}, {content:'Za nabavku', rowSpan:2},
-      {content:'Ugovorena cena', rowSpan:2}, {content:'Marža', rowSpan:2},
-      {content:'Rok isporuke', rowSpan:2}, {content:'Predlog rukovodioca', rowSpan:2},
-      {content:'Odabrani isporučilac', rowSpan:2}
-    ],
-    [ ...SUPPLIERS.flatMap(()=>['Bruto','Rabat','Jed.cena']) ]
-  ];
+  const head = [[
+    'Rb.', 'Naziv',
+    ...SUPPLIERS,
+    'JM', 'Količina', 'Za nabavku',
+    'Ugovorena cena (bez PDV)', 'Ugovorena cena (sa PDV)', 'Marža',
+    'Rok isporuke', 'Predlog rukovodioca', 'Odabrani isporučilac'
+  ]];
 
   const body = p.stavke.map((s, idx)=>{
     const selectedOffer = (s.izabranaPonudaIdx!==null) ? s.ponude[s.izabranaPonudaIdx] : null;
@@ -1008,12 +1007,13 @@ async function buildPonudaPdfBlob_(p, zahtev){
 
     const nabavna = selectedOffer ? ukupnoRSD_(selectedOffer, s.zaNabavku) : null;
     if(nabavna!=null) ukupnoBezPdv += nabavna;
+    const ugovorenaSaPdv = s.ugovorenaCena!=null ? s.ugovorenaCena*1.2 : null;
     const marza = (s.ugovorenaCena!=null && nabavna!=null) ? s.ugovorenaCena - nabavna : null;
     if(s.ugovorenaCena!=null) ukupnoUgovoreno += s.ugovorenaCena;
 
-    const supplierCells = SUPPLIERS.flatMap(name=>{
+    const supplierCells = SUPPLIERS.map(name=>{
       const o = s.ponude.find(x=>x.dobavljac===name);
-      return o ? [fmtBroj_(o.bruto), fmtBroj_(o.rabat)+'%', fmtBroj_(jedCena_(o))] : ['—','—','—'];
+      return o ? fmtCena_(jedCena_(o)) : '—';
     });
 
     const odabraniText = selectedOffer
@@ -1024,26 +1024,33 @@ async function buildPonudaPdfBlob_(p, zahtev){
       idx+1, s.opis,
       ...supplierCells,
       s.jm, String(s.kolicina), String(s.zaNabavku),
-      s.ugovorenaCena!=null?fmtBroj_(s.ugovorenaCena):'—',
-      marza!=null?fmtBroj_(marza):'—',
+      s.ugovorenaCena!=null?fmtCena_(s.ugovorenaCena):'—',
+      ugovorenaSaPdv!=null?fmtCena_(ugovorenaSaPdv):'—',
+      marza!=null?fmtCena_(marza):'—',
       selectedOffer?(s.rokIsporuke||'—'):'—',
       s.predlogRukovodioca||'—',
       odabraniText
     ];
   });
 
+  const columnStyles = { 0:{cellWidth:7,halign:'center'}, 1:{cellWidth:32} };
+  for(let i=0;i<n;i++){ columnStyles[2+i] = {halign:'right'}; }
+  columnStyles[2+n+3] = {halign:'right'}; // ugovorena bez PDV
+  columnStyles[2+n+4] = {halign:'right'}; // ugovorena sa PDV
+  columnStyles[2+n+5] = {halign:'right'}; // marža
+
   doc.autoTable({
     head, body, startY:y, margin:{left:marginX,right:marginX}, theme:'grid',
     styles:{ font:'IBMPlexSans', fontSize:6.8, cellPadding:1.3, lineColor:[180,180,175], lineWidth:0.2, textColor:[26,26,26], valign:'middle' },
     headStyles:{ fillColor:[240,240,236], textColor:[40,40,40], fontStyle:'bold', fontSize:6.6, lineColor:[20,20,20], lineWidth:0.3, halign:'center' },
-    columnStyles:{ 0:{cellWidth:7,halign:'center'}, 1:{cellWidth:34} },
+    columnStyles,
     didParseCell: (data)=>{
       if(data.section!=='body') return;
       const rowIdx = data.row.index;
       const selGroup = selectedGroupIdxByRow[rowIdx];
       if(selGroup==null || selGroup<0) return;
-      const groupStartCol = 2 + selGroup*3;
-      if(data.column.index>=groupStartCol && data.column.index<groupStartCol+3){
+      const col = 2 + selGroup;
+      if(data.column.index===col){
         data.cell.styles.fontStyle='bold';
         data.cell.styles.textColor=[63,107,74];
         data.cell.styles.fillColor=[236,244,238];
@@ -1058,10 +1065,10 @@ async function buildPonudaPdfBlob_(p, zahtev){
   y += 6;
   const ukupnaMarza = ukupnoUgovoreno - ukupnoBezPdv;
   doc.setFont('IBMPlexSans','bold'); doc.setFontSize(10); doc.setTextColor(20,20,20);
-  doc.text(`Ukupno bez PDV: ${fmtBroj_(ukupnoBezPdv)} RSD`, marginX, y);
-  doc.text(`Ukupno sa PDV (20%): ${fmtBroj_(ukupnoBezPdv*1.2)} RSD`, marginX+90, y);
+  doc.text(`Ukupno bez PDV: ${fmtCena_(ukupnoBezPdv)} RSD`, marginX, y);
+  doc.text(`Ukupno sa PDV (20%): ${fmtCena_(ukupnoBezPdv*1.2)} RSD`, marginX+90, y);
   if(ukupnoUgovoreno>0){
-    doc.text(`Ukupno ugovoreno: ${fmtBroj_(ukupnoUgovoreno)} RSD`, marginX+190, y);
+    doc.text(`Ukupno ugovoreno: ${fmtCena_(ukupnoUgovoreno)} RSD`, marginX+190, y);
   }
   y += 14;
 
