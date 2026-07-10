@@ -819,7 +819,7 @@ function openDoc(id){
       <div class="doc-outer">
         <div class="doc-toolbar">
           <button class="btn-ghost" id="closeDoc">Zatvori</button>
-          <button class="btn-ghost" id="mailToggleBtn">Pošalji mejlom</button>
+          <button class="btn-ghost" id="mailToggleBtn">Pošalji preko Outlook-a</button>
           <button class="btn btn-primary" style="width:auto;" id="printDoc">Štampaj / sačuvaj PDF</button>
         </div>
         <div class="mail-panel" id="mailPanel" style="display:none;">
@@ -827,10 +827,10 @@ function openDoc(id){
           <div class="mail-recipients" id="mailRecipients">
             ${MAIL_RECIPIENTS.map((p,i)=>`<label><input type="checkbox" value="${escapeHtml(p.email)}" id="mailR${i}"> ${escapeHtml(p.name)}</label>`).join('')}
           </div>
-          <div class="mail-cc-note">Kopija (CC) automatski ide na tvoju adresu.</div>
+          <div class="mail-cc-note">Kopija (CC) automatski ide na tvoju adresu. Nakon klika na dugme preuzeće se fajl koji treba otvoriti (dupli klik) — otvoriće se gotov mejl u Outlook-u sa prilogom, spreman za slanje.</div>
           <div class="err" id="mailErr"></div>
           <div class="info-msg" id="mailInfo"></div>
-          <button class="btn btn-primary" style="width:auto;" id="mailSendBtn">Pošalji</button>
+          <button class="btn btn-primary" style="width:auto;" id="mailSendBtn">Napravi mejl</button>
         </div>
         <div class="doc" id="docContent">
           <img src="${LOGO_DATA_URI}" alt="Termoelektro Enel AD" style="height:40px;width:auto;display:block;margin-bottom:12px;">
@@ -1006,6 +1006,43 @@ async function buildRequestPdfBlob_(r){
   return doc.output('blob');
 }
 
+// Base64 mora biti prelomljen na redove od najviše 76 znakova (MIME standard)
+function wrapBase64_(b64){
+  return b64.match(/.{1,76}/g).join('\r\n');
+}
+
+// Pravi .eml fajl sa već upisanim Kome/CC/Naslovom i PDF-om kao ugrađenim
+// prilogom. "X-Unsent: 1" zaglavlje tera Outlook da ovo tretira kao
+// nedovršenu poruku (dobija dugme "Pošalji"), a ne kao primljenu.
+function buildEmlBlob_({ to, cc, subject, bodyText, pdfBase64, pdfFilename }){
+  const boundary = 'ZN_BOUNDARY_' + Date.now();
+  const lines = [
+    `To: ${to.join(', ')}`,
+    cc ? `Cc: ${cc}` : '',
+    `Subject: ${subject}`,
+    'X-Unsent: 1',
+    'MIME-Version: 1.0',
+    `Content-Type: multipart/mixed; boundary="${boundary}"`,
+    '',
+    `--${boundary}`,
+    'Content-Type: text/plain; charset="utf-8"',
+    'Content-Transfer-Encoding: 8bit',
+    '',
+    bodyText,
+    '',
+    `--${boundary}`,
+    `Content-Type: application/pdf; name="${pdfFilename}"`,
+    `Content-Disposition: attachment; filename="${pdfFilename}"`,
+    'Content-Transfer-Encoding: base64',
+    '',
+    wrapBase64_(pdfBase64),
+    '',
+    `--${boundary}--`,
+    ''
+  ].filter(l => l !== '' || true); // zadrži prazne linije (bitne za MIME)
+  return new Blob([lines.join('\r\n')], { type:'message/rfc822' });
+}
+
 async function sendDocByEmail(r){
   const errEl=$('mailErr'), infoEl=$('mailInfo'), btn=$('mailSendBtn');
   errEl.textContent=''; infoEl.classList.remove('visible');
@@ -1017,23 +1054,27 @@ async function sendDocByEmail(r){
     const pdfBlob=await buildRequestPdfBlob_(r);
     const pdfBase64=await blobToBase64_(pdfBlob);
 
-    btn.textContent='Slanje…';
     const naziv=nazivNaloga(r.nalog)||'';
     const subject=`Zahtev za nabavku - ${r.redniBroj} - ${r.nalog}${naziv?' - '+naziv:''}`;
-    const filename=`Zahtev-${String(r.redniBroj).replace(/\//g,'-')}.pdf`;
+    const pdfFilename=`Zahtev-${String(r.redniBroj).replace(/\//g,'-')}.pdf`;
+    const username = await ZN.currentUsername();
+    const cc = username ? `${username}@te-enel.rs` : '';
+    const bodyText = 'U prilogu se nalazi zahtev za nabavku u PDF formatu.';
 
-    const { data, error } = await sbClient.functions.invoke('send-request-email', {
-      body: { to, subject, filename, pdfBase64 }
-    });
-    if(error || (data && data.error)){
-      errEl.textContent=(data&&data.error)||'Slanje mejla nije uspelo.';
-    }else{
-      infoEl.textContent='Mejl je uspešno poslat.'; infoEl.classList.add('visible');
-    }
+    const emlBlob = buildEmlBlob_({ to, cc, subject, bodyText, pdfBase64, pdfFilename });
+    const emlFilename = `${pdfFilename.replace(/\.pdf$/i,'')}.eml`;
+    const url = URL.createObjectURL(emlBlob);
+    const a = document.createElement('a');
+    a.href = url; a.download = emlFilename;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url), 5000);
+
+    infoEl.textContent = `Fajl "${emlFilename}" je preuzet — otvori ga (dupli klik) da se otvori gotov mejl u Outlook-u sa prilogom, pa klikni Pošalji.`;
+    infoEl.classList.add('visible');
   }catch(err){
-    errEl.textContent='Greška pri pravljenju/slanju PDF-a. Pokušaj ponovo.';
+    errEl.textContent='Greška pri pravljenju fajla. Pokušaj ponovo.';
   }
-  btn.disabled=false; btn.textContent='Pošalji';
+  btn.disabled=false; btn.textContent='Napravi mejl';
 }
 
 $('gradiliste').addEventListener('input', renderPlate);
