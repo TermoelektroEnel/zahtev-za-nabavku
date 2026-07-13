@@ -451,14 +451,19 @@ function renderPeStavke(){
         <button type="button" class="btn-ghost" data-add-ponuda-btn="${posIdx}">+ Dodaj</button>
       </div>
       <div class="pozicija-extra" style="grid-template-columns:1fr 1fr 1fr;">
-        <div class="field"><label>Predlog rukovodioca</label><input type="text" data-predlog="${posIdx}" value="${escapeHtml(s.predlogRukovodioca||'')}"></div>
+        <div class="field"><label>Predlog rukovodioca</label>
+          <select data-predlog="${posIdx}">
+            <option value="">— izaberi dobavljača —</option>
+            ${[...new Set(s.ponude.map(o=>o.dobavljac))].map(name=>`<option value="${escapeHtml(name)}" ${s.predlogRukovodioca===name?'selected':''}>${escapeHtml(name)}</option>`).join('')}
+          </select>
+        </div>
         <div class="field"><label>Ugovor/porudžbenica br.</label><input type="text" data-ugovor="${posIdx}" value="${escapeHtml(s.ugovorBroj||'')}"></div>
         <div class="field"><label>Račun br.</label><input type="text" data-racun="${posIdx}" value="${escapeHtml(s.racunBroj||'')}"></div>
       </div>
       <div class="pozicija-extra" style="margin-top:8px;">
         <div class="field">
-          <label>Ugovorena cena (RSD)</label>
-          <input type="number" step="0.01" data-ugovorena-cena="${posIdx}" value="${s.ugovorenaCena!=null?s.ugovorenaCena:''}" placeholder="cena prema investitoru">
+          <label>Ugovorena cena po jedinici (RSD)</label>
+          <input type="number" step="0.01" data-ugovorena-cena="${posIdx}" value="${s.ugovorenaCena!=null?s.ugovorenaCena:''}" placeholder="jedinična cena prema investitoru">
         </div>
         <div class="field" style="grid-column:span 3;display:flex;align-items:end;">
           <div class="hint" id="marza-${posIdx}" style="margin:0;"></div>
@@ -493,7 +498,7 @@ function renderPeStavke(){
     renderPeTotals();
     updateMarzaLine_(posIdx);
   }));
-  wrap.querySelectorAll('[data-predlog]').forEach(i=>i.addEventListener('input',e=>{ currentPonuda.stavke[Number(e.currentTarget.dataset.predlog)].predlogRukovodioca=e.currentTarget.value; }));
+  wrap.querySelectorAll('[data-predlog]').forEach(i=>i.addEventListener('change',e=>{ currentPonuda.stavke[Number(e.currentTarget.dataset.predlog)].predlogRukovodioca=e.currentTarget.value; }));
   wrap.querySelectorAll('[data-ugovor]').forEach(i=>i.addEventListener('input',e=>{ currentPonuda.stavke[Number(e.currentTarget.dataset.ugovor)].ugovorBroj=e.currentTarget.value; }));
   wrap.querySelectorAll('[data-racun]').forEach(i=>i.addEventListener('input',e=>{ currentPonuda.stavke[Number(e.currentTarget.dataset.racun)].racunBroj=e.currentTarget.value; }));
   wrap.querySelectorAll('[data-ugovorena-cena]').forEach(i=>i.addEventListener('input',e=>{
@@ -507,6 +512,11 @@ function renderPeStavke(){
   renderPeTotals();
 }
 
+// SUMPRODUCT: ukupna vrednost pozicije = jedinična cena × količina (za nabavku)
+function ukupnoUgovorenoZaPoziciju_(s){
+  return s.ugovorenaCena!=null ? s.ugovorenaCena * (Number(s.zaNabavku)||0) : null;
+}
+
 function updateMarzaLine_(posIdx){
   const s=currentPonuda.stavke[posIdx];
   const el=$('marza-'+posIdx); if(!el) return;
@@ -514,9 +524,10 @@ function updateMarzaLine_(posIdx){
     el.textContent=''; return;
   }
   const nabavna = ukupnoRSD_(s.ponude[s.izabranaPonudaIdx], s.zaNabavku);
-  const marza = s.ugovorenaCena - nabavna;
+  const ugovorenoUkupno = ukupnoUgovorenoZaPoziciju_(s);
+  const marza = ugovorenoUkupno - nabavna;
   const pct = nabavna ? (marza/nabavna*100) : 0;
-  el.textContent = `Nabavna cena (izabrani dobavljač): ${fmtBroj_(nabavna)} RSD  ·  Marža: ${fmtBroj_(marza)} RSD (${fmtBroj_(pct)}%)`;
+  el.textContent = `Nabavna vrednost (izabrani dobavljač): ${fmtBroj_(nabavna)} RSD  ·  Ugovorena vrednost: ${fmtBroj_(ugovorenoUkupno)} RSD  ·  Marža: ${fmtBroj_(marza)} RSD (${fmtBroj_(pct)}%)`;
   el.style.color = marza>=0 ? 'var(--good)' : 'var(--danger)';
 }
 
@@ -660,7 +671,7 @@ async function buildPonudaPdfBlob_(p, zahtev){
       {content:'Rb.', rowSpan:2}, {content:'Naziv', rowSpan:2},
       ...SUPPLIERS.map(name=>({content:name, colSpan:2, styles:{halign:'center'}})),
       {content:'JM', rowSpan:2}, {content:'Količina', rowSpan:2}, {content:'Za nabavku', rowSpan:2},
-      {content:'Ugovorena cena (bez PDV)', rowSpan:2}, {content:'Ugovorena cena (sa PDV)', rowSpan:2},
+      {content:'Ugovorena vrednost (bez PDV)', rowSpan:2}, {content:'Ugovorena vrednost (sa PDV)', rowSpan:2},
       {content:'Predlog rukovodioca', rowSpan:2}, {content:'Odabrani isporučilac', rowSpan:2}
     ],
     [ ...SUPPLIERS.flatMap(()=>['Jed.cena','Rok isporuke']) ]
@@ -670,10 +681,12 @@ async function buildPonudaPdfBlob_(p, zahtev){
     const selectedOffer = (s.izabranaPonudaIdx!==null) ? s.ponude[s.izabranaPonudaIdx] : null;
     selectedGroupIdxByRow.push(selectedOffer ? SUPPLIERS.indexOf(selectedOffer.dobavljac) : -1);
 
+    // SUMPRODUCT: ukupna vrednost = jedinična cena × količina (za nabavku)
     const nabavna = selectedOffer ? ukupnoRSD_(selectedOffer, s.zaNabavku) : null;
     if(nabavna!=null) ukupnoBezPdv += nabavna;
-    const ugovorenaSaPdv = s.ugovorenaCena!=null ? s.ugovorenaCena*1.2 : null;
-    if(s.ugovorenaCena!=null) ukupnoUgovoreno += s.ugovorenaCena;
+    const ugovorenoUkupno = s.ugovorenaCena!=null ? s.ugovorenaCena*(Number(s.zaNabavku)||0) : null;
+    const ugovorenaSaPdv = ugovorenoUkupno!=null ? ugovorenoUkupno*1.2 : null;
+    if(ugovorenoUkupno!=null) ukupnoUgovoreno += ugovorenoUkupno;
 
     const supplierCells = SUPPLIERS.flatMap(name=>{
       const o = s.ponude.find(x=>x.dobavljac===name);
@@ -688,7 +701,7 @@ async function buildPonudaPdfBlob_(p, zahtev){
       idx+1, s.opis,
       ...supplierCells,
       s.jm, String(s.kolicina), String(s.zaNabavku),
-      s.ugovorenaCena!=null?fmtCena_(s.ugovorenaCena):'—',
+      ugovorenoUkupno!=null?fmtCena_(ugovorenoUkupno):'—',
       ugovorenaSaPdv!=null?fmtCena_(ugovorenaSaPdv):'—',
       s.predlogRukovodioca||'—',
       odabraniText
