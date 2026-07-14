@@ -187,6 +187,8 @@ td{padding:8px 8px 8px 0;border-bottom:1px solid var(--line-soft);font-size:13px
     <div style="display:flex;justify-content:flex-end;gap:24px;margin:16px 0;padding-top:12px;border-top:1px solid var(--line-soft);font-family:'IBM Plex Mono',monospace;">
       <div>Ukupno bez PDV: <strong id="peUkupnoBezPdv">0</strong> RSD</div>
       <div>Ukupno sa PDV (20%): <strong id="peUkupnoSaPdv">0</strong> RSD</div>
+      <div>Ukupno ugovoreno bez PDV: <strong id="peUkupnoUgovorenoBezPdv">0</strong> RSD</div>
+      <div>Ukupno ugovoreno sa PDV (20%): <strong id="peUkupnoUgovorenoSaPdv">0</strong> RSD</div>
     </div>
     <div class="hint">Napomena: PDV je pretpostavljen na 20% (standardna stopa u Srbiji) — javi ako treba drugačije.</div>
 
@@ -506,6 +508,7 @@ function renderPeStavke(){
     const v=e.currentTarget.value;
     currentPonuda.stavke[posIdx].ugovorenaCena = v===''?null:Number(v);
     updateMarzaLine_(posIdx);
+    renderPeTotals();
   }));
 
   currentPonuda.stavke.forEach((s,posIdx)=>updateMarzaLine_(posIdx));
@@ -533,13 +536,18 @@ function updateMarzaLine_(posIdx){
 
 function renderPeTotals(){
   let bezPdv=0;
+  let ugovorenoBezPdv=0;
   currentPonuda.stavke.forEach(s=>{
     if(s.izabranaPonudaIdx!==null && s.ponude[s.izabranaPonudaIdx]){
       bezPdv += ukupnoRSD_(s.ponude[s.izabranaPonudaIdx], s.zaNabavku);
     }
+    const ugovoreno = ukupnoUgovorenoZaPoziciju_(s);
+    if(ugovoreno!=null) ugovorenoBezPdv += ugovoreno;
   });
   $('peUkupnoBezPdv').textContent = fmtBroj_(bezPdv);
   $('peUkupnoSaPdv').textContent = fmtBroj_(bezPdv*1.2);
+  $('peUkupnoUgovorenoBezPdv').textContent = fmtBroj_(ugovorenoBezPdv);
+  $('peUkupnoUgovorenoSaPdv').textContent = fmtBroj_(ugovorenoBezPdv*1.2);
 }
 
 $('peKurs').addEventListener('input', renderPeTotals);
