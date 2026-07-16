@@ -417,11 +417,30 @@ function fmtBroj_(n){ return (Number(n)||0).toLocaleString('sr-RS',{maximumFract
 // Za CENE uvek tačno 2 decimale (za razliku od količina, koje ostaju "prirodne")
 function fmtCena_(n){ return (Number(n)||0).toLocaleString('sr-RS',{minimumFractionDigits:2,maximumFractionDigits:2}); }
 
+let editingOffer=null; // {pos, off} ili null
+
 function renderPeStavke(){
   const wrap=$('peStavkeWrap');
   if(!currentPonuda.stavke.length){ wrap.innerHTML='<div class="empty">Ovaj zahtev nema pozicija.</div>'; renderPeTotals(); return; }
   wrap.innerHTML = currentPonuda.stavke.map((s,posIdx)=>{
-    const ponudeRows = s.ponude.map((o,offIdx)=>`
+    const ponudeRows = s.ponude.map((o,offIdx)=>{
+      const isEditing = editingOffer && editingOffer.pos===posIdx && editingOffer.off===offIdx;
+      if(isEditing){
+        return `
+      <tr>
+        <td><input type="text" data-edit-dobavljac style="width:120px;" value="${escapeHtml(o.dobavljac)}"></td>
+        <td><input type="number" step="0.01" data-edit-bruto style="width:80px;" value="${o.bruto}"></td>
+        <td><input type="number" step="0.01" data-edit-rabat style="width:60px;" value="${o.rabat}"></td>
+        <td><select data-edit-valuta><option value="RSD" ${o.valuta==='RSD'?'selected':''}>RSD</option><option value="EUR" ${o.valuta==='EUR'?'selected':''}>EUR</option></select></td>
+        <td colspan="2"><input type="text" data-edit-rok style="width:100px;" value="${escapeHtml(o.rok||'')}" placeholder="rok isporuke"></td>
+        <td></td>
+        <td style="white-space:nowrap;">
+          <button class="btn-ghost" data-save-off-pos="${posIdx}" data-save-off-idx="${offIdx}" style="padding:3px 8px;font-size:11px;">Sačuvaj</button>
+          <button class="btn-ghost" data-cancel-off style="padding:3px 8px;font-size:11px;">Otkaži</button>
+        </td>
+      </tr>`;
+      }
+      return `
       <tr>
         <td>${escapeHtml(o.dobavljac)}</td>
         <td class="num">${fmtBroj_(o.bruto)}</td>
@@ -431,8 +450,12 @@ function renderPeStavke(){
         <td class="num">${fmtBroj_(ukupnoRSD_(o, s.zaNabavku))} RSD</td>
         <td>${escapeHtml(o.rok||'—')}</td>
         <td style="text-align:center;"><input type="radio" name="izabran-${posIdx}" value="${offIdx}" ${s.izabranaPonudaIdx===offIdx?'checked':''} data-izabran-pos="${posIdx}" data-izabran-off="${offIdx}"></td>
-        <td><button class="btn-danger-ghost" data-del-off-pos="${posIdx}" data-del-off-idx="${offIdx}" style="padding:3px 8px;font-size:11px;">✕</button></td>
-      </tr>`).join('');
+        <td style="white-space:nowrap;">
+          <button class="btn-ghost" data-edit-off-pos="${posIdx}" data-edit-off-idx="${offIdx}" style="padding:3px 8px;font-size:11px;">Izmeni</button>
+          <button class="btn-danger-ghost" data-del-off-pos="${posIdx}" data-del-off-idx="${offIdx}" style="padding:3px 8px;font-size:11px;">✕</button>
+        </td>
+      </tr>`;
+    }).join('');
     return `
     <div class="pozicija-block">
       <div class="pozicija-head">
@@ -484,6 +507,28 @@ function renderPeStavke(){
     if(!dobavljac){ alert('Unesi naziv dobavljača.'); return; }
     if(!bruto || bruto<=0){ alert('Unesi ispravnu bruto cenu.'); return; }
     currentPonuda.stavke[posIdx].ponude.push({ dobavljac, bruto, rabat, valuta, rok });
+    renderPeStavke();
+  }));
+  wrap.querySelectorAll('[data-edit-off-pos]').forEach(b=>b.addEventListener('click',e=>{
+    editingOffer = { pos:Number(e.currentTarget.dataset.editOffPos), off:Number(e.currentTarget.dataset.editOffIdx) };
+    renderPeStavke();
+  }));
+  wrap.querySelectorAll('[data-cancel-off]').forEach(b=>b.addEventListener('click',()=>{
+    editingOffer = null;
+    renderPeStavke();
+  }));
+  wrap.querySelectorAll('[data-save-off-pos]').forEach(b=>b.addEventListener('click',e=>{
+    const posIdx=Number(e.currentTarget.dataset.saveOffPos), offIdx=Number(e.currentTarget.dataset.saveOffIdx);
+    const row = e.currentTarget.closest('tr');
+    const dobavljac = row.querySelector('[data-edit-dobavljac]').value.trim();
+    const bruto = Number(row.querySelector('[data-edit-bruto]').value);
+    const rabat = Number(row.querySelector('[data-edit-rabat]').value)||0;
+    const valuta = row.querySelector('[data-edit-valuta]').value;
+    const rok = row.querySelector('[data-edit-rok]').value.trim();
+    if(!dobavljac){ alert('Unesi naziv dobavljača.'); return; }
+    if(!bruto || bruto<=0){ alert('Unesi ispravnu bruto cenu.'); return; }
+    currentPonuda.stavke[posIdx].ponude[offIdx] = { dobavljac, bruto, rabat, valuta, rok };
+    editingOffer = null;
     renderPeStavke();
   }));
   wrap.querySelectorAll('[data-del-off-pos]').forEach(b=>b.addEventListener('click',e=>{
