@@ -752,28 +752,10 @@ async function buildPonudaPdfBlob_(p, zahtev){
   columnStyles[2+n*2+1] = {halign:'right'}; // količina
   columnStyles[2+n*2+2] = {halign:'right'}; // ugovorena cena (bez PDV)
 
-  // Redovi na dnu tabele: Avans i Način plaćanja PO DOBAVLJAČU (uzima se iz
-  // prve unete ponude tog dobavljača — komercijalni uslovi važe za ceo
-  // izveštaj, ne po pojedinačnoj poziciji).
-  const supplierTerms = {};
-  p.stavke.forEach(s => s.ponude.forEach(o => {
-    if(!supplierTerms[o.dobavljac]) supplierTerms[o.dobavljac] = { avans:o.avans||'', nacin:o.nacinPlacanja||'' };
-  }));
-  const emptyTail = ['', '', '', ''];
-  const foot = [
-    [ {content:'Avans', colSpan:2, styles:{fontStyle:'bold',halign:'left'}},
-      ...SUPPLIERS.map(name=>({content: supplierTerms[name]?.avans||'—', colSpan:2, styles:{halign:'center'}})),
-      ...emptyTail ],
-    [ {content:'Način plaćanja', colSpan:2, styles:{fontStyle:'bold',halign:'left'}},
-      ...SUPPLIERS.map(name=>({content: supplierTerms[name]?.nacin||'—', colSpan:2, styles:{halign:'center'}})),
-      ...emptyTail ]
-  ];
-
   doc.autoTable({
-    head, body, foot, startY:y, margin:{left:marginX,right:marginX}, theme:'grid',
+    head, body, startY:y, margin:{left:marginX,right:marginX}, theme:'grid',
     styles:{ font:'IBMPlexSans', fontSize:6.3, cellPadding:1.1, lineColor:[180,180,175], lineWidth:0.2, textColor:[26,26,26], valign:'middle' },
     headStyles:{ fillColor:[240,240,236], textColor:[40,40,40], fontStyle:'bold', fontSize:6.2, lineColor:[20,20,20], lineWidth:0.3, halign:'center' },
-    footStyles:{ fillColor:[247,247,242], textColor:[40,40,40], fontSize:6.3, lineColor:[20,20,20], lineWidth:0.3 },
     columnStyles,
     didParseCell: (data)=>{
       if(data.section!=='body') return;
@@ -788,7 +770,29 @@ async function buildPonudaPdfBlob_(p, zahtev){
       }
     }
   });
-  y = doc.lastAutoTable.finalY + 8;
+  y = doc.lastAutoTable.finalY + 6;
+
+  // Komercijalni uslovi PO DOBAVLJAČU (uzima se iz prve unete ponude tog
+  // dobavljača — uslovi važe za ceo izveštaj, ne po pojedinačnoj poziciji).
+  const supplierTerms = {};
+  p.stavke.forEach(s => s.ponude.forEach(o => {
+    if(!supplierTerms[o.dobavljac]) supplierTerms[o.dobavljac] = { avans:o.avans||'—', nacin:o.nacinPlacanja||'—' };
+  }));
+  if(SUPPLIERS.length){
+    if(y > 185){ doc.addPage(); y = 16; }
+    doc.setFont('IBMPlexSans','bold'); doc.setFontSize(8); doc.setTextColor(20,20,20);
+    doc.text('Uslovi plaćanja po dobavljaču', marginX, y);
+    y += 3;
+    doc.autoTable({
+      head: [['Dobavljač','Avans','Način plaćanja']],
+      body: SUPPLIERS.map(name=>[name, supplierTerms[name].avans, supplierTerms[name].nacin]),
+      startY:y, margin:{left:marginX,right:marginX}, theme:'grid',
+      styles:{ font:'IBMPlexSans', fontSize:7, cellPadding:1.4, lineColor:[180,180,175], lineWidth:0.2, textColor:[26,26,26] },
+      headStyles:{ fillColor:[240,240,236], textColor:[40,40,40], fontStyle:'bold', fontSize:6.8, lineColor:[20,20,20], lineWidth:0.3 },
+      tableWidth: 130
+    });
+    y = doc.lastAutoTable.finalY + 8;
+  }
 
   if(y > 178){ doc.addPage(); y = 16; }
   doc.setDrawColor(20,20,20); doc.setLineWidth(0.5);
