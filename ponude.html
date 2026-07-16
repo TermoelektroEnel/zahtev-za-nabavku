@@ -723,9 +723,9 @@ async function buildPonudaPdfBlob_(p, zahtev){
     [
       {content:'Rb.', rowSpan:2}, {content:'Naziv', rowSpan:2},
       ...SUPPLIERS.map(name=>({content:name, colSpan:2, styles:{halign:'center'}})),
-      {content:'JM', rowSpan:2}, {content:'Količina', rowSpan:2}, {content:'Za nabavku', rowSpan:2},
-      {content:'Ugovorena vrednost (bez PDV)', rowSpan:2}, {content:'Ugovorena vrednost (sa PDV)', rowSpan:2},
-      {content:'Predlog rukovodioca', rowSpan:2}, {content:'Odabrani isporučilac', rowSpan:2}
+      {content:'JM', rowSpan:2}, {content:'Količina', rowSpan:2},
+      {content:'Ugovorena cena (bez PDV)', rowSpan:2},
+      {content:'Predlog rukovodioca', rowSpan:2}
     ],
     [ ...SUPPLIERS.flatMap(()=>['Jed.cena','Rok isporuke']) ]
   ];
@@ -734,11 +734,10 @@ async function buildPonudaPdfBlob_(p, zahtev){
     const selectedOffer = (s.izabranaPonudaIdx!==null) ? s.ponude[s.izabranaPonudaIdx] : null;
     selectedGroupIdxByRow.push(selectedOffer ? SUPPLIERS.indexOf(selectedOffer.dobavljac) : -1);
 
-    // SUMPRODUCT: ukupna vrednost = jedinična cena × količina (za nabavku)
+    // SUMPRODUCT (za zbir na dnu): ukupna vrednost = jedinična cena × količina (za nabavku)
     const nabavna = selectedOffer ? ukupnoRSD_(selectedOffer, s.zaNabavku) : null;
     if(nabavna!=null) ukupnoBezPdv += nabavna;
     const ugovorenoUkupno = s.ugovorenaCena!=null ? s.ugovorenaCena*(Number(s.zaNabavku)||0) : null;
-    const ugovorenaSaPdv = ugovorenoUkupno!=null ? ugovorenoUkupno*1.2 : null;
     if(ugovorenoUkupno!=null) ukupnoUgovoreno += ugovorenoUkupno;
 
     const supplierCells = SUPPLIERS.flatMap(name=>{
@@ -746,25 +745,19 @@ async function buildPonudaPdfBlob_(p, zahtev){
       return o ? [fmtCena_(jedCena_(o)), o.rok||'—'] : ['—','—'];
     });
 
-    const odabraniText = selectedOffer
-      ? [selectedOffer.dobavljac, s.ugovorBroj?`Ugovor: ${s.ugovorBroj}`:'', s.racunBroj?`Račun: ${s.racunBroj}`:''].filter(Boolean).join('\n')
-      : '—';
-
     return [
       idx+1, s.opis,
       ...supplierCells,
-      s.jm, String(s.kolicina), String(s.zaNabavku),
-      ugovorenoUkupno!=null?fmtCena_(ugovorenoUkupno):'—',
-      ugovorenaSaPdv!=null?fmtCena_(ugovorenaSaPdv):'—',
-      s.predlogRukovodioca||'—',
-      odabraniText
+      s.jm, String(s.kolicina),
+      s.ugovorenaCena!=null?fmtCena_(s.ugovorenaCena):'—',
+      s.predlogRukovodioca||'—'
     ];
   });
 
   const columnStyles = { 0:{cellWidth:7,halign:'center'}, 1:{cellWidth:30} };
   for(let i=0;i<n;i++){ columnStyles[2+i*2] = {halign:'right'}; } // jed. cena kolone
-  columnStyles[2+n*2+3] = {halign:'right'}; // ugovorena bez PDV
-  columnStyles[2+n*2+4] = {halign:'right'}; // ugovorena sa PDV
+  columnStyles[2+n*2+1] = {halign:'right'}; // količina
+  columnStyles[2+n*2+2] = {halign:'right'}; // ugovorena cena (bez PDV)
 
   doc.autoTable({
     head, body, startY:y, margin:{left:marginX,right:marginX}, theme:'grid',
