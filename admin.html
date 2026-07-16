@@ -230,6 +230,32 @@ td{padding:8px 8px 8px 0;border-bottom:1px solid var(--line-soft);font-size:13px
     <h2>Izveštaji o ponudama</h2>
     <p class="section-note">Poređenje ponuda dobavljača i izbor sada se radi na posebnoj stranici — <a href="ponude.html">otvori Izveštaje o ponudama</a>.</p>
   </div>
+
+  <!-- ADRESE ISPORUKE -->
+  <div class="card">
+    <h2 id="adresaFormTitle">Nova adresa gradilišta</h2>
+    <p class="section-note">Ove adrese se biraju iz padajućeg menija u polju "Adresa isporuke" na stranici Izveštaji o ponudama.</p>
+    <div class="row2">
+      <div class="field">
+        <label for="adNaziv">Naziv</label>
+        <input type="text" id="adNaziv" placeholder="npr. Gradilište Niš">
+      </div>
+      <div class="field">
+        <label for="adAdresa">Adresa</label>
+        <input type="text" id="adAdresa" placeholder="npr. Bulevar 12. februar 157, 18000 Niš">
+      </div>
+    </div>
+    <div class="err" id="adErr"></div>
+    <div style="display:flex;gap:8px;">
+      <button type="button" class="btn btn-primary" id="adSaveBtn">Dodaj adresu</button>
+      <button type="button" class="btn-ghost" id="adCancelBtn" style="display:none;">Otkaži</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Postojeće adrese gradilišta</h2>
+    <div id="adresaListWrap"><div class="loading">Učitavanje…</div></div>
+  </div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -329,6 +355,7 @@ async function loadAll(){
     NALOZI = (nData.nalozi||[]).map(n=>({kod:n.kod,opis:n.opis,gradiliste:n.gradiliste}));
     renderGradilistaList(); renderNalogGrid(); renderNalogList(); renderUserGradilistaGrid();
     loadUsers();
+    loadAdrese();
   }catch(e){
     $('gradilisteListWrap').innerHTML='<div class="empty">Greška pri učitavanju. Proveri SCRIPT_URL.</div>';
     $('nalogListWrap').innerHTML='<div class="empty">Greška pri učitavanju. Proveri SCRIPT_URL.</div>';
@@ -576,6 +603,67 @@ $('uSaveBtn').addEventListener('click',async()=>{
     await loadUsers();
   }
   $('uSaveBtn').disabled=false;
+});
+
+/* ============================================================
+   ADRESE ISPORUKE
+   ============================================================ */
+let ADRESE=[], editingAdresaNaziv=null;
+
+async function loadAdrese(){
+  try{
+    const data = await apiGet('listAdrese');
+    ADRESE = (data.adrese||[]);
+    renderAdresaList();
+  }catch(e){
+    $('adresaListWrap').innerHTML='<div class="empty">Greška pri učitavanju adresa.</div>';
+  }
+}
+
+function renderAdresaList(){
+  const wrap=$('adresaListWrap');
+  if(!ADRESE.length){ wrap.innerHTML='<div class="empty">Još uvek nema unetih adresa.</div>'; return; }
+  const sorted=[...ADRESE].sort((a,b)=>a.naziv.localeCompare(b.naziv));
+  wrap.innerHTML=`<table><thead><tr><th>Naziv</th><th>Adresa</th><th style="width:140px;"></th></tr></thead><tbody>
+    ${sorted.map(a=>`<tr>
+      <td>${escapeHtml(a.naziv)}</td>
+      <td>${escapeHtml(a.adresa)||'<span class="hint">—</span>'}</td>
+      <td class="row-actions">
+        <button class="btn-ghost" data-edit-ad="${escapeHtml(a.naziv)}">Uredi</button>
+        <button class="btn-ghost" data-del-ad="${escapeHtml(a.naziv)}">Obriši</button>
+      </td></tr>`).join('')}
+  </tbody></table>`;
+  wrap.querySelectorAll('[data-edit-ad]').forEach(b=>b.addEventListener('click',e=>openEditAdresa(e.currentTarget.dataset.editAd)));
+  wrap.querySelectorAll('[data-del-ad]').forEach(b=>b.addEventListener('click',async e=>{
+    const naziv=e.currentTarget.dataset.delAd;
+    if(!confirm(`Obrisati adresu "${naziv}"?`)) return;
+    const r=await apiPost('deleteAdresa',{naziv});
+    if(r&&r.error) alert(r.error); else await loadAdrese();
+  }));
+}
+function openEditAdresa(naziv){
+  const a=ADRESE.find(x=>x.naziv===naziv); if(!a) return;
+  editingAdresaNaziv=naziv;
+  $('adNaziv').value=a.naziv; $('adNaziv').disabled=true; $('adAdresa').value=a.adresa||'';
+  $('adresaFormTitle').textContent=`Izmena adrese — ${naziv}`;
+  $('adSaveBtn').textContent='Sačuvaj izmene'; $('adCancelBtn').style.display='inline-block';
+  $('adNaziv').closest('.card').scrollIntoView({behavior:'smooth',block:'start'});
+}
+function resetAdresaForm(){
+  editingAdresaNaziv=null; $('adNaziv').value=''; $('adNaziv').disabled=false; $('adAdresa').value=''; $('adErr').textContent='';
+  $('adresaFormTitle').textContent='Nova adresa gradilišta'; $('adSaveBtn').textContent='Dodaj adresu'; $('adCancelBtn').style.display='none';
+}
+$('adCancelBtn').addEventListener('click',resetAdresaForm);
+$('adSaveBtn').addEventListener('click',async()=>{
+  $('adErr').textContent='';
+  const naziv=$('adNaziv').value.trim(), adresa=$('adAdresa').value.trim();
+  if(!naziv){ $('adErr').textContent='Naziv je obavezan.'; return; }
+  $('adSaveBtn').disabled=true;
+  try{
+    const r=await apiPost(editingAdresaNaziv?'updateAdresa':'addAdresa',{naziv,adresa});
+    if(r&&r.error){ $('adErr').textContent=r.error; }else{ resetAdresaForm(); await loadAdrese(); }
+  }catch(e){ $('adErr').textContent='Čuvanje nije uspelo.'; }
+  $('adSaveBtn').disabled=false;
 });
 
 /* INICIJALIZACIJA */

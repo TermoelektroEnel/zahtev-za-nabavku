@@ -132,6 +132,11 @@
       if (error) throw error;
       return { ponude: data.map(mapPonuda_) };
     }
+    if (action === 'listAdrese') {
+      const { data, error } = await sbClient.from('adrese_isporuke').select('*').order('naziv');
+      if (error) throw error;
+      return { adrese: data.map(r => ({ naziv: r.naziv, adresa: r.adresa })) };
+    }
     return { error: 'Nepoznata akcija.' };
   }
 
@@ -153,6 +158,9 @@
       case 'addPonuda': return addPonuda_(body);
       case 'updatePonuda': return updatePonuda_(body);
       case 'deletePonuda': return deletePonuda_(body);
+      case 'addAdresa': return addAdresa_(body);
+      case 'updateAdresa': return updateAdresa_(body);
+      case 'deleteAdresa': return deleteAdresa_(body);
       default: return { error: 'Nepoznata akcija.' };
     }
   }
@@ -292,6 +300,31 @@
 
   async function deletePonuda_(body) {
     const { error } = await sbClient.from('ponude_izvestaji').delete().eq('id', body.id);
+    if (error) return { error: error.message };
+    return { ok: true };
+  }
+
+  /* ---- Adrese isporuke ---- */
+  async function addAdresa_(body) {
+    const naziv = (body.naziv || '').trim();
+    if (!naziv) return { error: 'Naziv je obavezan.' };
+    const adresa = (body.adresa || '').trim();
+    const { error } = await sbClient.from('adrese_isporuke').insert({ naziv, adresa });
+    if (error) return { error: error.code === '23505' ? 'Adresa sa tim nazivom već postoji.' : error.message };
+    return { adresaObj: { naziv, adresa } };
+  }
+
+  async function updateAdresa_(body) {
+    const adresa = (body.adresa || '').trim();
+    const { data, error } = await sbClient.from('adrese_isporuke')
+      .update({ adresa }).eq('naziv', String(body.naziv)).select().maybeSingle();
+    if (error) return { error: error.message };
+    if (!data) return { error: 'Adresa nije pronađena.' };
+    return { adresaObj: { naziv: body.naziv, adresa } };
+  }
+
+  async function deleteAdresa_(body) {
+    const { error } = await sbClient.from('adrese_isporuke').delete().eq('naziv', String(body.naziv));
     if (error) return { error: error.message };
     return { ok: true };
   }

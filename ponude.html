@@ -156,7 +156,7 @@ td{padding:8px 8px 8px 0;border-bottom:1px solid var(--line-soft);font-size:13px
       </div>
       <div class="field">
         <label for="peAdresa">Adresa isporuke</label>
-        <input type="text" id="peAdresa" placeholder="npr. Uralska 9, 11060 Beograd">
+        <select id="peAdresa"><option value="">— izaberi adresu —</option></select>
       </div>
       <div class="field">
         <label for="peKurs">Kurs € (RSD)</label>
@@ -284,14 +284,30 @@ async function apiPost(action, payload){
    ============================================================ */
 let GRADILISTA=[], NALOZI=[];
 
+let ADRESE=[];
+
 async function loadRefData(){
   try{
-    const [gData,nData] = await Promise.all([apiGet('listGradilista'),apiGet('listNalozi')]);
+    const [gData,nData,aData] = await Promise.all([apiGet('listGradilista'),apiGet('listNalozi'),apiGet('listAdrese')]);
     GRADILISTA = (gData.gradilista||[]).map(g=>({kod:String(g.kod),naziv:g.naziv}));
     NALOZI = (nData.nalozi||[]).map(n=>({kod:n.kod,opis:n.opis,gradiliste:n.gradiliste}));
+    ADRESE = (aData.adrese||[]).map(a=>({naziv:a.naziv,adresa:a.adresa}));
+    populateAdresaSelect();
   }catch(e){
-    console.error('Greška pri učitavanju gradilišta/naloga:', e);
+    console.error('Greška pri učitavanju gradilišta/naloga/adresa:', e);
   }
+}
+
+function populateAdresaSelect(){
+  const sel=$('peAdresa');
+  const current=sel.value;
+  sel.innerHTML='<option value="">— izaberi adresu —</option>';
+  [...ADRESE].sort((a,b)=>a.naziv.localeCompare(b.naziv)).forEach(a=>{
+    const opt=document.createElement('option');
+    opt.value=a.adresa; opt.textContent=a.adresa?`${a.naziv} — ${a.adresa}`:a.naziv;
+    sel.appendChild(opt);
+  });
+  if(current) sel.value=current;
 }
 
 /* ============================================================
@@ -375,7 +391,15 @@ function openPonudaEditor(id){
   const z = ZAHTEVI.find(x=>x.id===p.requestId);
   $('ponudaEditorTitle').textContent = `Izveštaj o ponudama — ${p.brojIzvestaja}${z?' (zahtev '+z.redniBroj+')':''}`;
   $('peVrstaRadova').value = p.vrstaRadova||'';
-  $('peAdresa').value = p.adresaIsporuke||'';
+  const sel=$('peAdresa');
+  const adresaVal = p.adresaIsporuke||'';
+  const hasOption = [...sel.options].some(o=>o.value===adresaVal);
+  if(adresaVal && !hasOption){
+    const opt=document.createElement('option');
+    opt.value=adresaVal; opt.textContent=`(trenutna) ${adresaVal}`;
+    sel.appendChild(opt);
+  }
+  sel.value = adresaVal;
   $('peKurs').value = p.kursEur||'';
   $('peKursHint').textContent='';
   $('peErr').textContent=''; $('peInfo').classList.remove('visible');
