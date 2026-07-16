@@ -52,7 +52,7 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--steel);outline-o
 .ponude-mini-table th{font-size:10px;text-transform:uppercase;color:var(--ink-soft);padding:0 6px 6px 0;border-bottom:1px solid var(--line-soft);text-align:left;}
 .ponude-mini-table td{padding:6px 6px 6px 0;border-bottom:1px solid var(--line-soft);vertical-align:middle;}
 .ponude-mini-table input[type=text],.ponude-mini-table input[type=number]{padding:5px 7px;font-size:12.5px;}
-.add-ponuda-row{display:grid;grid-template-columns:1.6fr 1fr 1fr 0.8fr auto;gap:8px;align-items:end;margin-bottom:12px;}
+.add-ponuda-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px;align-items:end;margin-bottom:12px;}
 .add-ponuda-row .field{margin-bottom:0;}
 .pozicija-extra{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px;}
 .pozicija-extra .field{margin-bottom:0;}
@@ -165,20 +165,6 @@ td{padding:8px 8px 8px 0;border-bottom:1px solid var(--line-soft);font-size:13px
           <button type="button" class="btn-ghost" id="peOsveziKursBtn" style="white-space:nowrap;">Osveži (NBS)</button>
         </div>
         <div class="hint" id="peKursHint"></div>
-      </div>
-    </div>
-    <div class="row3">
-      <div class="field">
-        <label for="peAvans">Avans</label>
-        <input type="text" id="peAvans" placeholder="npr. 30%">
-      </div>
-      <div class="field">
-        <label for="peNacinPlacanja">Način plaćanja</label>
-        <input type="text" id="peNacinPlacanja" placeholder="npr. Virmanski, 30 dana">
-      </div>
-      <div class="field">
-        <label for="peGarancija">Garancija za plaćanje</label>
-        <input type="text" id="peGarancija" placeholder="npr. Menica">
       </div>
     </div>
 
@@ -392,9 +378,6 @@ function openPonudaEditor(id){
   $('peAdresa').value = p.adresaIsporuke||'';
   $('peKurs').value = p.kursEur||'';
   $('peKursHint').textContent='';
-  $('peAvans').value = p.avans||'';
-  $('peNacinPlacanja').value = p.nacinPlacanja||'';
-  $('peGarancija').value = p.garancijaZaPlacanje||'';
   $('peErr').textContent=''; $('peInfo').classList.remove('visible');
   renderPeStavke();
   $('ponudaEditorCard').style.display='block';
@@ -432,7 +415,9 @@ function renderPeStavke(){
         <td><input type="number" step="0.01" data-edit-bruto style="width:80px;" value="${o.bruto}"></td>
         <td><input type="number" step="0.01" data-edit-rabat style="width:60px;" value="${o.rabat}"></td>
         <td><select data-edit-valuta><option value="RSD" ${o.valuta==='RSD'?'selected':''}>RSD</option><option value="EUR" ${o.valuta==='EUR'?'selected':''}>EUR</option></select></td>
-        <td colspan="2"><input type="text" data-edit-rok style="width:100px;" value="${escapeHtml(o.rok||'')}" placeholder="rok isporuke"></td>
+        <td><input type="text" data-edit-rok style="width:80px;" value="${escapeHtml(o.rok||'')}" placeholder="rok"></td>
+        <td><input type="text" data-edit-avans style="width:70px;" value="${escapeHtml(o.avans||'')}" placeholder="avans"></td>
+        <td><input type="text" data-edit-nacin style="width:110px;" value="${escapeHtml(o.nacinPlacanja||'')}" placeholder="način plaćanja"></td>
         <td></td>
         <td style="white-space:nowrap;">
           <button class="btn-ghost" data-save-off-pos="${posIdx}" data-save-off-idx="${offIdx}" style="padding:3px 8px;font-size:11px;">Sačuvaj</button>
@@ -449,6 +434,8 @@ function renderPeStavke(){
         <td class="num">${fmtBroj_(jedCena_(o))}</td>
         <td class="num">${fmtBroj_(ukupnoRSD_(o, s.zaNabavku))} RSD</td>
         <td>${escapeHtml(o.rok||'—')}</td>
+        <td>${escapeHtml(o.avans||'—')}</td>
+        <td>${escapeHtml(o.nacinPlacanja||'—')}</td>
         <td style="text-align:center;"><input type="radio" name="izabran-${posIdx}" value="${offIdx}" ${s.izabranaPonudaIdx===offIdx?'checked':''} data-izabran-pos="${posIdx}" data-izabran-off="${offIdx}"></td>
         <td style="white-space:nowrap;">
           <button class="btn-ghost" data-edit-off-pos="${posIdx}" data-edit-off-idx="${offIdx}" style="padding:3px 8px;font-size:11px;">Izmeni</button>
@@ -463,7 +450,7 @@ function renderPeStavke(){
         <div class="meta">${escapeHtml(s.jm)} · za nabavku: ${escapeHtml(s.zaNabavku)}</div>
       </div>
       ${s.ponude.length?`<table class="ponude-mini-table"><thead><tr>
-        <th>Dobavljač</th><th>Bruto cena</th><th>Rabat</th><th>Valuta</th><th>Jed. cena</th><th>Ukupno</th><th>Rok isporuke</th><th>Izabran</th><th></th>
+        <th>Dobavljač</th><th>Bruto cena</th><th>Rabat</th><th>Valuta</th><th>Jed. cena</th><th>Ukupno</th><th>Rok isporuke</th><th>Avans</th><th>Način plaćanja</th><th>Izabran</th><th></th>
       </tr></thead><tbody>${ponudeRows}</tbody></table>`:'<div class="hint" style="margin-bottom:10px;">Još uvek nema unetih ponuda za ovu poziciju.</div>'}
       <div class="add-ponuda-row">
         <div class="field"><label>Dobavljač</label><input type="text" data-add-dobavljac="${posIdx}" placeholder="Naziv dobavljača"></div>
@@ -473,6 +460,8 @@ function renderPeStavke(){
           <select data-add-valuta="${posIdx}"><option value="RSD">RSD</option><option value="EUR">EUR</option></select>
         </div>
         <div class="field"><label>Rok isporuke</label><input type="text" data-add-rok="${posIdx}" placeholder="npr. 15 dana"></div>
+        <div class="field"><label>Avans</label><input type="text" data-add-avans="${posIdx}" placeholder="npr. 30%"></div>
+        <div class="field"><label>Način plaćanja</label><input type="text" data-add-nacin="${posIdx}" placeholder="npr. Virmanski 30 dana / Menica"></div>
         <button type="button" class="btn-ghost" data-add-ponuda-btn="${posIdx}">+ Dodaj</button>
       </div>
       <div class="pozicija-extra" style="grid-template-columns:1fr 1fr 1fr;">
@@ -504,9 +493,11 @@ function renderPeStavke(){
     const rabat=Number(wrap.querySelector(`[data-add-rabat="${posIdx}"]`).value)||0;
     const valuta=wrap.querySelector(`[data-add-valuta="${posIdx}"]`).value;
     const rok=wrap.querySelector(`[data-add-rok="${posIdx}"]`).value.trim();
+    const avans=wrap.querySelector(`[data-add-avans="${posIdx}"]`).value.trim();
+    const nacinPlacanja=wrap.querySelector(`[data-add-nacin="${posIdx}"]`).value.trim();
     if(!dobavljac){ alert('Unesi naziv dobavljača.'); return; }
     if(!bruto || bruto<=0){ alert('Unesi ispravnu bruto cenu.'); return; }
-    currentPonuda.stavke[posIdx].ponude.push({ dobavljac, bruto, rabat, valuta, rok });
+    currentPonuda.stavke[posIdx].ponude.push({ dobavljac, bruto, rabat, valuta, rok, avans, nacinPlacanja });
     renderPeStavke();
   }));
   wrap.querySelectorAll('[data-edit-off-pos]').forEach(b=>b.addEventListener('click',e=>{
@@ -525,9 +516,11 @@ function renderPeStavke(){
     const rabat = Number(row.querySelector('[data-edit-rabat]').value)||0;
     const valuta = row.querySelector('[data-edit-valuta]').value;
     const rok = row.querySelector('[data-edit-rok]').value.trim();
+    const avans = row.querySelector('[data-edit-avans]').value.trim();
+    const nacinPlacanja = row.querySelector('[data-edit-nacin]').value.trim();
     if(!dobavljac){ alert('Unesi naziv dobavljača.'); return; }
     if(!bruto || bruto<=0){ alert('Unesi ispravnu bruto cenu.'); return; }
-    currentPonuda.stavke[posIdx].ponude[offIdx] = { dobavljac, bruto, rabat, valuta, rok };
+    currentPonuda.stavke[posIdx].ponude[offIdx] = { dobavljac, bruto, rabat, valuta, rok, avans, nacinPlacanja };
     editingOffer = null;
     renderPeStavke();
   }));
@@ -690,20 +683,19 @@ async function buildPonudaPdfBlob_(p, zahtev){
   });
   y += 14;
 
+  const colW2 = contentWidth/2;
   const headInfo2 = [
     ['VRSTA RADOVA', p.vrstaRadova||'—'],
-    ['ADRESA ISPORUKE', p.adresaIsporuke||'—'],
-    ['AVANS', p.avans||'—'],
-    ['NAČIN PLAĆANJA / GARANCIJA', `${p.nacinPlacanja||'—'}${p.garancijaZaPlacanje?' / '+p.garancijaZaPlacanje:''}`]
+    ['ADRESA ISPORUKE', p.adresaIsporuke||'—']
   ];
   doc.rect(marginX, y, contentWidth, 12);
   headInfo2.forEach((h,i)=>{
-    const x = marginX + i*colW4;
+    const x = marginX + i*colW2;
     if(i>0){ doc.line(x, y, x, y+12); }
     doc.setFont('IBMPlexSans','normal'); doc.setFontSize(6.8); doc.setTextColor(120,120,120);
     doc.text(h[0], x+2, y+4);
     doc.setFont('IBMPlexSans','bold'); doc.setFontSize(8.5); doc.setTextColor(20,20,20);
-    const lines = doc.splitTextToSize(h[1], colW4-4);
+    const lines = doc.splitTextToSize(h[1], colW2-4);
     doc.text(lines.slice(0,1), x+2, y+9);
   });
   y += 12 + 5;
@@ -754,15 +746,34 @@ async function buildPonudaPdfBlob_(p, zahtev){
     ];
   });
 
-  const columnStyles = { 0:{cellWidth:7,halign:'center'}, 1:{cellWidth:30} };
+  const columnStyles = { 0:{cellWidth:6,halign:'center'}, 1:{cellWidth:26} };
   for(let i=0;i<n;i++){ columnStyles[2+i*2] = {halign:'right'}; } // jed. cena kolone
+  columnStyles[2+n*2] = {halign:'center'}; // JM
   columnStyles[2+n*2+1] = {halign:'right'}; // količina
   columnStyles[2+n*2+2] = {halign:'right'}; // ugovorena cena (bez PDV)
 
+  // Redovi na dnu tabele: Avans i Način plaćanja PO DOBAVLJAČU (uzima se iz
+  // prve unete ponude tog dobavljača — komercijalni uslovi važe za ceo
+  // izveštaj, ne po pojedinačnoj poziciji).
+  const supplierTerms = {};
+  p.stavke.forEach(s => s.ponude.forEach(o => {
+    if(!supplierTerms[o.dobavljac]) supplierTerms[o.dobavljac] = { avans:o.avans||'', nacin:o.nacinPlacanja||'' };
+  }));
+  const emptyTail = ['', '', '', ''];
+  const foot = [
+    [ {content:'Avans', colSpan:2, styles:{fontStyle:'bold',halign:'left'}},
+      ...SUPPLIERS.map(name=>({content: supplierTerms[name]?.avans||'—', colSpan:2, styles:{halign:'center'}})),
+      ...emptyTail ],
+    [ {content:'Način plaćanja', colSpan:2, styles:{fontStyle:'bold',halign:'left'}},
+      ...SUPPLIERS.map(name=>({content: supplierTerms[name]?.nacin||'—', colSpan:2, styles:{halign:'center'}})),
+      ...emptyTail ]
+  ];
+
   doc.autoTable({
-    head, body, startY:y, margin:{left:marginX,right:marginX}, theme:'grid',
-    styles:{ font:'IBMPlexSans', fontSize:6.8, cellPadding:1.3, lineColor:[180,180,175], lineWidth:0.2, textColor:[26,26,26], valign:'middle' },
-    headStyles:{ fillColor:[240,240,236], textColor:[40,40,40], fontStyle:'bold', fontSize:6.6, lineColor:[20,20,20], lineWidth:0.3, halign:'center' },
+    head, body, foot, startY:y, margin:{left:marginX,right:marginX}, theme:'grid',
+    styles:{ font:'IBMPlexSans', fontSize:6.3, cellPadding:1.1, lineColor:[180,180,175], lineWidth:0.2, textColor:[26,26,26], valign:'middle' },
+    headStyles:{ fillColor:[240,240,236], textColor:[40,40,40], fontStyle:'bold', fontSize:6.2, lineColor:[20,20,20], lineWidth:0.3, halign:'center' },
+    footStyles:{ fillColor:[247,247,242], textColor:[40,40,40], fontSize:6.3, lineColor:[20,20,20], lineWidth:0.3 },
     columnStyles,
     didParseCell: (data)=>{
       if(data.section!=='body') return;
@@ -820,10 +831,7 @@ $('peExportBtn').addEventListener('click', async ()=>{
       ...currentPonuda,
       vrstaRadova: $('peVrstaRadova').value.trim(),
       adresaIsporuke: $('peAdresa').value.trim(),
-      kursEur: Number($('peKurs').value)||null,
-      avans: $('peAvans').value.trim(),
-      nacinPlacanja: $('peNacinPlacanja').value.trim(),
-      garancijaZaPlacanje: $('peGarancija').value.trim()
+      kursEur: Number($('peKurs').value)||null
     };
     const zahtev = ZAHTEVI.find(z=>z.id===p.requestId);
     const blob = await buildPonudaPdfBlob_(p, zahtev);
@@ -846,9 +854,6 @@ $('peSaveBtn').addEventListener('click', async ()=>{
     vrstaRadova: $('peVrstaRadova').value.trim(),
     adresaIsporuke: $('peAdresa').value.trim(),
     kursEur: Number($('peKurs').value)||null,
-    avans: $('peAvans').value.trim(),
-    nacinPlacanja: $('peNacinPlacanja').value.trim(),
-    garancijaZaPlacanje: $('peGarancija').value.trim(),
     stavke: currentPonuda.stavke
   };
   $('peSaveBtn').disabled=true;
