@@ -793,7 +793,7 @@ async function buildPonudaPdfBlob_(p, zahtev){
   doc.autoTable({
     head, body, startY:y, margin:{left:marginX,right:marginX}, theme:'grid',
     styles:{ font:'IBMPlexSans', fontSize:6.5, cellPadding:1.4, lineColor:[205,205,198], lineWidth:0.15, textColor:[30,30,30], valign:'middle' },
-    headStyles:{ fillColor:[36,61,76], textColor:[255,255,255], fontStyle:'bold', fontSize:6.3, lineColor:[36,61,76], lineWidth:0.3, halign:'center' },
+    headStyles:{ fillColor:[36,61,76], textColor:[255,255,255], fontStyle:'bold', fontSize:6.3, lineColor:[90,115,130], lineWidth:0.35, halign:'center' },
     columnStyles
   });
   y = doc.lastAutoTable.finalY + 6;
@@ -814,7 +814,7 @@ async function buildPonudaPdfBlob_(p, zahtev){
       body: SUPPLIERS.map(name=>[name, supplierTerms[name].avans, supplierTerms[name].nacin]),
       startY:y, margin:{left:marginX,right:marginX}, theme:'grid',
       styles:{ font:'IBMPlexSans', fontSize:7, cellPadding:1.4, lineColor:[180,180,175], lineWidth:0.2, textColor:[26,26,26] },
-      headStyles:{ fillColor:[36,61,76], textColor:[255,255,255], fontStyle:'bold', fontSize:6.8, lineColor:[36,61,76], lineWidth:0.3 },
+      headStyles:{ fillColor:[36,61,76], textColor:[255,255,255], fontStyle:'bold', fontSize:6.8, lineColor:[90,115,130], lineWidth:0.35 },
       tableWidth: 130
     });
     y = doc.lastAutoTable.finalY + 8;
@@ -825,7 +825,7 @@ async function buildPonudaPdfBlob_(p, zahtev){
   doc.line(marginX, y, marginX+contentWidth, y);
   y += 6;
   doc.setFont('IBMPlexSans','bold'); doc.setFontSize(10); doc.setTextColor(20,20,20);
-  doc.text(`Ukupno bez PDV: ${fmtCena_(ukupnoBezPdv)} RSD`, marginX, y);
+  doc.text(`Ukupno (bez PDV): ${fmtCena_(ukupnoBezPdv)} RSD`, marginX, y);
   if(ukupnoUgovoreno>0){
     doc.text(`Ukupno ugovoreno (bez PDV): ${fmtCena_(ukupnoUgovoreno)} RSD`, marginX+120, y);
   }
