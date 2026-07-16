@@ -340,12 +340,14 @@ function populateZahtevSelect(){
 function renderPonudaList(){
   const wrap=$('ponudaListWrap');
   if(!PONUDE.length){ wrap.innerHTML='<div class="empty">Još uvek nema izveštaja o ponudama.</div>'; return; }
-  wrap.innerHTML=`<table><thead><tr><th>Broj izveštaja</th><th>Zahtev</th><th style="width:110px;">Status</th><th style="width:180px;"></th></tr></thead><tbody>
+  wrap.innerHTML=`<table><thead><tr><th>Broj izveštaja</th><th>Zahtev</th><th>Gradilište</th><th style="width:110px;">Status</th><th style="width:180px;"></th></tr></thead><tbody>
     ${PONUDE.map(p=>{
       const z = ZAHTEVI.find(x=>x.id===p.requestId);
+      const gNaziv = z ? (GRADILISTA.find(g=>g.kod===z.gradiliste)||{}).naziv||'' : '';
       return `<tr>
         <td style="font-family:'IBM Plex Mono',monospace;">${escapeHtml(p.brojIzvestaja)}</td>
         <td>${z ? escapeHtml(z.redniBroj)+' — nalog '+escapeHtml(z.nalog) : '<span class="hint">zahtev obrisan</span>'}</td>
+        <td>${z ? escapeHtml(z.gradiliste)+(gNaziv?' — '+escapeHtml(gNaziv):'') : '—'}</td>
         <td>${p.status==='odobreno'?'<span class="tag sva">odobreno</span>':'<span class="hint">u izradi</span>'}</td>
         <td class="row-actions">
           <button class="btn-ghost" data-open-p="${p.id}">Otvori</button>
@@ -389,7 +391,9 @@ function openPonudaEditor(id){
   const p=PONUDE.find(x=>x.id===id); if(!p) return;
   currentPonuda = JSON.parse(JSON.stringify(p)); // radna kopija
   const z = ZAHTEVI.find(x=>x.id===p.requestId);
-  $('ponudaEditorTitle').textContent = `Izveštaj o ponudama — ${p.brojIzvestaja}${z?' (zahtev '+z.redniBroj+')':''}`;
+  const gradilisteNazivZaNaslov = z ? (GRADILISTA.find(g=>g.kod===z.gradiliste)||{}).naziv||'' : '';
+  const gradilisteDeoNaslova = z ? ` — ${z.gradiliste}${gradilisteNazivZaNaslov?' ('+gradilisteNazivZaNaslov+')':''}` : '';
+  $('ponudaEditorTitle').textContent = `Izveštaj o ponudama — ${p.brojIzvestaja}${z?' (zahtev '+z.redniBroj+')':''}${gradilisteDeoNaslova}`;
   $('peVrstaRadova').value = p.vrstaRadova||'';
   const sel=$('peAdresa');
   const adresaVal = p.adresaIsporuke||'';
@@ -684,25 +688,28 @@ async function buildPonudaPdfBlob_(p, zahtev){
   doc.text(`Broj: ${p.brojIzvestaja}   ·   Dokument generisan ${new Date().toLocaleString('sr-RS')}`, marginX+logoW+8, y+8.5);
   y += logoH + 5;
 
-  // --- Zaglavlje: 4 kolone informacija, u stilu Excel obrasca ---
+  // --- Zaglavlje: 4 kolone informacija (kurs je namerno uzak — samo kratak broj) ---
   const nalogNaziv = zahtev ? (NALOZI.find(n=>n.kod===zahtev.nalog)||{}).opis||'' : '';
   const gradilisteNaziv = zahtev ? (GRADILISTA.find(g=>g.kod===zahtev.gradiliste)||{}).naziv||'' : '';
-  const colW4 = contentWidth/4;
+  const kursW = 20;
+  const restW = (contentWidth - kursW) / 3;
+  const boxWidths = [restW, restW, restW, kursW];
+  const boxX = [0]; for(let i=1;i<boxWidths.length;i++){ boxX.push(boxX[i-1]+boxWidths[i-1]); }
   const headInfo = [
     ['ZAHTEV ZA NABAVKU', zahtev?String(zahtev.redniBroj):'—'],
     ['NALOG ZA REALIZACIJU', zahtev?`${zahtev.nalog}${nalogNaziv?' — '+nalogNaziv:''}`:'—'],
     ['GRADILIŠTE / OBJEKAT', zahtev?`${zahtev.gradiliste} — ${gradilisteNaziv} / TE Enel AD`:'—'],
-    ['KURS €', p.kursEur?`${fmtBroj_(p.kursEur)} RSD`:'—']
+    ['KURS €', p.kursEur?fmtBroj_(p.kursEur):'—']
   ];
   doc.setDrawColor(20,20,20); doc.setLineWidth(0.3);
   doc.rect(marginX, y, contentWidth, 14);
   headInfo.forEach((h,i)=>{
-    const x = marginX + i*colW4;
+    const x = marginX + boxX[i];
     if(i>0){ doc.line(x, y, x, y+14); }
     doc.setFont('IBMPlexSans','normal'); doc.setFontSize(6.8); doc.setTextColor(120,120,120);
     doc.text(h[0], x+2, y+4);
     doc.setFont('IBMPlexSans','bold'); doc.setFontSize(9); doc.setTextColor(20,20,20);
-    const lines = doc.splitTextToSize(h[1], colW4-4);
+    const lines = doc.splitTextToSize(h[1], boxWidths[i]-4);
     doc.text(lines.slice(0,2), x+2, y+8.5);
   });
   y += 14;
@@ -770,29 +777,21 @@ async function buildPonudaPdfBlob_(p, zahtev){
     ];
   });
 
-  const columnStyles = { 0:{cellWidth:6,halign:'center'}, 1:{cellWidth:26} };
-  for(let i=0;i<n;i++){ columnStyles[2+i*2] = {halign:'right'}; } // jed. cena kolone
-  columnStyles[2+n*2] = {halign:'center'}; // JM
-  columnStyles[2+n*2+1] = {halign:'right'}; // količina
-  columnStyles[2+n*2+2] = {halign:'right'}; // ugovorena cena (bez PDV)
+  const columnStyles = { 0:{cellWidth:6,halign:'center'}, 1:{cellWidth:46} };
+  for(let i=0;i<n;i++){
+    columnStyles[2+i*2] = {halign:'right'};   // jed. cena
+    columnStyles[2+i*2+1] = {halign:'center'}; // rok isporuke
+  }
+  columnStyles[2+n*2] = {halign:'center'};              // JM
+  columnStyles[2+n*2+1] = {halign:'right', cellWidth:14};  // količina
+  columnStyles[2+n*2+2] = {halign:'right', cellWidth:20};  // ugovorena cena (bez PDV)
+  columnStyles[2+n*2+3] = {halign:'center', cellWidth:24}; // predlog rukovodioca
 
   doc.autoTable({
     head, body, startY:y, margin:{left:marginX,right:marginX}, theme:'grid',
-    styles:{ font:'IBMPlexSans', fontSize:6.3, cellPadding:1.1, lineColor:[180,180,175], lineWidth:0.2, textColor:[26,26,26], valign:'middle' },
-    headStyles:{ fillColor:[240,240,236], textColor:[40,40,40], fontStyle:'bold', fontSize:6.2, lineColor:[20,20,20], lineWidth:0.3, halign:'center' },
-    columnStyles,
-    didParseCell: (data)=>{
-      if(data.section!=='body') return;
-      const rowIdx = data.row.index;
-      const selGroup = selectedGroupIdxByRow[rowIdx];
-      if(selGroup==null || selGroup<0) return;
-      const groupStartCol = 2 + selGroup*2;
-      if(data.column.index>=groupStartCol && data.column.index<groupStartCol+2){
-        data.cell.styles.fontStyle='bold';
-        data.cell.styles.textColor=[63,107,74];
-        data.cell.styles.fillColor=[236,244,238];
-      }
-    }
+    styles:{ font:'IBMPlexSans', fontSize:6.5, cellPadding:1.4, lineColor:[205,205,198], lineWidth:0.15, textColor:[30,30,30], valign:'middle' },
+    headStyles:{ fillColor:[36,61,76], textColor:[255,255,255], fontStyle:'bold', fontSize:6.3, lineColor:[36,61,76], lineWidth:0.3, halign:'center' },
+    columnStyles
   });
   y = doc.lastAutoTable.finalY + 6;
 
@@ -812,7 +811,7 @@ async function buildPonudaPdfBlob_(p, zahtev){
       body: SUPPLIERS.map(name=>[name, supplierTerms[name].avans, supplierTerms[name].nacin]),
       startY:y, margin:{left:marginX,right:marginX}, theme:'grid',
       styles:{ font:'IBMPlexSans', fontSize:7, cellPadding:1.4, lineColor:[180,180,175], lineWidth:0.2, textColor:[26,26,26] },
-      headStyles:{ fillColor:[240,240,236], textColor:[40,40,40], fontStyle:'bold', fontSize:6.8, lineColor:[20,20,20], lineWidth:0.3 },
+      headStyles:{ fillColor:[36,61,76], textColor:[255,255,255], fontStyle:'bold', fontSize:6.8, lineColor:[36,61,76], lineWidth:0.3 },
       tableWidth: 130
     });
     y = doc.lastAutoTable.finalY + 8;
@@ -822,14 +821,10 @@ async function buildPonudaPdfBlob_(p, zahtev){
   doc.setDrawColor(20,20,20); doc.setLineWidth(0.5);
   doc.line(marginX, y, marginX+contentWidth, y);
   y += 6;
-  const ukupnaMarza = ukupnoUgovoreno - ukupnoBezPdv;
   doc.setFont('IBMPlexSans','bold'); doc.setFontSize(10); doc.setTextColor(20,20,20);
   doc.text(`Ukupno bez PDV: ${fmtCena_(ukupnoBezPdv)} RSD`, marginX, y);
-  doc.text(`Ukupno sa PDV (20%): ${fmtCena_(ukupnoBezPdv*1.2)} RSD`, marginX+90, y);
   if(ukupnoUgovoreno>0){
-    doc.text(`Ukupno ugovoreno (bez PDV): ${fmtCena_(ukupnoUgovoreno)} RSD`, marginX+190, y);
-    y += 6;
-    doc.text(`Ukupno ugovoreno (sa PDV): ${fmtCena_(ukupnoUgovoreno*1.2)} RSD`, marginX+190, y);
+    doc.text(`Ukupno ugovoreno (bez PDV): ${fmtCena_(ukupnoUgovoreno)} RSD`, marginX+120, y);
   }
   y += 14;
 
