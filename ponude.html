@@ -282,6 +282,38 @@ async function apiPost(action, payload){
    prikaz naziva/opisa u izveštajima o ponudama (bez CRUD ekrana,
    za to i dalje služi admin.html).
    ============================================================ */
+// Poseban, laki Supabase klijent samo za Storage (upload/otvaranje PDF-a).
+// Deli istu prijavljenu sesiju (čuva se u localStorage), pošto gađa isti
+// projekat/ključ kao i klijent unutar supabase-backend.js.
+const sbStorage = window.supabase.createClient(SUPABASE_CONFIG.url, SUPABASE_CONFIG.anonKey);
+const PONUDA_PDF_BUCKET = 'ponude-pdf';
+
+async function uploadPonudaPdf_(posIdx, offIdx, file){
+  const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g,'_');
+  const path = `${currentPonuda.id}/${posIdx}_${offIdx}_${Date.now()}_${safeName}`;
+  const { error } = await sbStorage.storage.from(PONUDA_PDF_BUCKET).upload(path, file, { contentType:'application/pdf', upsert:false });
+  if(error){ alert('Otpremanje PDF-a nije uspelo: '+error.message); return; }
+  const o = currentPonuda.stavke[posIdx].ponude[offIdx];
+  o.pdfPath = path; o.pdfName = file.name;
+  renderPeStavke();
+}
+
+async function openPonudaPdf_(path){
+  const { data, error } = await sbStorage.storage.from(PONUDA_PDF_BUCKET).createSignedUrl(path, 120);
+  if(error || !data){ alert('Nije moguće otvoriti fajl.'); return; }
+  window.open(data.signedUrl, '_blank');
+}
+
+async function removePonudaPdf_(posIdx, offIdx){
+  const o = currentPonuda.stavke[posIdx].ponude[offIdx];
+  if(!confirm('Ukloniti priloženi PDF ponude?')) return;
+  if(o.pdfPath){
+    try{ await sbStorage.storage.from(PONUDA_PDF_BUCKET).remove([o.pdfPath]); }catch(e){}
+  }
+  delete o.pdfPath; delete o.pdfName;
+  renderPeStavke();
+}
+
 let GRADILISTA=[], NALOZI=[];
 
 let ADRESE=[];
@@ -452,6 +484,7 @@ function renderPeStavke(){
         <td><input type="text" data-edit-rok style="width:80px;" value="${escapeHtml(o.rok||'')}" placeholder="rok"></td>
         <td><input type="text" data-edit-avans style="width:70px;" value="${escapeHtml(o.avans||'')}" placeholder="avans"></td>
         <td><input type="text" data-edit-nacin style="width:110px;" value="${escapeHtml(o.nacinPlacanja||'')}" placeholder="način plaćanja"></td>
+        <td>${o.pdfPath?escapeHtml(o.pdfName||'PDF'):'<span class="hint">—</span>'}</td>
         <td></td>
         <td style="white-space:nowrap;">
           <button class="btn-ghost" data-save-off-pos="${posIdx}" data-save-off-idx="${offIdx}" style="padding:3px 8px;font-size:11px;">Sačuvaj</button>
@@ -471,6 +504,14 @@ function renderPeStavke(){
         <td>${escapeHtml(o.avans||'—')}</td>
         <td>${escapeHtml(o.nacinPlacanja||'—')}</td>
         <td style="white-space:nowrap;">
+          ${o.pdfPath
+            ? `<button class="btn-ghost" data-open-pdf-pos="${posIdx}" data-open-pdf-idx="${offIdx}" style="padding:3px 8px;font-size:11px;" title="${escapeHtml(o.pdfName||'')}">📄 Otvori</button>
+               <button class="btn-danger-ghost" data-remove-pdf-pos="${posIdx}" data-remove-pdf-idx="${offIdx}" style="padding:3px 8px;font-size:11px;">✕</button>`
+            : `<label class="btn-ghost" style="padding:3px 8px;font-size:11px;cursor:pointer;display:inline-block;">📎 Ponuda
+                 <input type="file" accept="application/pdf" style="display:none;" data-upload-pdf-pos="${posIdx}" data-upload-pdf-idx="${offIdx}">
+               </label>`}
+        </td>
+        <td style="white-space:nowrap;">
           <button class="btn-ghost" data-edit-off-pos="${posIdx}" data-edit-off-idx="${offIdx}" style="padding:3px 8px;font-size:11px;">Izmeni</button>
           <button class="btn-danger-ghost" data-del-off-pos="${posIdx}" data-del-off-idx="${offIdx}" style="padding:3px 8px;font-size:11px;">✕</button>
         </td>
@@ -483,7 +524,7 @@ function renderPeStavke(){
         <div class="meta">${escapeHtml(s.jm)} · za nabavku: ${escapeHtml(s.zaNabavku)}</div>
       </div>
       ${s.ponude.length?`<table class="ponude-mini-table"><thead><tr>
-        <th>Dobavljač</th><th>Bruto cena</th><th>Rabat</th><th>Valuta</th><th>Jed. cena</th><th>Ukupno</th><th>Rok isporuke</th><th>Avans</th><th>Način plaćanja</th><th></th>
+        <th>Dobavljač</th><th>Bruto cena</th><th>Rabat</th><th>Valuta</th><th>Jed. cena</th><th>Ukupno</th><th>Rok isporuke</th><th>Avans</th><th>Način plaćanja</th><th>Ponuda (PDF)</th><th></th>
       </tr></thead><tbody>${ponudeRows}</tbody></table>`:'<div class="hint" style="margin-bottom:10px;">Još uvek nema unetih ponuda za ovu poziciju.</div>'}
       <div class="add-ponuda-row">
         <div class="field"><label>Dobavljač</label><input type="text" data-add-dobavljac="${posIdx}" placeholder="Naziv dobavljača"></div>
@@ -553,9 +594,27 @@ function renderPeStavke(){
     const nacinPlacanja = row.querySelector('[data-edit-nacin]').value.trim();
     if(!dobavljac){ alert('Unesi naziv dobavljača.'); return; }
     if(!bruto || bruto<=0){ alert('Unesi ispravnu bruto cenu.'); return; }
-    currentPonuda.stavke[posIdx].ponude[offIdx] = { dobavljac, bruto, rabat, valuta, rok, avans, nacinPlacanja };
+    const stari = currentPonuda.stavke[posIdx].ponude[offIdx];
+    currentPonuda.stavke[posIdx].ponude[offIdx] = { dobavljac, bruto, rabat, valuta, rok, avans, nacinPlacanja, pdfPath: stari.pdfPath, pdfName: stari.pdfName };
     editingOffer = null;
     renderPeStavke();
+  }));
+  wrap.querySelectorAll('[data-upload-pdf-pos]').forEach(inp=>inp.addEventListener('change', async e=>{
+    const posIdx=Number(e.currentTarget.dataset.uploadPdfPos), offIdx=Number(e.currentTarget.dataset.uploadPdfIdx);
+    const file=e.currentTarget.files[0];
+    if(!file) return;
+    if(file.type!=='application/pdf'){ alert('Samo PDF fajlovi su dozvoljeni.'); return; }
+    e.currentTarget.disabled=true;
+    await uploadPonudaPdf_(posIdx, offIdx, file);
+  }));
+  wrap.querySelectorAll('[data-open-pdf-pos]').forEach(b=>b.addEventListener('click', e=>{
+    const posIdx=Number(e.currentTarget.dataset.openPdfPos), offIdx=Number(e.currentTarget.dataset.openPdfIdx);
+    const o=currentPonuda.stavke[posIdx].ponude[offIdx];
+    if(o.pdfPath) openPonudaPdf_(o.pdfPath);
+  }));
+  wrap.querySelectorAll('[data-remove-pdf-pos]').forEach(b=>b.addEventListener('click', e=>{
+    const posIdx=Number(e.currentTarget.dataset.removePdfPos), offIdx=Number(e.currentTarget.dataset.removePdfIdx);
+    removePonudaPdf_(posIdx, offIdx);
   }));
   wrap.querySelectorAll('[data-del-off-pos]').forEach(b=>b.addEventListener('click',e=>{
     const posIdx=Number(e.currentTarget.dataset.delOffPos), offIdx=Number(e.currentTarget.dataset.delOffIdx);
