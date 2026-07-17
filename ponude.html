@@ -284,14 +284,25 @@ async function apiPost(action, payload){
    ============================================================ */
 // Poseban, laki Supabase klijent samo za Storage (upload/otvaranje PDF-a).
 // Deli istu prijavljenu sesiju (čuva se u localStorage), pošto gađa isti
-// projekat/ključ kao i klijent unutar supabase-backend.js.
-const sbStorage = window.supabase.createClient(SUPABASE_CONFIG.url, SUPABASE_CONFIG.anonKey);
+// projekat/ključ kao i klijent unutar supabase-backend.js. Pravi se TEK pri
+// prvoj upotrebi (ne odmah pri učitavanju stranice), da izbegnemo bilo kakav
+// problem sa redosledom učitavanja <script> tagova.
+let _sbStorage = null;
+function getSbStorage_(){
+  if(!_sbStorage){
+    if(typeof SUPABASE_CONFIG === 'undefined'){
+      throw new Error('SUPABASE_CONFIG nije učitan (supabase-config.js).');
+    }
+    _sbStorage = window.supabase.createClient(SUPABASE_CONFIG.url, SUPABASE_CONFIG.anonKey);
+  }
+  return _sbStorage;
+}
 const PONUDA_PDF_BUCKET = 'ponude-pdf';
 
 async function uploadPonudaPdf_(posIdx, offIdx, file){
   const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g,'_');
   const path = `${currentPonuda.id}/${posIdx}_${offIdx}_${Date.now()}_${safeName}`;
-  const { error } = await sbStorage.storage.from(PONUDA_PDF_BUCKET).upload(path, file, { contentType:'application/pdf', upsert:false });
+  const { error } = await getSbStorage_().storage.from(PONUDA_PDF_BUCKET).upload(path, file, { contentType:'application/pdf', upsert:false });
   if(error){ alert('Otpremanje PDF-a nije uspelo: '+error.message); return; }
   const o = currentPonuda.stavke[posIdx].ponude[offIdx];
   o.pdfPath = path; o.pdfName = file.name;
@@ -299,7 +310,7 @@ async function uploadPonudaPdf_(posIdx, offIdx, file){
 }
 
 async function openPonudaPdf_(path){
-  const { data, error } = await sbStorage.storage.from(PONUDA_PDF_BUCKET).createSignedUrl(path, 120);
+  const { data, error } = await getSbStorage_().storage.from(PONUDA_PDF_BUCKET).createSignedUrl(path, 120);
   if(error || !data){ alert('Nije moguće otvoriti fajl.'); return; }
   window.open(data.signedUrl, '_blank');
 }
@@ -308,7 +319,7 @@ async function removePonudaPdf_(posIdx, offIdx){
   const o = currentPonuda.stavke[posIdx].ponude[offIdx];
   if(!confirm('Ukloniti priloženi PDF ponude?')) return;
   if(o.pdfPath){
-    try{ await sbStorage.storage.from(PONUDA_PDF_BUCKET).remove([o.pdfPath]); }catch(e){}
+    try{ await getSbStorage_().storage.from(PONUDA_PDF_BUCKET).remove([o.pdfPath]); }catch(e){}
   }
   delete o.pdfPath; delete o.pdfName;
   renderPeStavke();
