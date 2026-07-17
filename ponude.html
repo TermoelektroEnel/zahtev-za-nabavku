@@ -790,35 +790,37 @@ async function buildPonudaPdfBlob_(p, zahtev){
   columnStyles[2+n*2+2] = {halign:'right', cellWidth:20};  // ugovorena cena (bez PDV)
   columnStyles[2+n*2+3] = {halign:'center', cellWidth:24}; // predlog rukovodioca
 
-  doc.autoTable({
-    head, body, startY:y, margin:{left:marginX,right:marginX}, theme:'grid',
-    styles:{ font:'IBMPlexSans', fontSize:6.5, cellPadding:1.4, lineColor:[205,205,198], lineWidth:0.15, textColor:[30,30,30], valign:'middle' },
-    headStyles:{ fillColor:[36,61,76], textColor:[255,255,255], fontStyle:'bold', fontSize:6.3, lineColor:[90,115,130], lineWidth:0.35, halign:'center' },
-    columnStyles
-  });
-  y = doc.lastAutoTable.finalY + 6;
-
   // Komercijalni uslovi PO DOBAVLJAČU (uzima se iz prve unete ponude tog
-  // dobavljača — uslovi važe za ceo izveštaj, ne po pojedinačnoj poziciji).
+  // dobavljača — uslovi važe za ceo izveštaj, ne po pojedinačnoj poziciji),
+  // prikazani kao dva reda na dnu GLAVNE tabele, vizuelno odvojena debljom
+  // linijom od pozicija iznad.
   const supplierTerms = {};
   p.stavke.forEach(s => s.ponude.forEach(o => {
     if(!supplierTerms[o.dobavljac]) supplierTerms[o.dobavljac] = { avans:o.avans||'—', nacin:o.nacinPlacanja||'—' };
   }));
-  if(SUPPLIERS.length){
-    if(y > 185){ doc.addPage(); y = 16; }
-    doc.setFont('IBMPlexSans','bold'); doc.setFontSize(8); doc.setTextColor(20,20,20);
-    doc.text('Uslovi plaćanja po dobavljaču', marginX, y);
-    y += 3;
-    doc.autoTable({
-      head: [['Dobavljač','Avans','Način plaćanja']],
-      body: SUPPLIERS.map(name=>[name, supplierTerms[name].avans, supplierTerms[name].nacin]),
-      startY:y, margin:{left:marginX,right:marginX}, theme:'grid',
-      styles:{ font:'IBMPlexSans', fontSize:7, cellPadding:1.4, lineColor:[180,180,175], lineWidth:0.2, textColor:[26,26,26] },
-      headStyles:{ fillColor:[36,61,76], textColor:[255,255,255], fontStyle:'bold', fontSize:6.8, lineColor:[90,115,130], lineWidth:0.35 },
-      tableWidth: 130
-    });
-    y = doc.lastAutoTable.finalY + 8;
-  }
+  const tailCols = 4; // JM, Količina, Ugovorena cena, Predlog rukovodioca
+  const thickTop = { lineWidth:{top:0.9,right:0.15,bottom:0.15,left:0.15}, lineColor:[20,20,20] };
+  const foot = n ? [
+    [
+      {content:'Avans', colSpan:2, styles:{fontStyle:'bold', halign:'left', ...thickTop}},
+      ...SUPPLIERS.map(name=>({content: supplierTerms[name]?supplierTerms[name].avans:'—', colSpan:2, styles:{halign:'center', ...thickTop}})),
+      ...Array.from({length:tailCols},()=>({content:'', styles:{...thickTop}}))
+    ],
+    [
+      {content:'Način plaćanja', colSpan:2, styles:{fontStyle:'bold', halign:'left'}},
+      ...SUPPLIERS.map(name=>({content: supplierTerms[name]?supplierTerms[name].nacin:'—', colSpan:2, styles:{halign:'center'}})),
+      ...Array.from({length:tailCols},()=>'')
+    ]
+  ] : undefined;
+
+  doc.autoTable({
+    head, body, foot, startY:y, margin:{left:marginX,right:marginX}, theme:'grid',
+    styles:{ font:'IBMPlexSans', fontSize:6.5, cellPadding:1.4, lineColor:[205,205,198], lineWidth:0.15, textColor:[30,30,30], valign:'middle' },
+    headStyles:{ fillColor:[36,61,76], textColor:[255,255,255], fontStyle:'bold', fontSize:6.3, lineColor:[90,115,130], lineWidth:0.35, halign:'center' },
+    footStyles:{ fillColor:[247,247,242], textColor:[30,30,30], fontSize:6.5, lineColor:[205,205,198], lineWidth:0.15 },
+    columnStyles
+  });
+  y = doc.lastAutoTable.finalY + 8;
 
   if(y > 178){ doc.addPage(); y = 16; }
   doc.setDrawColor(20,20,20); doc.setLineWidth(0.5);
