@@ -799,7 +799,7 @@ async function buildPonudaPdfBlob_(p, zahtev){
     if(!supplierTerms[o.dobavljac]) supplierTerms[o.dobavljac] = { avans:o.avans||'—', nacin:o.nacinPlacanja||'—' };
   }));
   const tailCols = 4; // JM, Količina, Ugovorena cena, Predlog rukovodioca
-  const thickTop = { lineWidth:{top:0.9,right:0.15,bottom:0.15,left:0.15}, lineColor:[20,20,20] };
+  const thickTop = { lineWidth:{top:0.5,right:0.15,bottom:0.15,left:0.15}, lineColor:[140,140,132] };
   const foot = n ? [
     [
       {content:'Avans', colSpan:2, styles:{fontStyle:'bold', halign:'left', ...thickTop}},
