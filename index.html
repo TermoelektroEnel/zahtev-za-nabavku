@@ -41,6 +41,7 @@ body{margin:0;background:var(--paper);color:var(--ink);font-family:'IBM Plex San
 label{display:block;font-size:11.5px;font-weight:600;color:var(--ink-soft);text-transform:uppercase;letter-spacing:0.05em;margin:0 0 5px;}
 input[type=text],input[type=number],select,textarea{width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:var(--radius);background:#fff;font-family:'IBM Plex Sans',sans-serif;font-size:13.5px;color:var(--ink);}
 input:focus,select:focus,textarea:focus{outline:2px solid var(--steel);outline-offset:1px;}
+input:disabled,select:disabled,textarea:disabled,button:disabled{background:#E7E8E1;color:var(--ink-soft);cursor:not-allowed;border-color:var(--line-soft);}
 .field{margin-bottom:14px;}
 .row2{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
 .hint{font-size:11px;color:var(--ink-soft);margin-top:4px;}
@@ -495,6 +496,7 @@ td{padding:7px 8px;border-bottom:1px solid #ddd;font-size:12.5px;}
 .status-porucena td{background:#F8C471;color:#1a1a1a;}
 .status-isporucena td{background:#82E0AA;color:#1a1a1a;}
 select, input[type=date], input[type=number], input[type=text]{font-family:'IBM Plex Sans',sans-serif;font-size:12.5px;padding:5px 6px;border-radius:3px;border:1px solid #CBCFC5;background:#fff;color:inherit;}
+select:disabled, input[type=date]:disabled, input[type=number]:disabled, input[type=text]:disabled{background:#E7E8E1;color:var(--ink-soft);cursor:not-allowed;}
 @media print{.toolbar{display:none;}body{background:#fff;}.card{border:none;padding:0;overflow:visible;}table{width:auto;}th{white-space:normal;}}
 @page{ margin:10mm; }
 </style>
