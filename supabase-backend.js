@@ -62,7 +62,10 @@
       nalog: r.nalog,
       stavke: r.stavke,
       createdBy: r.created_by,
-      createdAt: r.created_at ? new Date(r.created_at).getTime() : Date.now()
+      createdAt: r.created_at ? new Date(r.created_at).getTime() : Date.now(),
+      status: r.status || 'u_izradi',
+      approvalStep: r.approval_step || 0,
+      lastReturnComment: r.last_return_comment || null
     };
   }
 
@@ -108,7 +111,13 @@
     if (action === 'list') {
       const { data, error } = await sbClient.from('requests').select('*').order('created_at', { ascending: true });
       if (error) throw error;
-      return { requests: data.map(mapRequest_) };
+      const creatorIds = [...new Set(data.map(r => r.created_by).filter(Boolean))];
+      let creatorNames = {};
+      if (creatorIds.length) {
+        const { data: profs } = await sbClient.from('profiles_public').select('id, username').in('id', creatorIds);
+        if (profs) profs.forEach(p => { creatorNames[p.id] = p.username; });
+      }
+      return { requests: data.map(r => ({ ...mapRequest_(r), createdByUsername: r.created_by ? (creatorNames[r.created_by] || null) : null })) };
     }
     if (action === 'peek') {
       const g = params.gradiliste;
@@ -137,6 +146,46 @@
       if (error) throw error;
       return { adrese: data.map(r => ({ naziv: r.naziv, adresa: r.adresa })) };
     }
+    if (action === 'listApprovalRoles') {
+      const { data, error } = await sbClient.from('approval_roles').select('*').order('step');
+      if (error) throw error;
+      const userIds = data.map(r => r.user_id).filter(Boolean);
+      let usernames = {};
+      if (userIds.length) {
+        const { data: profs } = await sbClient.from('profiles_public').select('id, username').in('id', userIds);
+        if (profs) profs.forEach(p => { usernames[p.id] = p.username; });
+      }
+      return {
+        roles: data.map(r => ({
+          step: r.step,
+          nazivUloge: r.naziv_uloge,
+          userId: r.user_id,
+          username: r.user_id ? (usernames[r.user_id] || null) : null
+        }))
+      };
+    }
+    if (action === 'listApprovalLog') {
+      const requestId = params.requestId;
+      if (!requestId) return { error: 'Nedostaje ID zahteva.' };
+      const { data, error } = await sbClient.from('request_approval_log')
+        .select('*').eq('request_id', requestId).order('created_at', { ascending: true });
+      if (error) throw error;
+      const actorIds = [...new Set(data.map(r => r.actor_id).filter(Boolean))];
+      let usernames = {};
+      if (actorIds.length) {
+        const { data: profs } = await sbClient.from('profiles_public').select('id, username').in('id', actorIds);
+        if (profs) profs.forEach(p => { usernames[p.id] = p.username; });
+      }
+      return {
+        log: data.map(r => ({
+          step: r.step,
+          action: r.action,
+          actorUsername: r.actor_id ? (usernames[r.actor_id] || null) : null,
+          komentar: r.komentar,
+          createdAt: r.created_at ? new Date(r.created_at).getTime() : Date.now()
+        }))
+      };
+    }
     return { error: 'Nepoznata akcija.' };
   }
 
@@ -161,6 +210,10 @@
       case 'addAdresa': return addAdresa_(body);
       case 'updateAdresa': return updateAdresa_(body);
       case 'deleteAdresa': return deleteAdresa_(body);
+      case 'posaljiNaOveru': return posaljiNaOveru_(body);
+      case 'overiZahtev': return overiZahtev_(body);
+      case 'vratiNaDoradu': return vratiNaDoradu_(body);
+      case 'updateApprovalRole': return updateApprovalRole_(body);
       default: return { error: 'Nepoznata akcija.' };
     }
   }
@@ -329,6 +382,40 @@
     return { ok: true };
   }
 
+  /* ---- Lanac odobravanja zahteva ---- */
+  async function posaljiNaOveru_(body) {
+    const { error } = await sbClient.rpc('posalji_na_overu', { p_request_id: body.id });
+    if (error) return { error: error.message };
+    return { ok: true };
+  }
+
+  async function overiZahtev_(body) {
+    const { error } = await sbClient.rpc('overi_zahtev', {
+      p_request_id: body.id,
+      p_stavke: body.stavke || null
+    });
+    if (error) return { error: error.message };
+    return { ok: true };
+  }
+
+  async function vratiNaDoradu_(body) {
+    const { error } = await sbClient.rpc('vrati_na_doradu', {
+      p_request_id: body.id,
+      p_komentar: body.komentar || ''
+    });
+    if (error) return { error: error.message };
+    return { ok: true };
+  }
+
+  async function updateApprovalRole_(body) {
+    const step = Number(body.step);
+    if (!step || step < 1 || step > 4) return { error: 'Nepoznat korak.' };
+    const { error } = await sbClient.from('approval_roles')
+      .update({ user_id: body.userId || null }).eq('step', step);
+    if (error) return { error: error.message };
+    return { ok: true };
+  }
+
   /* ============================================================
      PRESRETANJE fetch() POZIVA KA STAROM SCRIPT_URL-U
      ============================================================ */
@@ -363,6 +450,10 @@
     async currentUsername() {
       const { data } = await sbClient.auth.getSession();
       return data.session ? emailToUsername_(data.session.user.email) : null;
+    },
+    async currentUserId() {
+      const { data } = await sbClient.auth.getSession();
+      return data.session ? data.session.user.id : null;
     },
     async isAdmin() {
       const { data, error } = await sbClient.rpc('is_admin');
