@@ -913,11 +913,10 @@ async function posaljiApprovalMail_(r, targetUsername, subject, bodyText){
   const pdfFilename = `Zahtev-${String(r.redniBroj).replace(/\//g,'-')}.pdf`;
   const link = `${location.origin}${location.pathname}?zahtev=${r.id}`;
   const cc = await ZN.currentUsername();
-  const fullBody = `${bodyText}\n\nOtvori zahtev u aplikaciji: ${link}`;
   const emlBlob = buildEmlBlob_({
     to: [`${targetUsername}@te-enel.rs`],
     cc: cc ? `${cc}@te-enel.rs` : '',
-    subject, bodyText: fullBody, pdfBase64, pdfFilename
+    subject, bodyText, link, pdfBase64, pdfFilename
   });
   const emlFilename = `${pdfFilename.replace(/\.pdf$/i,'')}.eml`;
   const url = URL.createObjectURL(emlBlob);
@@ -1285,8 +1284,11 @@ function wrapBase64_(b64){
 // Pravi .eml fajl sa već upisanim Kome/CC/Naslovom i PDF-om kao ugrađenim
 // prilogom. "X-Unsent: 1" zaglavlje tera Outlook da ovo tretira kao
 // nedovršenu poruku (dobija dugme "Pošalji"), a ne kao primljenu.
-function buildEmlBlob_({ to, cc, subject, bodyText, pdfBase64, pdfFilename }){
+function buildEmlBlob_({ to, cc, subject, bodyText, link, pdfBase64, pdfFilename }){
   const boundary = 'ZN_BOUNDARY_' + Date.now();
+  const bodyHtmlParagraphs = escapeHtml(bodyText).split('\n').map(l=>l?`<p style="margin:0 0 10px;">${l}</p>`:'').join('');
+  const linkHtml = link ? `<p style="margin:16px 0;"><a href="${escapeHtml(link)}" style="color:#35566B;">${escapeHtml(link)}</a></p>` : '';
+  const htmlBody = `<html><body style="font-family:Arial,sans-serif;font-size:14px;color:#1a1a1a;">${bodyHtmlParagraphs}${linkHtml}</body></html>`;
   const lines = [
     `To: ${to.join(', ')}`,
     cc ? `Cc: ${cc}` : '',
@@ -1296,10 +1298,10 @@ function buildEmlBlob_({ to, cc, subject, bodyText, pdfBase64, pdfFilename }){
     `Content-Type: multipart/mixed; boundary="${boundary}"`,
     '',
     `--${boundary}`,
-    'Content-Type: text/plain; charset="utf-8"',
+    'Content-Type: text/html; charset="utf-8"',
     'Content-Transfer-Encoding: 8bit',
     '',
-    bodyText,
+    htmlBody,
     '',
     `--${boundary}`,
     `Content-Type: application/pdf; name="${pdfFilename}"`,
