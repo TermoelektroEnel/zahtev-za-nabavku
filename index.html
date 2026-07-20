@@ -1284,11 +1284,33 @@ function wrapBase64_(b64){
 // Pravi .eml fajl sa već upisanim Kome/CC/Naslovom i PDF-om kao ugrađenim
 // prilogom. "X-Unsent: 1" zaglavlje tera Outlook da ovo tretira kao
 // nedovršenu poruku (dobija dugme "Pošalji"), a ne kao primljenu.
+// RFC 2045 quoted-printable enkodovanje — standardni način za HTML mejl
+// telo; neki mejl klijenti (uključujući Outlook u X-Unsent režimu) ne
+// renderuju HTML ispravno ako je enkodovanje "8bit".
+function encodeQuotedPrintable_(str){
+  const bytes = new TextEncoder().encode(str);
+  let out = '', lineLen = 0;
+  const push = (s) => {
+    if(lineLen + s.length > 75){ out += '=\r\n'; lineLen = 0; }
+    out += s; lineLen += s.length;
+  };
+  for(const b of bytes){
+    if(b === 13) continue;
+    if(b === 10){ out += '\r\n'; lineLen = 0; continue; }
+    if(b === 61 || b < 32 || b > 126){
+      push('=' + b.toString(16).toUpperCase().padStart(2,'0'));
+    }else{
+      push(String.fromCharCode(b));
+    }
+  }
+  return out;
+}
+
 function buildEmlBlob_({ to, cc, subject, bodyText, link, pdfBase64, pdfFilename }){
   const boundary = 'ZN_BOUNDARY_' + Date.now();
-  const bodyHtmlParagraphs = escapeHtml(bodyText).split('\n').map(l=>l?`<p style="margin:0 0 10px;">${l}</p>`:'').join('');
-  const linkHtml = link ? `<p style="margin:16px 0;"><a href="${escapeHtml(link)}" style="color:#35566B;">${escapeHtml(link)}</a></p>` : '';
-  const htmlBody = `<html><body style="font-family:Arial,sans-serif;font-size:14px;color:#1a1a1a;">${bodyHtmlParagraphs}${linkHtml}</body></html>`;
+  const bodyHtmlParagraphs = escapeHtml(bodyText).split('\n').map(l=>l?`<p>${l}</p>`:'').join('');
+  const linkHtml = link ? `<p><a href="${escapeHtml(link)}">${escapeHtml(link)}</a></p>` : '';
+  const htmlBody = `<html><body>${bodyHtmlParagraphs}${linkHtml}</body></html>`;
   const lines = [
     `To: ${to.join(', ')}`,
     cc ? `Cc: ${cc}` : '',
@@ -1299,9 +1321,9 @@ function buildEmlBlob_({ to, cc, subject, bodyText, link, pdfBase64, pdfFilename
     '',
     `--${boundary}`,
     'Content-Type: text/html; charset="utf-8"',
-    'Content-Transfer-Encoding: 8bit',
+    'Content-Transfer-Encoding: quoted-printable',
     '',
-    htmlBody,
+    encodeQuotedPrintable_(htmlBody),
     '',
     `--${boundary}`,
     `Content-Type: application/pdf; name="${pdfFilename}"`,
