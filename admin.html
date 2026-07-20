@@ -476,7 +476,7 @@ $('nSaveBtn').addEventListener('click',async()=>{
   $('nErr').textContent='';
   const kod=$('nKod').value.trim(), opis=$('nOpis').value.trim();
   if(!kod){$('nErr').textContent='Kod naloga je obavezan.';return;}
-  if(!/^\d+(\/\d+)*$/.test(kod)&&kod!=='SOPSTVENE'){$('nErr').textContent='Kod mora biti npr. 720/26/011 ili "SOPSTVENE".';return;}
+  if(!/^\d+(\/\d+)*$/.test(kod)&&kod!=='SOPSTVENE'&&kod!=='TEST'){$('nErr').textContent='Kod mora biti npr. 720/26/011 ili "SOPSTVENE".';return;} // TEST = privremeni izuzetak za testiranje, ukloniti kasnije
   const isSva=$('nSva').checked;
   const checked=[...$('nGradilistaGrid').querySelectorAll('input[type=checkbox]:checked')].map(cb=>cb.value);
   const gradiliste=isSva?null:checked;

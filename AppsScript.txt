@@ -1,0 +1,671 @@
+/**
+ * ZAHTEV ZA NABAVKU — backend (Google Apps Script)
+ * ------------------------------------------------
+ * Ovaj kod ide u Google Sheet: Extensions > Apps Script.
+ * Čuva sve zahteve u listu "Zahtevi" i dodeljuje redni broj bez preklapanja
+ * (koristi LockService da spreči da dva istovremena zahteva dobiju isti broj).
+ * Redni broj se broji POSEBNO za svako gradilište, počevši od 1.
+ *
+ * Struktura sheet-a "Zahtevi" (kreira se automatski ako ne postoji):
+ * id | redniBroj | gradiliste | godina | nalog | stavkeJson | createdAt
+ *
+ * Struktura sheet-a "Brojac" (kreira se automatski):
+ * gradiliste | poslednjiBroj   (jedan red po gradilištu)
+ *
+ * Struktura sheet-a "Gradilista" (kreira se automatski, sa početnim podacima):
+ * kod | naziv
+ *
+ * Struktura sheet-a "Nalozi" (kreira se automatski, sa početnim podacima):
+ * kod | opis | gradilista   (gradilista: "SVA" = važi za sve, "" = ni za jedno, ili lista kodova odvojena zapetom npr. "907,919")
+ *
+ * Struktura sheet-a "Korisnici" (kreira se automatski, sa podrazumevanim admin nalogom):
+ * username | passwordHash | gradilista   (isti format kao gore; podrazumevani nalog: admin / admin123 — PROMENI ODMAH preko admin.html)
+ */
+
+const SHEET_DATA = 'Zahtevi';
+const SHEET_COUNTER = 'Brojac';
+const SHEET_GRADILISTA = 'Gradilista';
+const SHEET_NALOZI = 'Nalozi';
+const SHEET_KORISNICI = 'Korisnici';
+
+// Početni podaci — koriste se samo jednom, kada se odgovarajući sheet prvi put kreira.
+const DEFAULT_GRADILISTA = [
+  ['901', 'DIREKCIJA'],
+  ['902', 'OBRENOVAC'],
+  ['907', 'KOSTOLAC'],
+  ['908', 'MORAVA SVILAJNAC'],
+  ['909', 'LABORATORIJA'],
+  ['910', 'Beograd'],
+  ['911', 'PANČEVO'],
+  ['913', 'PODGORICA'],
+  ['914', 'OBRENOVAC - Odsumporavanje'],
+  ['915', 'Projektovanje'],
+  ['919', 'KOSTOLAC - NIŠ - materijal'],
+  ['924', 'EXPO'],
+  ['925', 'NOVI SAD'],
+  ['927', 'KOLUBARA A'],
+  ['928', 'KOLUBARA B'],
+  ['932', 'CENTRALNI MAGACIN']
+];
+
+const DEFAULT_NALOZI = [
+  ['720/25/001', 'TENT A-Usluga elektroodržavanja', ''],
+  ['720/25/002', 'TE Kostolac A2- Rekonstrukcija ventilskih kasetnih podrazvoda', '907'],
+  ['720/25/003', 'TENT A- Isporuka i zamena 6 kV kablova (A3, A4, A6)', '902'],
+  ['720/25/004', 'TE Kostolac B2 - EII - Čišćenje sabirnica', '907'],
+  ['720/25/005', 'TENT A - ODG Održavanje', '902'],
+  ['720/25/006', 'Comita - Skladište Niš - Premeštanje ESD ormana', '919'],
+  ['720/25/007', 'MTN - RNP Železnica - Polaganje PP Kablova po nadstrešnici', '911'],
+  ['720/25/008', 'Comita - Skladiste Nis- Izrada dokumentacije sa rasporedom kablova na nadzemnim i podzemnim trasama', '919'],
+  ['720/25/009', 'N2K Proces inzenjering - Vreoci - kabliranje', '927'],
+  ['720/25/010', 'Siemens Energy - EXPO Trigenerativno postrojenje instumentacija', '924'],
+  ['720/25/011', 'TE Kolubara -Odrzavanje 110,35 i 6 kV postrojenja', '927'],
+  ['720/25/012', 'IvDam - J245 vodeno ispiranje hladnjaka S4300', '911'],
+  ['720/26/001', 'TENT A - Redovno održavanje kablova i kablovskih trasa', '902'],
+  ['720/26/002', 'Tehnički servisi - Elektroenergetski radovi na zameni pumpe GA -103', '911'],
+  ['720/26/003', 'TENT A - Energetski kablovi pobudnog sistema generatora A1 i A2', '902'],
+  ['720/26/004', 'IMP - TE Kostolac A - Proširenje postrojenja za pepeo i šljaku', '907'],
+  ['720/26/005', 'TENT A - Usluge elektroodržavanja', '902'],
+  ['720/26/006', 'POWER CHINA - Napajanje TCF za BG metro', '919'],
+  ['720/26/007', 'TENT B - Remontno održavanje MRU', '902'],
+  ['720/26/008', 'NIS Rezervoari R6, R7 Novi Sad', '925'],
+  ['720/26/009', 'HIP Petrohemija - SN kablovi za PEVG, NN kablovi PENG', '911'],
+  ['720/26/010', 'TE-KO A-Rekonstrukcija klapni na A2', '919'],
+  ['SOPSTVENE', '', 'SVA']
+];
+
+function getOrCreateSheets_() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let data = ss.getSheetByName(SHEET_DATA);
+  if (!data) {
+    data = ss.insertSheet(SHEET_DATA);
+    data.appendRow(['id', 'redniBroj', 'gradiliste', 'godina', 'nalog', 'stavkeJson', 'createdAt']);
+  }
+  let counter = ss.getSheetByName(SHEET_COUNTER);
+  if (!counter) {
+    counter = ss.insertSheet(SHEET_COUNTER);
+    counter.appendRow(['gradiliste', 'poslednjiBroj']);
+  }
+  let gradilista = ss.getSheetByName(SHEET_GRADILISTA);
+  if (!gradilista) {
+    gradilista = ss.insertSheet(SHEET_GRADILISTA);
+    gradilista.appendRow(['kod', 'naziv']);
+    DEFAULT_GRADILISTA.forEach(row => gradilista.appendRow(row));
+  }
+  let nalozi = ss.getSheetByName(SHEET_NALOZI);
+  if (!nalozi) {
+    nalozi = ss.insertSheet(SHEET_NALOZI);
+    nalozi.appendRow(['kod', 'opis', 'gradilista']);
+    DEFAULT_NALOZI.forEach(row => nalozi.appendRow(row));
+  }
+  let korisnici = ss.getSheetByName(SHEET_KORISNICI);
+  if (!korisnici) {
+    korisnici = ss.insertSheet(SHEET_KORISNICI);
+    korisnici.appendRow(['username', 'passwordHash', 'gradilista']);
+    // Podrazumevani administratorski nalog — OBAVEZNO promeniti lozinku odmah preko admin.html!
+    korisnici.appendRow(['admin', hashPassword_('admin123'), 'SVA']);
+  }
+  return { data, counter, gradilista, nalozi, korisnici };
+}
+
+// Pronalazi (ili kreira) red u "Brojac" sheet-u za dato gradilište.
+// Vraća broj reda (1-indeksirano, kako Sheets API očekuje).
+function getCounterRow_(counterSheet, gradiliste) {
+  const values = counterSheet.getDataRange().getValues();
+  for (let i = 1; i < values.length; i++) {
+    if (String(values[i][0]) === String(gradiliste)) {
+      return i + 1;
+    }
+  }
+  counterSheet.appendRow([gradiliste, 0]);
+  return counterSheet.getLastRow();
+}
+
+function doGet(e) {
+  const action = e.parameter.action;
+  if (action === 'list') {
+    return respond_(listRequests_());
+  }
+  if (action === 'peek') {
+    const g = e.parameter.gradiliste;
+    if (!g) return respond_({ error: 'Nedostaje oznaka gradilišta.' });
+    return respond_(peekCounter_(g));
+  }
+  if (action === 'listGradilista') {
+    return respond_(listGradilista_());
+  }
+  if (action === 'listNalozi') {
+    return respond_(listNalozi_());
+  }
+  if (action === 'listKorisnici') {
+    return respond_(listKorisnici_());
+  }
+  return respond_({ error: 'Nepoznata akcija.' });
+}
+
+function listGradilista_() {
+  const { gradilista } = getOrCreateSheets_();
+  const rows = gradilista.getDataRange().getValues();
+  const list = [];
+  for (let i = 1; i < rows.length; i++) {
+    if (!rows[i][0]) continue;
+    list.push({ kod: String(rows[i][0]), naziv: rows[i][1] });
+  }
+  return { gradilista: list };
+}
+
+function listNalozi_() {
+  const { nalozi } = getOrCreateSheets_();
+  const rows = nalozi.getDataRange().getValues();
+  const list = [];
+  for (let i = 1; i < rows.length; i++) {
+    if (!rows[i][0]) continue;
+    list.push({ kod: rows[i][0], opis: rows[i][1], gradiliste: parseGradilistaField_(rows[i][2]) });
+  }
+  return { nalozi: list };
+}
+
+// Pretvara vrednost iz kolone "gradilista" (string iz sheet-a) u JS oblik:
+// 'SVA' -> null (važi za sva gradilišta), '' -> [] (ni za jedno), "907,919" -> ['907','919']
+function parseGradilistaField_(raw) {
+  const val = String(raw || '').trim();
+  if (val === 'SVA') return null;
+  if (val === '') return [];
+  return val.split(',').map(s => s.trim()).filter(Boolean);
+}
+
+// Obrnuto od parseGradilistaField_ — priprema vrednost za upis u sheet.
+function serializeGradilistaField_(gradiliste) {
+  if (gradiliste === null || gradiliste === 'SVA') return 'SVA';
+  if (!Array.isArray(gradiliste) || gradiliste.length === 0) return '';
+  return gradiliste.join(',');
+}
+
+// Jednostavan SHA-256 heš lozinke (lozinke se NIKAD ne čuvaju niti vraćaju u čistom tekstu).
+function hashPassword_(pw) {
+  const bytes = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, pw, Utilities.Charset.UTF_8);
+  return bytes.map(b => ((b < 0 ? b + 256 : b).toString(16)).padStart(2, '0')).join('');
+}
+
+function peekCounter_(gradiliste) {
+  const { counter } = getOrCreateSheets_();
+  const row = getCounterRow_(counter, gradiliste);
+  const last = Number(counter.getRange(row, 2).getValue()) || 0;
+  return { next: last + 1 };
+}
+
+function doPost(e) {
+  let body;
+  try {
+    body = JSON.parse(e.postData.contents);
+  } catch (err) {
+    return respond_({ error: 'Neispravan JSON.' });
+  }
+
+  try {
+    if (body.action === 'add') {
+      return respond_(addRequest_(body));
+    }
+    if (body.action === 'update') {
+      return respond_(updateRequest_(body));
+    }
+    if (body.action === 'delete') {
+      return respond_(deleteRequest_(body.id));
+    }
+    if (body.action === 'addGradiliste') {
+      return respond_(addGradiliste_(body));
+    }
+    if (body.action === 'updateGradiliste') {
+      return respond_(updateGradiliste_(body));
+    }
+    if (body.action === 'deleteGradiliste') {
+      return respond_(deleteGradiliste_(body));
+    }
+    if (body.action === 'addNalog') {
+      return respond_(addNalogAdmin_(body));
+    }
+    if (body.action === 'updateNalog') {
+      return respond_(updateNalogAdmin_(body));
+    }
+    if (body.action === 'deleteNalog') {
+      return respond_(deleteNalogAdmin_(body));
+    }
+    if (body.action === 'login') {
+      return respond_(login_(body));
+    }
+    if (body.action === 'addKorisnik') {
+      return respond_(addKorisnik_(body));
+    }
+    if (body.action === 'updateKorisnik') {
+      return respond_(updateKorisnik_(body));
+    }
+    if (body.action === 'deleteKorisnik') {
+      return respond_(deleteKorisnik_(body));
+    }
+    if (body.action === 'sendEmail') {
+      return respond_(sendEmailPdf_(body));
+    }
+    return respond_({ error: 'Nepoznata akcija.' });
+  } catch (err) {
+    // Hvata neočekivane greške (npr. nedostajuće dozvole) i vraća ih kao ispravan JSON
+    // umesto da ceo poziv pukne u HTML stranicu greške koju klijent ne ume da pročita.
+    return respond_({ error: 'Greška na serveru: ' + err.message });
+  }
+}
+
+function listRequests_() {
+  const { data } = getOrCreateSheets_();
+  const rows = data.getDataRange().getValues();
+  const requests = [];
+  for (let i = 1; i < rows.length; i++) {
+    const r = rows[i];
+    if (!r[0]) continue;
+    requests.push({
+      id: r[0],
+      redniBroj: r[1],
+      gradiliste: String(r[2]),
+      godina: String(r[3]),
+      nalog: r[4],
+      stavke: JSON.parse(r[5] || '[]'),
+      createdAt: r[6]
+    });
+  }
+  return { requests };
+}
+
+function addRequest_(body) {
+  const lock = LockService.getScriptLock();
+  lock.waitLock(10000); // do 10 sekundi čekanja da izbegnemo duplirane brojeve
+  try {
+    const { data, counter } = getOrCreateSheets_();
+
+    const g = parseInt(body.gradiliste, 10);
+    if (!g || g < 901 || g > 999) {
+      return { error: 'Neispravna oznaka gradilišta.' };
+    }
+    const nalogValid = /^\d+(\/\d+)*$/.test(body.nalog || '') || body.nalog === 'SOPSTVENE';
+    if (!nalogValid) {
+      return { error: 'Neispravan format naloga za realizaciju.' };
+    }
+    if (!Array.isArray(body.stavke) || body.stavke.length === 0) {
+      return { error: 'Specifikacija je prazna.' };
+    }
+
+    const godina = body.godina;
+    const row = getCounterRow_(counter, g);
+    const last = Number(counter.getRange(row, 2).getValue()) || 0;
+    let next;
+
+    const manualBroj = body.broj ? parseInt(body.broj, 10) : null;
+    if (manualBroj) {
+      if (!Number.isInteger(manualBroj) || manualBroj < 1) {
+        return { error: 'Redni broj mora biti pozitivan ceo broj.' };
+      }
+      const candidateRedniBroj = `${g}/${godina}/${String(manualBroj).padStart(3, '0')}`;
+      const existingRows = data.getDataRange().getValues();
+      for (let i = 1; i < existingRows.length; i++) {
+        if (String(existingRows[i][1]) === candidateRedniBroj) {
+          return { error: 'Taj redni broj je već zauzet za ovo gradilište. Izaberi drugi.' };
+        }
+      }
+      next = manualBroj;
+      if (next > last) {
+        counter.getRange(row, 2).setValue(next);
+      }
+    } else {
+      next = last + 1;
+      counter.getRange(row, 2).setValue(next);
+    }
+
+    const redniBroj = `${g}/${godina}/${String(next).padStart(3, '0')}`;
+    const id = Utilities.getUuid();
+    const createdAt = Date.now();
+
+    data.appendRow([
+      id,
+      redniBroj,
+      g,
+      godina,
+      body.nalog,
+      JSON.stringify(body.stavke),
+      createdAt
+    ]);
+
+    return {
+      request: {
+        id,
+        redniBroj,
+        gradiliste: String(g),
+        godina: String(godina),
+        nalog: body.nalog,
+        stavke: body.stavke,
+        createdAt
+      }
+    };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function updateRequest_(body) {
+  const { data } = getOrCreateSheets_();
+
+  const nalogValid = /^\d+(\/\d+)*$/.test(body.nalog || '') || body.nalog === 'SOPSTVENE';
+  if (!nalogValid) {
+    return { error: 'Neispravan format naloga za realizaciju.' };
+  }
+  if (!Array.isArray(body.stavke) || body.stavke.length === 0) {
+    return { error: 'Specifikacija je prazna.' };
+  }
+
+  const rows = data.getDataRange().getValues();
+  for (let i = 1; i < rows.length; i++) {
+    if (rows[i][0] === body.id) {
+      const rowIndex = i + 1;
+      data.getRange(rowIndex, 5).setValue(body.nalog);                     // kolona 'nalog'
+      data.getRange(rowIndex, 6).setValue(JSON.stringify(body.stavke));    // kolona 'stavkeJson'
+      return {
+        request: {
+          id: rows[i][0],
+          redniBroj: rows[i][1],
+          gradiliste: String(rows[i][2]),
+          godina: String(rows[i][3]),
+          nalog: body.nalog,
+          stavke: body.stavke,
+          createdAt: rows[i][6]
+        }
+      };
+    }
+  }
+  return { error: 'Zahtev nije pronađen.' };
+}
+
+function deleteRequest_(id) {
+  const { data } = getOrCreateSheets_();
+  const rows = data.getDataRange().getValues();
+  for (let i = 1; i < rows.length; i++) {
+    if (rows[i][0] === id) {
+      data.deleteRow(i + 1);
+      return { ok: true };
+    }
+  }
+  return { error: 'Zahtev nije pronađen.' };
+}
+
+function addGradiliste_(body) {
+  const lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+  try {
+    const { gradilista } = getOrCreateSheets_();
+    const kod = parseInt(body.kod, 10);
+    if (!kod || kod < 901 || kod > 999) {
+      return { error: 'Oznaka gradilišta mora biti broj od 901 do 999.' };
+    }
+    const naziv = (body.naziv || '').trim();
+    if (!naziv) {
+      return { error: 'Naziv gradilišta je obavezan.' };
+    }
+    const rows = gradilista.getDataRange().getValues();
+    for (let i = 1; i < rows.length; i++) {
+      if (String(rows[i][0]) === String(kod)) {
+        return { error: 'Gradilište sa tom oznakom već postoji.' };
+      }
+    }
+    gradilista.appendRow([kod, naziv]);
+    return { gradiliste: { kod: String(kod), naziv } };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function updateGradiliste_(body) {
+  const { gradilista } = getOrCreateSheets_();
+  const naziv = (body.naziv || '').trim();
+  if (!naziv) {
+    return { error: 'Naziv gradilišta je obavezan.' };
+  }
+  const rows = gradilista.getDataRange().getValues();
+  for (let i = 1; i < rows.length; i++) {
+    if (String(rows[i][0]) === String(body.kod)) {
+      gradilista.getRange(i + 1, 2).setValue(naziv);
+      return { gradiliste: { kod: String(body.kod), naziv } };
+    }
+  }
+  return { error: 'Gradilište nije pronađeno.' };
+}
+
+function deleteGradiliste_(body) {
+  const { gradilista } = getOrCreateSheets_();
+  const rows = gradilista.getDataRange().getValues();
+  for (let i = 1; i < rows.length; i++) {
+    if (String(rows[i][0]) === String(body.kod)) {
+      gradilista.deleteRow(i + 1);
+      return { ok: true };
+    }
+  }
+  return { error: 'Gradilište nije pronađeno.' };
+}
+
+function addNalogAdmin_(body) {
+  const lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+  try {
+    const { nalozi } = getOrCreateSheets_();
+    const kod = (body.kod || '').trim();
+    if (!kod) {
+      return { error: 'Kod naloga je obavezan.' };
+    }
+    const kodValid = /^\d+(\/\d+)*$/.test(kod) || kod === 'SOPSTVENE';
+    if (!kodValid) {
+      return { error: 'Kod naloga mora biti niz brojeva odvojenih kosom crtom (npr. 720/26/011) ili "SOPSTVENE".' };
+    }
+    const opis = (body.opis || '').trim();
+    const rows = nalozi.getDataRange().getValues();
+    for (let i = 1; i < rows.length; i++) {
+      if (String(rows[i][0]) === kod) {
+        return { error: 'Nalog sa tim kodom već postoji.' };
+      }
+    }
+    const gradilistaVal = serializeGradilistaField_(body.gradiliste);
+    nalozi.appendRow([kod, opis, gradilistaVal]);
+    return { nalog: { kod, opis, gradiliste: parseGradilistaField_(gradilistaVal) } };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function updateNalogAdmin_(body) {
+  const { nalozi } = getOrCreateSheets_();
+  const opis = (body.opis || '').trim();
+  const rows = nalozi.getDataRange().getValues();
+  for (let i = 1; i < rows.length; i++) {
+    if (String(rows[i][0]) === String(body.kod)) {
+      const gradilistaVal = serializeGradilistaField_(body.gradiliste);
+      nalozi.getRange(i + 1, 2).setValue(opis);
+      nalozi.getRange(i + 1, 3).setValue(gradilistaVal);
+      return { nalog: { kod: body.kod, opis, gradiliste: parseGradilistaField_(gradilistaVal) } };
+    }
+  }
+  return { error: 'Nalog nije pronađen.' };
+}
+
+function deleteNalogAdmin_(body) {
+  const { nalozi } = getOrCreateSheets_();
+  const rows = nalozi.getDataRange().getValues();
+  for (let i = 1; i < rows.length; i++) {
+    if (String(rows[i][0]) === String(body.kod)) {
+      nalozi.deleteRow(i + 1);
+      return { ok: true };
+    }
+  }
+  return { error: 'Nalog nije pronađen.' };
+}
+
+function listKorisnici_() {
+  const { korisnici } = getOrCreateSheets_();
+  const rows = korisnici.getDataRange().getValues();
+  const list = [];
+  for (let i = 1; i < rows.length; i++) {
+    if (!rows[i][0]) continue;
+    // NAPOMENA: passwordHash (rows[i][1]) se namerno NIKAD ne vraća klijentu.
+    list.push({ username: rows[i][0], gradiliste: parseGradilistaField_(rows[i][2]) });
+  }
+  return { korisnici: list };
+}
+
+function login_(body) {
+  const username = (body.username || '').trim();
+  const password = body.password || '';
+  if (!username || !password) {
+    return { error: 'Unesite korisničko ime i lozinku.' };
+  }
+  const { korisnici } = getOrCreateSheets_();
+  const rows = korisnici.getDataRange().getValues();
+  const hash = hashPassword_(password);
+  for (let i = 1; i < rows.length; i++) {
+    if (String(rows[i][0]).toLowerCase() === username.toLowerCase()) {
+      if (String(rows[i][1]) === hash) {
+        return { ok: true, username: rows[i][0], gradiliste: parseGradilistaField_(rows[i][2]) };
+      }
+      return { error: 'Pogrešno korisničko ime ili lozinka.' };
+    }
+  }
+  return { error: 'Pogrešno korisničko ime ili lozinka.' };
+}
+
+function addKorisnik_(body) {
+  const lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+  try {
+    const { korisnici } = getOrCreateSheets_();
+    const username = (body.username || '').trim();
+    if (!username) {
+      return { error: 'Korisničko ime je obavezno.' };
+    }
+    if (!body.password) {
+      return { error: 'Lozinka je obavezna za novog korisnika.' };
+    }
+    const rows = korisnici.getDataRange().getValues();
+    for (let i = 1; i < rows.length; i++) {
+      if (String(rows[i][0]).toLowerCase() === username.toLowerCase()) {
+        return { error: 'Korisničko ime već postoji.' };
+      }
+    }
+    const gradilistaVal = serializeGradilistaField_(body.gradiliste);
+    korisnici.appendRow([username, hashPassword_(body.password), gradilistaVal]);
+    return { korisnik: { username, gradiliste: parseGradilistaField_(gradilistaVal) } };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function updateKorisnik_(body) {
+  const { korisnici } = getOrCreateSheets_();
+  const rows = korisnici.getDataRange().getValues();
+  for (let i = 1; i < rows.length; i++) {
+    if (String(rows[i][0]).toLowerCase() === String(body.username).toLowerCase()) {
+      const rowIndex = i + 1;
+      const gradilistaVal = serializeGradilistaField_(body.gradiliste);
+      korisnici.getRange(rowIndex, 3).setValue(gradilistaVal);
+      // Lozinka se menja SAMO ako je nova lozinka poslata (prazno polje = zadrži postojeću).
+      if (body.password) {
+        korisnici.getRange(rowIndex, 2).setValue(hashPassword_(body.password));
+      }
+      return { korisnik: { username: rows[i][0], gradiliste: parseGradilistaField_(gradilistaVal) } };
+    }
+  }
+  return { error: 'Korisnik nije pronađen.' };
+}
+
+function deleteKorisnik_(body) {
+  const { korisnici } = getOrCreateSheets_();
+  const rows = korisnici.getDataRange().getValues();
+  for (let i = 1; i < rows.length; i++) {
+    if (String(rows[i][0]).toLowerCase() === String(body.username).toLowerCase()) {
+      korisnici.deleteRow(i + 1);
+      return { ok: true };
+    }
+  }
+  return { error: 'Korisnik nije pronađen.' };
+}
+
+// Generiše PDF (preko privremenog Google Doc-a) i šalje ga mejlom.
+// Napomena: pošiljalac je uvek Google nalog na kome je ovaj skript deployovan,
+// i podleže dnevnom limitu slanja (MailApp.getRemainingDailyQuota()).
+function sendEmailPdf_(body) {
+  const adrese = (body.to || '').split(',').map(function(a){ return a.trim(); }).filter(Boolean);
+  if (adrese.length === 0) {
+    return { error: 'Unesite bar jednu email adresu.' };
+  }
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  const neispravne = adrese.filter(function(a){ return !emailRegex.test(a); });
+  if (neispravne.length > 0) {
+    return { error: 'Neispravna email adresa: ' + neispravne.join(', ') };
+  }
+  const to = adrese.join(',');
+  if (MailApp.getRemainingDailyQuota() <= 0) {
+    return { error: 'Dnevni limit slanja mejlova je iskorišćen. Pokušaj ponovo sutra.' };
+  }
+
+  const redniBroj = body.redniBroj || '';
+  const nalogKod = body.nalogKod || '';
+  const nalogOpis = body.nalogOpis || '';
+  const nalogText = nalogKod + (nalogOpis ? ' ' + nalogOpis : '');
+
+  const doc = DocumentApp.create('Zahtev za nabavku ' + redniBroj + ' (privremeno)');
+  const docBody = doc.getBody();
+
+  docBody.appendParagraph('ZAHTEV ZA NABAVKU').setHeading(DocumentApp.ParagraphHeading.HEADING1);
+  docBody.appendParagraph('Redni broj: ' + redniBroj);
+  docBody.appendParagraph('Oznaka gradilišta: ' + (body.gradilisteText || ''));
+  docBody.appendParagraph('Nalog za realizaciju: ' + nalogText);
+  docBody.appendParagraph('');
+
+  const headers = ['Rb.', 'Šifra', 'Opis', 'JM', 'Za nabavku', 'Rok isporuke', 'Atest'];
+  const tableData = [headers];
+  (body.stavke || []).forEach(function(s, idx) {
+    tableData.push([
+      String(idx + 1),
+      s.sifra || '',
+      s.opis || '',
+      s.jm || '',
+      String(s.zaNabavku !== undefined && s.zaNabavku !== null ? s.zaNabavku : (s.kolicina || '')),
+      s.rok || '',
+      s.atest || ''
+    ]);
+  });
+  docBody.appendTable(tableData);
+
+  docBody.appendParagraph('');
+  docBody.appendParagraph('IZRADIO: Rukovodilac OC / datum: ______________');
+  docBody.appendParagraph('OBRADIO: Ruk. realizacije / datum: ______________');
+  docBody.appendParagraph('OVERIO: Zamenik gen.dir. / datum: ______________');
+  docBody.appendParagraph('ODOBRIO: Generalni direktor / datum: ______________');
+
+  doc.saveAndClose();
+
+  const docId = doc.getId();
+  let pdf;
+  try {
+    pdf = DriveApp.getFileById(docId).getAs('application/pdf');
+    pdf.setName('Zahtev za nabavku ' + redniBroj + '.pdf');
+  } finally {
+    DriveApp.getFileById(docId).setTrashed(true); // ukloni privremeni Google Doc
+  }
+
+  MailApp.sendEmail({
+    to: to,
+    subject: 'Zahtev za nabavku, ' + redniBroj + ', ' + nalogText,
+    body: 'U prilogu se nalazi Zahtev za nabavku broj ' + redniBroj + '.',
+    attachments: [pdf]
+  });
+
+  return { ok: true };
+}
+
+function respond_(obj) {
+  return ContentService
+    .createTextOutput(JSON.stringify(obj))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
