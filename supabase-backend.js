@@ -392,7 +392,8 @@
   async function overiZahtev_(body) {
     const { error } = await sbClient.rpc('overi_zahtev', {
       p_request_id: body.id,
-      p_stavke: body.stavke || null
+      p_stavke: body.stavke || null,
+      p_komentar: body.komentar || null
     });
     if (error) return { error: error.message };
     return { ok: true };
@@ -401,7 +402,8 @@
   async function vratiNaDoradu_(body) {
     const { error } = await sbClient.rpc('vrati_na_doradu', {
       p_request_id: body.id,
-      p_komentar: body.komentar || ''
+      p_komentar: body.komentar || '',
+      p_stavke: body.stavke || null
     });
     if (error) return { error: error.message };
     return { ok: true };

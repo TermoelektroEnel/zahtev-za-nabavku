@@ -422,13 +422,13 @@ async function apiPosaljiNaOveru(id){
   if(!res.ok) throw new Error('Greška pri slanju na overu.');
   return res.json();
 }
-async function apiOveriZahtev(id, stavke){
-  const res = await fetch(SCRIPT_URL, { method:'POST', body: JSON.stringify({ action:'overiZahtev', id, stavke }) });
+async function apiOveriZahtev(id, stavke, komentar){
+  const res = await fetch(SCRIPT_URL, { method:'POST', body: JSON.stringify({ action:'overiZahtev', id, stavke, komentar }) });
   if(!res.ok) throw new Error('Greška pri overi.');
   return res.json();
 }
-async function apiVratiNaDoradu(id, komentar){
-  const res = await fetch(SCRIPT_URL, { method:'POST', body: JSON.stringify({ action:'vratiNaDoradu', id, komentar }) });
+async function apiVratiNaDoradu(id, komentar, stavke){
+  const res = await fetch(SCRIPT_URL, { method:'POST', body: JSON.stringify({ action:'vratiNaDoradu', id, komentar, stavke }) });
   if(!res.ok) throw new Error('Greška pri vraćanju na doradu.');
   return res.json();
 }
@@ -1047,7 +1047,7 @@ async function openOveraView(id){
           </table>
           ${mogucaOvera?`
           <div style="margin-top:16px;">
-            <label for="overaKomentar">Komentar (obavezno samo ako vraćaš na doradu)</label>
+            <label for="overaKomentar">Komentar (opciono uz overu, obavezno ako vraćaš na doradu)</label>
             <textarea id="overaKomentar" rows="2" style="width:100%;padding:8px;border:1px solid var(--line);border-radius:var(--radius);font-family:inherit;"></textarea>
           </div>
           <div class="overa-actions">
@@ -1065,6 +1065,15 @@ async function openOveraView(id){
   $('closeOvera').addEventListener('click',()=>$('modalRoot').innerHTML='');
   $('overaOverlay').addEventListener('click',e=>{ if(e.target.id==='overaOverlay') $('modalRoot').innerHTML=''; });
 
+  function gatherNoveStavke(){
+    return r.stavke.map((s,idx)=>{
+      const inp=$('modalRoot').querySelector(`[data-overa-kolicina="${idx}"]`);
+      const kolicina = inp ? inp.value : s.kolicina;
+      const k=parseFloat(kolicina)||0, o=parseFloat(s.odPostojeceg)||0;
+      return { ...s, kolicina, zaNabavku: Math.round((k-o)*1000)/1000 };
+    });
+  }
+
   if(mogucaOvera){
     $('modalRoot').querySelectorAll('[data-overa-kolicina]').forEach(inp=>inp.addEventListener('input',e=>{
       const idx=Number(e.currentTarget.dataset.overaKolicina);
@@ -1075,15 +1084,11 @@ async function openOveraView(id){
     }));
     $('overiBtn').addEventListener('click', async ()=>{
       $('overaErr').textContent='';
-      const noveStavke = r.stavke.map((s,idx)=>{
-        const inp=$('modalRoot').querySelector(`[data-overa-kolicina="${idx}"]`);
-        const kolicina = inp ? inp.value : s.kolicina;
-        const k=parseFloat(kolicina)||0, o=parseFloat(s.odPostojeceg)||0;
-        return { ...s, kolicina, zaNabavku: Math.round((k-o)*1000)/1000 };
-      });
+      const noveStavke = gatherNoveStavke();
+      const komentar = $('overaKomentar').value.trim();
       $('overiBtn').disabled=true;
       try{
-        await apiOveriZahtev(r.id, noveStavke);
+        await apiOveriZahtev(r.id, noveStavke, komentar);
         await loadData();
         const azurirano = DATA.requests.find(x=>x.id===r.id) || { ...r, stavke:noveStavke };
         $('modalRoot').innerHTML='';
@@ -1092,14 +1097,14 @@ async function openOveraView(id){
           if(radosav){
             await posaljiApprovalMail_(azurirano, radosav,
               `Zahtev za nabavku ${azurirano.redniBroj} - konačno odobren`,
-              `Zahtev za nabavku ${azurirano.redniBroj} je konačno odobren i spreman je za realizaciju nabavke.`);
+              `Zahtev za nabavku ${azurirano.redniBroj} je konačno odobren i spreman je za realizaciju nabavke.${komentar?'\n\nKomentar: '+komentar:''}`);
           }
         }else{
           const sledeci = imeOsobe(azurirano.approvalStep);
           if(sledeci){
             await posaljiApprovalMail_(azurirano, sledeci,
               `Zahtev za nabavku ${azurirano.redniBroj} - na overi (${imeUloge(azurirano.approvalStep)})`,
-              `Zahtev za nabavku ${azurirano.redniBroj} je overen od strane prethodnog koraka i sada čeka vašu overu.`);
+              `Zahtev za nabavku ${azurirano.redniBroj} je overen od strane prethodnog koraka i sada čeka vašu overu.${komentar?'\n\nKomentar: '+komentar:''}`);
           }else{
             alert(`Nije dodeljen korisnik za sledeći korak (${imeUloge(azurirano.approvalStep)}). Obratite se administratoru.`);
           }
@@ -1113,13 +1118,14 @@ async function openOveraView(id){
       $('overaErr').textContent='';
       const komentar = $('overaKomentar').value.trim();
       if(!komentar){ $('overaErr').textContent='Komentar je obavezan kada vraćaš zahtev na doradu.'; return; }
+      const noveStavke = gatherNoveStavke();
       $('vratiBtn').disabled=true;
       try{
-        await apiVratiNaDoradu(r.id, komentar);
+        await apiVratiNaDoradu(r.id, komentar, noveStavke);
         await loadData();
         $('modalRoot').innerHTML='';
         if(r.createdByUsername){
-          await posaljiApprovalMail_(r, r.createdByUsername,
+          await posaljiApprovalMail_({ ...r, stavke:noveStavke }, r.createdByUsername,
             `Zahtev za nabavku ${r.redniBroj} - vraćen na doradu`,
             `Zahtev za nabavku ${r.redniBroj} je vraćen na doradu.\nKomentar: ${komentar}`);
         }
