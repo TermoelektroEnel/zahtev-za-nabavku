@@ -222,7 +222,7 @@
   async function addRequest_(body) {
     const g = parseInt(body.gradiliste, 10);
     if (!g || g < 901 || g > 999) return { error: 'Neispravna oznaka gradilišta.' };
-    const nalogValid = /^\d+(\/\d+)*$/.test(body.nalog || '') || body.nalog === 'SOPSTVENE';
+    const nalogValid = /^\d+(\/\d+)*$/.test(body.nalog || '') || body.nalog === 'SOPSTVENE' || body.nalog === 'TEST'; // TEST = privremeni izuzetak za testiranje, ukloniti kasnije
     if (!nalogValid) return { error: 'Neispravan format naloga za realizaciju.' };
     if (!Array.isArray(body.stavke) || body.stavke.length === 0) return { error: 'Specifikacija je prazna.' };
     const broj = body.broj ? parseInt(body.broj, 10) : null;
@@ -241,7 +241,7 @@
   }
 
   async function updateRequest_(body) {
-    const nalogValid = /^\d+(\/\d+)*$/.test(body.nalog || '') || body.nalog === 'SOPSTVENE';
+    const nalogValid = /^\d+(\/\d+)*$/.test(body.nalog || '') || body.nalog === 'SOPSTVENE' || body.nalog === 'TEST'; // TEST = privremeni izuzetak za testiranje, ukloniti kasnije
     if (!nalogValid) return { error: 'Neispravan format naloga za realizaciju.' };
     if (!Array.isArray(body.stavke) || body.stavke.length === 0) return { error: 'Specifikacija je prazna.' };
     const { data, error } = await sbClient.from('requests')
@@ -289,7 +289,7 @@
   async function addNalog_(body) {
     const kod = (body.kod || '').trim();
     if (!kod) return { error: 'Kod naloga je obavezan.' };
-    const kodValid = /^\d+(\/\d+)*$/.test(kod) || kod === 'SOPSTVENE';
+    const kodValid = /^\d+(\/\d+)*$/.test(kod) || kod === 'SOPSTVENE' || kod === 'TEST'; // TEST = privremeni izuzetak za testiranje, ukloniti kasnije
     if (!kodValid) return { error: 'Kod naloga mora biti niz brojeva odvojenih kosom crtom (npr. 720/26/011) ili "SOPSTVENE".' };
     const opis = (body.opis || '').trim();
     const raw = serializeGradiliste_(body.gradiliste);
