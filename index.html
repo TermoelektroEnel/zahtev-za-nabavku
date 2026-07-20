@@ -1281,31 +1281,25 @@ function wrapBase64_(b64){
   return b64.match(/.{1,76}/g).join('\r\n');
 }
 
+// UTF-8 string -> base64 (za HTML telo mejla)
+function utf8ToBase64_(str){
+  const bytes = new TextEncoder().encode(str);
+  let binary = '';
+  const chunk = 8192;
+  for(let i=0;i<bytes.length;i+=chunk){
+    binary += String.fromCharCode.apply(null, bytes.subarray(i,i+chunk));
+  }
+  return btoa(binary);
+}
+
 // Pravi .eml fajl sa već upisanim Kome/CC/Naslovom i PDF-om kao ugrađenim
 // prilogom. "X-Unsent: 1" zaglavlje tera Outlook da ovo tretira kao
 // nedovršenu poruku (dobija dugme "Pošalji"), a ne kao primljenu.
-// RFC 2045 quoted-printable enkodovanje — standardni način za HTML mejl
-// telo; neki mejl klijenti (uključujući Outlook u X-Unsent režimu) ne
-// renderuju HTML ispravno ako je enkodovanje "8bit".
-function encodeQuotedPrintable_(str){
-  const bytes = new TextEncoder().encode(str);
-  let out = '', lineLen = 0;
-  const push = (s) => {
-    if(lineLen + s.length > 75){ out += '=\r\n'; lineLen = 0; }
-    out += s; lineLen += s.length;
-  };
-  for(const b of bytes){
-    if(b === 13) continue;
-    if(b === 10){ out += '\r\n'; lineLen = 0; continue; }
-    if(b === 61 || b < 32 || b > 126){
-      push('=' + b.toString(16).toUpperCase().padStart(2,'0'));
-    }else{
-      push(String.fromCharCode(b));
-    }
-  }
-  return out;
-}
-
+// HTML telo se šalje kao base64 (ne quoted-printable) — kod base64 prelom
+// reda je isključivo tehnički detalj transporta i uvek se u potpunosti
+// sastavi PRE nego što se sadržaj čita kao HTML, pa ne postoji rizik da
+// "meki prelom" padne usred href atributa i pokida link (što se dešavalo
+// sa quoted-printable enkodovanjem).
 function buildEmlBlob_({ to, cc, subject, bodyText, link, pdfBase64, pdfFilename }){
   const boundary = 'ZN_BOUNDARY_' + Date.now();
   const bodyHtmlParagraphs = escapeHtml(bodyText).split('\n').map(l=>l?`<p>${l}</p>`:'').join('');
@@ -1321,9 +1315,9 @@ function buildEmlBlob_({ to, cc, subject, bodyText, link, pdfBase64, pdfFilename
     '',
     `--${boundary}`,
     'Content-Type: text/html; charset="utf-8"',
-    'Content-Transfer-Encoding: quoted-printable',
+    'Content-Transfer-Encoding: base64',
     '',
-    encodeQuotedPrintable_(htmlBody),
+    wrapBase64_(utf8ToBase64_(htmlBody)),
     '',
     `--${boundary}`,
     `Content-Type: application/pdf; name="${pdfFilename}"`,
