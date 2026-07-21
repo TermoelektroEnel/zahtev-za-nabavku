@@ -977,7 +977,7 @@ function renderList(){
 
 function imeUloge(step){
   const r = APPROVAL_ROLES.find(x=>x.step===step);
-  return r ? r.nazivUloge : `Korak ${step}`;
+  return r ? `${step}. ${r.nazivUloge}` : `Korak ${step}`;
 }
 function imeOsobe(step){
   const r = APPROVAL_ROLES.find(x=>x.step===step);
