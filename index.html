@@ -1296,7 +1296,7 @@ async function openOveraView(id){
     const log = logData.log || [];
     const akcijaTekst = { poslato:'Poslato na overu', overeno:'Overeno i prosleđeno dalje', vraceno:'Vraćeno na doradu', konacno_odobreno:'Konačno odobreno' };
     $('overaLog').innerHTML = log.length ? `<table class="log-table"><thead><tr><th>Korak</th><th>Akcija</th><th>Ko</th><th>Kada</th><th>Komentar</th></tr></thead><tbody>
-      ${log.map(l=>`<tr><td>${l.step}</td><td>${escapeHtml(akcijaTekst[l.action]||l.action)}</td><td>${escapeHtml(l.actorUsername||'—')}</td><td>${new Date(l.createdAt).toLocaleString('sr-RS')}</td><td>${escapeHtml(l.komentar||'—')}</td></tr>`).join('')}
+      ${log.map((l,i)=>`<tr><td>${i+1}</td><td>${escapeHtml(akcijaTekst[l.action]||l.action)}</td><td>${escapeHtml(l.actorUsername||'—')}</td><td>${new Date(l.createdAt).toLocaleString('sr-RS')}</td><td>${escapeHtml(l.komentar||'—')}</td></tr>`).join('')}
     </tbody></table>` : '<div class="hint">Još uvek nema istorije.</div>';
   }catch(e){
     $('overaLog').innerHTML = '<div class="hint">Istorija nije mogla da se učita.</div>';
