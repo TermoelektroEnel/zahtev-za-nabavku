@@ -114,12 +114,21 @@
       const { data, error } = await sbClient.from('requests').select('*').order('created_at', { ascending: true });
       if (error) throw error;
       const creatorIds = [...new Set(data.map(r => r.created_by).filter(Boolean))];
-      let creatorNames = {};
+      let creatorsById = {};
       if (creatorIds.length) {
-        const { data: profs } = await sbClient.from('profiles_public').select('id, username').in('id', creatorIds);
-        if (profs) profs.forEach(p => { creatorNames[p.id] = p.username; });
+        const { data: profs } = await sbClient.from('profiles_public').select('id, username, email').in('id', creatorIds);
+        if (profs) profs.forEach(p => { creatorsById[p.id] = p; });
       }
-      return { requests: data.map(r => ({ ...mapRequest_(r), createdByUsername: r.created_by ? (creatorNames[r.created_by] || null) : null })) };
+      return {
+        requests: data.map(r => {
+          const p = r.created_by ? creatorsById[r.created_by] : null;
+          return {
+            ...mapRequest_(r),
+            createdByUsername: p ? p.username : null,
+            createdByEmail: p ? (p.email || null) : null
+          };
+        })
+      };
     }
     if (action === 'peek') {
       const g = params.gradiliste;
@@ -152,18 +161,22 @@
       const { data, error } = await sbClient.from('approval_roles').select('*').order('step');
       if (error) throw error;
       const userIds = data.map(r => r.user_id).filter(Boolean);
-      let usernames = {};
+      let profilesById = {};
       if (userIds.length) {
-        const { data: profs } = await sbClient.from('profiles_public').select('id, username').in('id', userIds);
-        if (profs) profs.forEach(p => { usernames[p.id] = p.username; });
+        const { data: profs } = await sbClient.from('profiles_public').select('id, username, email').in('id', userIds);
+        if (profs) profs.forEach(p => { profilesById[p.id] = p; });
       }
       return {
-        roles: data.map(r => ({
-          step: r.step,
-          nazivUloge: r.naziv_uloge,
-          userId: r.user_id,
-          username: r.user_id ? (usernames[r.user_id] || null) : null
-        }))
+        roles: data.map(r => {
+          const p = r.user_id ? profilesById[r.user_id] : null;
+          return {
+            step: r.step,
+            nazivUloge: r.naziv_uloge,
+            userId: r.user_id,
+            username: p ? p.username : null,
+            email: p ? (p.email || null) : null
+          };
+        })
       };
     }
     if (action === 'listApprovalLog') {
@@ -469,6 +482,19 @@
     async currentUserId() {
       const { data } = await sbClient.auth.getSession();
       return data.session ? data.session.user.id : null;
+    },
+    // Prava adresa za slanje mejlova (koristi profiles.email ako je admin
+    // podesio; u suprotnom pretpostavlja "korisnicko_ime@te-enel.rs").
+    async myMailAddress() {
+      const { data: sessionData } = await sbClient.auth.getSession();
+      if (!sessionData.session) return null;
+      const username = emailToUsername_(sessionData.session.user.email);
+      const { data } = await sbClient
+        .from('profiles')
+        .select('email')
+        .eq('id', sessionData.session.user.id)
+        .maybeSingle();
+      return (data && data.email) ? data.email : `${username}@te-enel.rs`;
     },
     async invokeEdgeFunction(name, body) {
       return sbClient.functions.invoke(name, { body });

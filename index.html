@@ -984,6 +984,13 @@ function imeOsobe(step){
   const r = APPROVAL_ROLES.find(x=>x.step===step);
   return r ? r.username : null;
 }
+// Prava email adresa za korak (koristi email koji je admin podesio za tog
+// korisnika; ako nije podešen, pretpostavlja "korisnicko_ime@te-enel.rs").
+function emailZaKorak(step){
+  const r = APPROVAL_ROLES.find(x=>x.step===step);
+  if(!r || !r.username) return null;
+  return r.email || `${r.username}@te-enel.rs`;
+}
 function jeTrenutniOveravalac(r){
   if(!CURRENT_USER_ID || r.status!=='na_overi') return false;
   const uloga = APPROVAL_ROLES.find(x=>x.step===r.approvalStep);
@@ -1006,14 +1013,14 @@ function statusBadgeHtml(r){
 async function posaljiNaOveruClick(id){
   const r = DATA.requests.find(x=>x.id===id); if(!r) return;
   if(!confirm(`Poslati zahtev ${r.redniBroj} na overu?`)) return;
-  const targetUsername = imeOsobe(1);
-  if(!targetUsername){ alert(`Nije dodeljen korisnik za korak "${imeUloge(1)}". Obratite se administratoru (Uloge u lancu odobravanja).`); return; }
+  const targetEmail = emailZaKorak(1);
+  if(!targetEmail){ alert(`Nije dodeljen korisnik za korak "${imeUloge(1)}". Obratite se administratoru (Uloge u lancu odobravanja).`); return; }
   try{
     await apiPosaljiNaOveru(id);
     await loadData();
     const noviR = DATA.requests.find(x=>x.id===id) || r;
     const posalato = await posaljiApprovalMail_(
-      noviR, targetUsername,
+      noviR, targetEmail,
       `Zahtev za nabavku ${noviR.redniBroj} - na overi (${imeUloge(1)})`,
       `Zahtev za nabavku ${noviR.redniBroj} je poslat vama na overu.`
     );
@@ -1023,19 +1030,19 @@ async function posaljiNaOveruClick(id){
   }
 }
 
-async function posaljiApprovalMail_(r, targetUsername, subject, bodyText){
+async function posaljiApprovalMail_(r, targetEmail, subject, bodyText){
   const pdfBlob = await buildRequestPdfBlob_(r);
   const pdfBase64 = await blobToBase64_(pdfBlob);
   const pdfFilename = `Zahtev-${String(r.redniBroj).replace(/\//g,'-')}.pdf`;
   const link = `${location.origin}${location.pathname}?zahtev=${r.id}`;
-  const cc = await ZN.currentUsername();
+  const cc = await ZN.myMailAddress();
   const bodyHtmlParagraphs = escapeHtml(bodyText).split('\n').map(l=>l?`<p>${l}</p>`:'').join('');
   const htmlBody = `<html><body>${bodyHtmlParagraphs}<p><a href="${escapeHtml(link)}">${escapeHtml(link)}</a></p></body></html>`;
 
   const { data, error } = await ZN.invokeEdgeFunction('send-request-email', {
     requestId: r.id,
-    to: [`${targetUsername}@te-enel.rs`],
-    cc: cc ? `${cc}@te-enel.rs` : undefined,
+    to: [targetEmail],
+    cc: cc || undefined,
     subject, htmlBody, pdfBase64, filename: pdfFilename
   });
   if(error || (data && data.error)){
@@ -1237,17 +1244,17 @@ async function openOveraView(id){
         const azurirano = DATA.requests.find(x=>x.id===r.id) || { ...r, stavke:noveStavke };
         $('modalRoot').innerHTML='';
         if(azurirano.status==='odobren'){
-          const radosav = imeOsobe(4);
-          if(radosav){
-            const ok = await posaljiApprovalMail_(azurirano, radosav,
+          const radosavEmail = emailZaKorak(4);
+          if(radosavEmail){
+            const ok = await posaljiApprovalMail_(azurirano, radosavEmail,
               `Zahtev za nabavku ${azurirano.redniBroj} - konačno odobren`,
               `Zahtev za nabavku ${azurirano.redniBroj} je konačno odobren i spreman je za realizaciju nabavke.${komentar?'\n\nKomentar: '+komentar:''}`);
             if(ok) alert('Zahtev je konačno odobren, mejl je automatski poslat.');
           }
         }else{
-          const sledeci = imeOsobe(azurirano.approvalStep);
-          if(sledeci){
-            const ok = await posaljiApprovalMail_(azurirano, sledeci,
+          const sledeciEmail = emailZaKorak(azurirano.approvalStep);
+          if(sledeciEmail){
+            const ok = await posaljiApprovalMail_(azurirano, sledeciEmail,
               `Zahtev za nabavku ${azurirano.redniBroj} - na overi (${imeUloge(azurirano.approvalStep)})`,
               `Zahtev za nabavku ${azurirano.redniBroj} je overen od strane prethodnog koraka i sada čeka vašu overu.${komentar?'\n\nKomentar: '+komentar:''}`);
             if(ok) alert('Zahtev je overen i prosleđen dalje, mejl je automatski poslat.');
@@ -1270,8 +1277,9 @@ async function openOveraView(id){
         await apiVratiNaDoradu(r.id, komentar, noveStavke);
         await loadData();
         $('modalRoot').innerHTML='';
-        if(r.createdByUsername){
-          const ok = await posaljiApprovalMail_({ ...r, stavke:noveStavke }, r.createdByUsername,
+        const podnosilacEmail = r.createdByEmail || (r.createdByUsername ? `${r.createdByUsername}@te-enel.rs` : null);
+        if(podnosilacEmail){
+          const ok = await posaljiApprovalMail_({ ...r, stavke:noveStavke }, podnosilacEmail,
             `Zahtev za nabavku ${r.redniBroj} - vraćen na doradu`,
             `Zahtev za nabavku ${r.redniBroj} je vraćen na doradu.\nKomentar: ${komentar}`);
           if(ok) alert('Zahtev je vraćen na doradu, mejl je automatski poslat.');

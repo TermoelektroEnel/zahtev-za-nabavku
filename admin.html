@@ -144,6 +144,11 @@ td{padding:8px 8px 8px 0;border-bottom:1px solid var(--line-soft);font-size:13px
         <div class="hint" id="uPassHint"></div>
       </div>
     </div>
+    <div class="field">
+      <label for="uEmail">Email adresa (za slanje mejlova)</label>
+      <input type="email" id="uEmail" placeholder="npr. darko.knezevic@te-enel.rs (ili test adresa dok se testira)">
+      <div class="hint">Ako se ostavi prazno, koristi se pretpostavka "korisničko_ime@te-enel.rs".</div>
+    </div>
     <div class="checkbox-row">
       <input type="checkbox" id="uSva" checked>
       <label for="uSva">Sva gradilišta</label>
@@ -518,21 +523,30 @@ function renderUserList(){
   const wrap=$('userListWrap');
   if(!USERS.length){ wrap.innerHTML='<div class="empty">Još uvek nema korisnika.</div>'; return; }
   const sorted=[...USERS].sort((a,b)=>String(a.username).localeCompare(String(b.username)));
-  wrap.innerHTML=`<table><thead><tr><th>Korisničko ime</th><th style="width:90px;">Uloga</th><th>Gradilišta</th><th style="width:280px;"></th></tr></thead><tbody>
+  wrap.innerHTML=`<table><thead><tr><th>Korisničko ime</th><th style="width:90px;">Uloga</th><th>Email</th><th>Gradilišta</th><th style="width:340px;"></th></tr></thead><tbody>
     ${sorted.map(u=>{
       const isAdmin=u.role==='admin';
       return `<tr>
         <td style="font-family:'IBM Plex Mono',monospace;">${escapeHtml(u.username)}</td>
         <td>${isAdmin?'<span class="tag sva">admin</span>':'<span class="hint">korisnik</span>'}</td>
+        <td>${u.email?escapeHtml(u.email):'<span class="hint">'+escapeHtml(u.username)+'@te-enel.rs (podrazumevano)</span>'}</td>
         <td>${isAdmin?'<span class="tag sva">SVA</span>':renderGradilistaTags(u.gradilista)}</td>
         <td class="row-actions">${isAdmin?'<span class="hint">upravljanje u Dashboard-u</span>':`
           <button class="btn-ghost" data-edit-ug="${escapeHtml(u.id)}">Izmeni gradilišta</button>
+          <button class="btn-ghost" data-edit-email="${escapeHtml(u.id)}" data-uname="${escapeHtml(u.username)}" data-email="${escapeHtml(u.email||'')}">Izmeni email</button>
           <button class="btn-ghost" data-reset-u="${escapeHtml(u.id)}" data-uname="${escapeHtml(u.username)}">Nova lozinka</button>
           <button class="btn-danger-ghost" data-del-u="${escapeHtml(u.id)}" data-uname="${escapeHtml(u.username)}">Obriši</button>`}</td>
       </tr>`;
     }).join('')}
   </tbody></table>`;
   wrap.querySelectorAll('[data-edit-ug]').forEach(b=>b.addEventListener('click',e=>openEditUserGradilista(e.currentTarget.dataset.editUg)));
+  wrap.querySelectorAll('[data-edit-email]').forEach(b=>b.addEventListener('click',async e=>{
+    const btn=e.currentTarget, id=btn.dataset.editEmail, uname=btn.dataset.uname, trenutni=btn.dataset.email;
+    const nova=prompt(`Email adresa za "${uname}" (prazno = koristi ${uname}@te-enel.rs):`, trenutni);
+    if(nova===null) return;
+    const r=await usersApi('updateUserEmail',{ id, email:nova.trim() });
+    if(r.error) alert(r.error); else await loadUsers();
+  }));
   wrap.querySelectorAll('[data-reset-u]').forEach(b=>b.addEventListener('click',async e=>{
     const btn=e.currentTarget, id=btn.dataset.resetU, uname=btn.dataset.uname;
     const pass=prompt(`Nova lozinka za "${uname}" (najmanje 8 znakova):`);
@@ -557,6 +571,7 @@ function openEditUserGradilista(id){
   $('uName').value=u.username; $('uName').disabled=true;
   $('uPass').value=''; $('uPass').disabled=true; $('uPass').placeholder='(ostaje nepromenjena)';
   $('uPassHint').textContent='Lozinka se ne menja ovde — koristi dugme "Nova lozinka" u listi.';
+  $('uEmail').value=u.email||''; $('uEmail').disabled=true;
   const isSva=u.gradilista===null;
   $('uSva').checked=isSva;
   $('uGradilistaWrap').style.display=isSva?'none':'block';
@@ -570,6 +585,7 @@ function resetUserForm(){
   $('uName').value=''; $('uName').disabled=false;
   $('uPass').value=''; $('uPass').disabled=false; $('uPass').placeholder='najmanje 8 znakova';
   $('uPassHint').textContent='';
+  $('uEmail').value=''; $('uEmail').disabled=false;
   $('uSva').checked=true; $('uGradilistaWrap').style.display='none';
   $('uGradilistaGrid').querySelectorAll('input[type=checkbox]').forEach(cb=>cb.checked=false);
   $('uErr').textContent=''; $('userFormTitle').textContent='Novi korisnik';
@@ -602,7 +618,7 @@ $('uSaveBtn').addEventListener('click',async()=>{
   if(!/^[a-z0-9._-]{3,}$/.test(username)){ $('uErr').textContent='Korisničko ime: najmanje 3 znaka (mala slova, brojevi, . _ -).'; return; }
   if(password.length<8){ $('uErr').textContent='Lozinka mora imati bar 8 znakova.'; return; }
   $('uSaveBtn').disabled=true;
-  const r=await usersApi('createUser',{ username, password, gradiliste });
+  const r=await usersApi('createUser',{ username, password, gradiliste, email: $('uEmail').value.trim() });
   if(r&&r.error){ $('uErr').textContent=r.error; }
   else{
     resetUserForm();
