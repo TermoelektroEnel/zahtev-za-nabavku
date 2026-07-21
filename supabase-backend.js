@@ -470,6 +470,9 @@
       const { data } = await sbClient.auth.getSession();
       return data.session ? data.session.user.id : null;
     },
+    async invokeEdgeFunction(name, body) {
+      return sbClient.functions.invoke(name, { body });
+    },
     async isAdmin() {
       const { data, error } = await sbClient.rpc('is_admin');
       return !error && !!data;

@@ -1012,11 +1012,12 @@ async function posaljiNaOveruClick(id){
     await apiPosaljiNaOveru(id);
     await loadData();
     const noviR = DATA.requests.find(x=>x.id===id) || r;
-    await posaljiApprovalMail_(
+    const posalato = await posaljiApprovalMail_(
       noviR, targetUsername,
       `Zahtev za nabavku ${noviR.redniBroj} - na overi (${imeUloge(1)})`,
       `Zahtev za nabavku ${noviR.redniBroj} je poslat vama na overu.`
     );
+    if(posalato) alert('Zahtev je poslat na overu, mejl je automatski poslat.');
   }catch(e){
     alert('Slanje na overu nije uspelo. Pokušaj ponovo.');
   }
@@ -1028,18 +1029,20 @@ async function posaljiApprovalMail_(r, targetUsername, subject, bodyText){
   const pdfFilename = `Zahtev-${String(r.redniBroj).replace(/\//g,'-')}.pdf`;
   const link = `${location.origin}${location.pathname}?zahtev=${r.id}`;
   const cc = await ZN.currentUsername();
-  const emlBlob = buildEmlBlob_({
+  const bodyHtmlParagraphs = escapeHtml(bodyText).split('\n').map(l=>l?`<p>${l}</p>`:'').join('');
+  const htmlBody = `<html><body>${bodyHtmlParagraphs}<p><a href="${escapeHtml(link)}">${escapeHtml(link)}</a></p></body></html>`;
+
+  const { data, error } = await ZN.invokeEdgeFunction('send-request-email', {
+    requestId: r.id,
     to: [`${targetUsername}@te-enel.rs`],
-    cc: cc ? `${cc}@te-enel.rs` : '',
-    subject, bodyText, link, pdfBase64, pdfFilename
+    cc: cc ? `${cc}@te-enel.rs` : undefined,
+    subject, htmlBody, pdfBase64, filename: pdfFilename
   });
-  const emlFilename = `${pdfFilename.replace(/\.pdf$/i,'')}.eml`;
-  const url = URL.createObjectURL(emlBlob);
-  const a = document.createElement('a');
-  a.href = url; a.download = emlFilename;
-  document.body.appendChild(a); a.click(); a.remove();
-  setTimeout(()=>URL.revokeObjectURL(url), 5000);
-  alert(`Fajl "${emlFilename}" je preuzet — otvori ga (dupli klik) da se otvori gotov mejl u Outlook-u sa prilogom i linkom, pa klikni Pošalji.`);
+  if(error || (data && data.error)){
+    alert('Slanje mejla nije uspelo: ' + ((data&&data.error) || (error&&error.message) || 'nepoznata greška') + '\n\nProveri sa administratorom da li je Resend ispravno podešen.');
+    return false;
+  }
+  return true;
 }
 
 function renderNaOveri(){
@@ -1236,16 +1239,18 @@ async function openOveraView(id){
         if(azurirano.status==='odobren'){
           const radosav = imeOsobe(4);
           if(radosav){
-            await posaljiApprovalMail_(azurirano, radosav,
+            const ok = await posaljiApprovalMail_(azurirano, radosav,
               `Zahtev za nabavku ${azurirano.redniBroj} - konačno odobren`,
               `Zahtev za nabavku ${azurirano.redniBroj} je konačno odobren i spreman je za realizaciju nabavke.${komentar?'\n\nKomentar: '+komentar:''}`);
+            if(ok) alert('Zahtev je konačno odobren, mejl je automatski poslat.');
           }
         }else{
           const sledeci = imeOsobe(azurirano.approvalStep);
           if(sledeci){
-            await posaljiApprovalMail_(azurirano, sledeci,
+            const ok = await posaljiApprovalMail_(azurirano, sledeci,
               `Zahtev za nabavku ${azurirano.redniBroj} - na overi (${imeUloge(azurirano.approvalStep)})`,
               `Zahtev za nabavku ${azurirano.redniBroj} je overen od strane prethodnog koraka i sada čeka vašu overu.${komentar?'\n\nKomentar: '+komentar:''}`);
+            if(ok) alert('Zahtev je overen i prosleđen dalje, mejl je automatski poslat.');
           }else{
             alert(`Nije dodeljen korisnik za sledeći korak (${imeUloge(azurirano.approvalStep)}). Obratite se administratoru.`);
           }
@@ -1266,9 +1271,10 @@ async function openOveraView(id){
         await loadData();
         $('modalRoot').innerHTML='';
         if(r.createdByUsername){
-          await posaljiApprovalMail_({ ...r, stavke:noveStavke }, r.createdByUsername,
+          const ok = await posaljiApprovalMail_({ ...r, stavke:noveStavke }, r.createdByUsername,
             `Zahtev za nabavku ${r.redniBroj} - vraćen na doradu`,
             `Zahtev za nabavku ${r.redniBroj} je vraćen na doradu.\nKomentar: ${komentar}`);
+          if(ok) alert('Zahtev je vraćen na doradu, mejl je automatski poslat.');
         }
       }catch(e){
         $('overaErr').textContent='Vraćanje na doradu nije uspelo. Pokušaj ponovo.';
