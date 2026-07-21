@@ -137,6 +137,7 @@ table.spec td input{padding:7px 8px;font-size:13px;}
   .doc-toolbar{display:none;}
   .mail-panel{display:none !important;}
   .doc{box-shadow:none;width:100%;max-width:none;min-height:0;margin:0;padding:0;}
+  .prilog-item button{display:none;}
 }
 
 /* ====== LOGIN OVERLAY ====== */
@@ -1103,6 +1104,8 @@ function openDoc(id){
             </tr></thead>
             <tbody>${totalRow}</tbody>
           </table>
+          ${r.napomena?`<div style="margin-top:14px;"><div class="k" style="font-size:9.5px;text-transform:uppercase;letter-spacing:0.06em;color:#777;margin-bottom:4px;">Napomena</div><div style="white-space:pre-wrap;font-size:12.5px;">${escapeHtml(r.napomena)}</div></div>`:''}
+          ${(r.prilozi&&r.prilozi.length)?`<div style="margin-top:14px;"><div class="k" style="font-size:9.5px;text-transform:uppercase;letter-spacing:0.06em;color:#777;margin-bottom:4px;">Prilozi</div><div id="docPrilozi"></div></div>`:''}
           <div class="sign-row">
             <div class="sign-block"><div class="line">IZRADIO: Rukovodilac OC / datum</div></div>
             <div class="sign-block"><div class="line">OBRADIO: Ruk. realizacije / datum</div></div>
@@ -1115,6 +1118,17 @@ function openDoc(id){
   $('closeDoc').addEventListener('click',()=>$('modalRoot').innerHTML='');
   $('printDoc').addEventListener('click',()=>window.print());
   $('overlay').addEventListener('click',e=>{ if(e.target.id==='overlay') $('modalRoot').innerHTML=''; });
+  if(r.prilozi && r.prilozi.length){
+    const prilContainer = $('docPrilozi');
+    prilContainer.innerHTML = r.prilozi.map((p,idx)=>`
+      <div class="prilog-item">
+        <span class="naziv">📄 ${escapeHtml(p.filename)}</span>
+        <button type="button" class="btn-ghost" data-open-doc-prilog="${idx}" style="padding:3px 8px;font-size:11px;">Otvori</button>
+      </div>`).join('');
+    prilContainer.querySelectorAll('[data-open-doc-prilog]').forEach(b=>b.addEventListener('click',e=>{
+      otvoriPrilog_(r.prilozi[Number(e.currentTarget.dataset.openDocPrilog)].path);
+    }));
+  }
 }
 
 async function openOveraView(id){
