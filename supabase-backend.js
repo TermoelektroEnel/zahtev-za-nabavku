@@ -65,7 +65,9 @@
       createdAt: r.created_at ? new Date(r.created_at).getTime() : Date.now(),
       status: r.status || 'u_izradi',
       approvalStep: r.approval_step || 0,
-      lastReturnComment: r.last_return_comment || null
+      lastReturnComment: r.last_return_comment || null,
+      napomena: r.napomena || '',
+      prilozi: r.prilozi || []
     };
   }
 
@@ -197,6 +199,7 @@
       case 'checkLogin': return checkLogin_(body);
       case 'add': return addRequest_(body);
       case 'update': return updateRequest_(body);
+      case 'updatePrilozi': return updatePrilozi_(body);
       case 'delete': return deleteRequest_(body);
       case 'addGradiliste': return addGradiliste_(body);
       case 'updateGradiliste': return updateGradiliste_(body);
@@ -233,7 +236,8 @@
       p_godina: String(body.godina),
       p_nalog: body.nalog,
       p_stavke: body.stavke,
-      p_broj: broj
+      p_broj: broj,
+      p_napomena: body.napomena || ''
     });
     if (error) return { error: error.message };
     const row = Array.isArray(data) ? data[0] : data;
@@ -245,7 +249,16 @@
     if (!nalogValid) return { error: 'Neispravan format naloga za realizaciju.' };
     if (!Array.isArray(body.stavke) || body.stavke.length === 0) return { error: 'Specifikacija je prazna.' };
     const { data, error } = await sbClient.from('requests')
-      .update({ nalog: body.nalog, stavke: body.stavke })
+      .update({ nalog: body.nalog, stavke: body.stavke, napomena: body.napomena ?? '' })
+      .eq('id', body.id).select().maybeSingle();
+    if (error) return { error: error.message };
+    if (!data) return { error: 'Zahtev nije pronađen.' };
+    return { request: mapRequest_(data) };
+  }
+
+  async function updatePrilozi_(body) {
+    const { data, error } = await sbClient.from('requests')
+      .update({ prilozi: body.prilozi || [] })
       .eq('id', body.id).select().maybeSingle();
     if (error) return { error: error.message };
     if (!data) return { error: 'Zahtev nije pronađen.' };

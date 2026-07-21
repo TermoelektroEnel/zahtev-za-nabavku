@@ -45,6 +45,9 @@ input:disabled,select:disabled,textarea:disabled,button:disabled{background:#E7E
 .field{margin-bottom:14px;}
 .row2{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
 .hint{font-size:11px;color:var(--ink-soft);margin-top:4px;}
+.prilog-item{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:6px 10px;border:1px solid var(--line-soft);border-radius:var(--radius);margin-bottom:6px;font-size:12.5px;background:#fff;}
+.prilog-item .naziv{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.prilog-item button{flex-shrink:0;}
 .status-badge{display:inline-block;font-size:10.5px;font-weight:600;padding:2px 8px;border-radius:10px;text-transform:uppercase;letter-spacing:.02em;white-space:nowrap;}
 .status-u_izradi{background:var(--line-soft);color:var(--ink-soft);}
 .status-na_overi{background:#FCE9C7;color:#8A5A00;}
@@ -240,6 +243,16 @@ input[type=password]:focus{outline:2px solid var(--steel);outline-offset:1px;}
         <button type="button" class="add-row" id="addRowBtn">+ Dodaj stavku</button>
         <div class="err" id="errSpec"></div>
       </div>
+      <div class="field">
+        <label for="napomena">Napomena</label>
+        <textarea id="napomena" rows="3" placeholder="Dodatni tekst uz zahtev (opciono)" style="width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:var(--radius);font-family:'IBM Plex Sans',sans-serif;font-size:13.5px;color:var(--ink);"></textarea>
+      </div>
+      <div class="field">
+        <label>Prilozi</label>
+        <input type="file" id="prilogInput" multiple accept=".pdf,.doc,.docx,.jpg,.jpeg,.png">
+        <div class="hint">Može više fajlova — PDF, Word ili slika (JPG/PNG).</div>
+        <div id="prilogListWrap" style="margin-top:8px;"></div>
+      </div>
       <div style="display:flex;gap:8px;">
         <button type="button" class="btn btn-primary" id="saveBtn">Sačuvaj zahtev</button>
         <button type="button" class="btn-ghost" id="cancelEditBtn" style="display:none;white-space:nowrap;">Otkaži</button>
@@ -387,6 +400,40 @@ async function apiUpdate(id, payload){
   const res = await fetch(SCRIPT_URL, { method:'POST', body: JSON.stringify({ action:'update', id, ...payload }) });
   if(!res.ok) throw new Error('Greška pri čuvanju izmena.');
   return res.json();
+}
+async function apiUpdatePrilozi(id, prilozi){
+  const res = await fetch(SCRIPT_URL, { method:'POST', body: JSON.stringify({ action:'updatePrilozi', id, prilozi }) });
+  if(!res.ok) throw new Error('Greška pri čuvanju priloga.');
+  return res.json();
+}
+
+// Poseban, laki Supabase klijent samo za Storage (prilozi uz zahtev).
+// Pravi se tek pri prvoj upotrebi, da izbegnemo probleme sa redosledom
+// učitavanja <script> tagova.
+const ZAHTEV_PRILOZI_BUCKET = 'zahtev-prilozi';
+let _sbStorage = null;
+function getSbStorage_(){
+  if(!_sbStorage){
+    if(typeof SUPABASE_CONFIG === 'undefined'){
+      throw new Error('SUPABASE_CONFIG nije učitan (supabase-config.js).');
+    }
+    _sbStorage = window.supabase.createClient(SUPABASE_CONFIG.url, SUPABASE_CONFIG.anonKey);
+  }
+  return _sbStorage;
+}
+async function uploadPrilogZaZahtev_(requestId, file){
+  const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g,'_');
+  const path = `${requestId}/${Date.now()}_${safeName}`;
+  const { error } = await getSbStorage_().storage.from(ZAHTEV_PRILOZI_BUCKET).upload(path, file, { upsert:false });
+  if(error) throw error;
+  return { path, filename: file.name, size: file.size };
+}
+async function otvoriPrilog_(path){
+  try{
+    const { data, error } = await getSbStorage_().storage.from(ZAHTEV_PRILOZI_BUCKET).createSignedUrl(path, 120);
+    if(error || !data){ alert('Nije moguće otvoriti prilog.'); return; }
+    window.open(data.signedUrl, '_blank');
+  }catch(e){ alert('Nije moguće otvoriti prilog.'); }
 }
 
 const $ = id => document.getElementById(id);
@@ -658,6 +705,67 @@ function newSpecRow(){ return { id:uid(), sifra:'', opis:'', jm:'', kolicina:'',
 let nextBrojPreview = null;
 let editingId = null;
 let editingRedniBrojParts = null;
+let pendingFiles = [];   // File objekti izabrani pre čuvanja NOVOG zahteva (još nisu otpremljeni)
+let currentPrilozi = []; // već otpremljeni prilozi (postoje u bazi) — koristi se u režimu izmene
+
+function renderPrilogList(){
+  const wrap = $('prilogListWrap');
+  const items = [
+    ...currentPrilozi.map((p,idx)=>({ tip:'postojeci', idx, naziv:p.filename })),
+    ...pendingFiles.map((f,idx)=>({ tip:'novi', idx, naziv:f.name }))
+  ];
+  if(!items.length){ wrap.innerHTML=''; return; }
+  wrap.innerHTML = items.map(it=>`
+    <div class="prilog-item">
+      <span class="naziv">${it.tip==='novi'?'📎 ':'📄 '}${escapeHtml(it.naziv)}${it.tip==='novi'?' <span class="hint">(biće otpremljeno pri čuvanju)</span>':''}</span>
+      <div>
+        ${it.tip==='postojeci'?`<button type="button" class="btn-ghost" data-open-prilog="${it.idx}" style="padding:3px 8px;font-size:11px;">Otvori</button>`:''}
+        <button type="button" class="btn-danger-ghost" data-rm-prilog="${it.tip}" data-rm-prilog-idx="${it.idx}" style="padding:3px 8px;font-size:11px;">✕</button>
+      </div>
+    </div>`).join('');
+  wrap.querySelectorAll('[data-open-prilog]').forEach(b=>b.addEventListener('click',e=>{
+    const idx=Number(e.currentTarget.dataset.openPrilog);
+    otvoriPrilog_(currentPrilozi[idx].path);
+  }));
+  wrap.querySelectorAll('[data-rm-prilog]').forEach(b=>b.addEventListener('click', async e=>{
+    const tip=e.currentTarget.dataset.rmPrilog, idx=Number(e.currentTarget.dataset.rmPrilogIdx);
+    if(tip==='novi'){
+      pendingFiles.splice(idx,1); renderPrilogList();
+    }else{
+      if(!confirm('Ukloniti ovaj prilog?')) return;
+      const p = currentPrilozi[idx];
+      try{ await getSbStorage_().storage.from(ZAHTEV_PRILOZI_BUCKET).remove([p.path]); }catch(err){}
+      currentPrilozi.splice(idx,1);
+      try{ await apiUpdatePrilozi(editingId, currentPrilozi); }catch(err){}
+      const idxD=DATA.requests.findIndex(x=>x.id===editingId);
+      if(idxD!==-1) DATA.requests[idxD].prilozi = currentPrilozi;
+      renderPrilogList();
+    }
+  }));
+}
+
+$('prilogInput').addEventListener('change', async e=>{
+  const files = [...e.currentTarget.files];
+  e.currentTarget.value = '';
+  if(!files.length) return;
+  if(editingId){
+    for(const f of files){
+      try{
+        const meta = await uploadPrilogZaZahtev_(editingId, f);
+        currentPrilozi.push(meta);
+      }catch(err){ alert(`Otpremanje "${f.name}" nije uspelo.`); }
+    }
+    try{
+      await apiUpdatePrilozi(editingId, currentPrilozi);
+      const idxD=DATA.requests.findIndex(x=>x.id===editingId);
+      if(idxD!==-1) DATA.requests[idxD].prilozi = currentPrilozi;
+    }catch(err){ alert('Čuvanje liste priloga nije uspelo.'); }
+    renderPrilogList();
+  }else{
+    pendingFiles.push(...files);
+    renderPrilogList();
+  }
+});
 
 function renderPlate(){
   if(editingId && editingRedniBrojParts){
@@ -748,6 +856,7 @@ function resetForm(){
   $('errBroj').textContent = ''; populateNalogSelect(null);
   $('nalog').value = ''; $('nalogOpis').textContent = 'Prvo izaberite gradilište iznad.';
   $('errGradiliste').textContent = ''; $('errNalog').textContent = ''; $('errSpec').textContent = '';
+  $('napomena').value = ''; pendingFiles = []; currentPrilozi = []; renderPrilogList();
   specRows = [newSpecRow()]; renderSpecRows(); renderPlate();
 }
 
@@ -768,6 +877,8 @@ function openEdit(id){
     ? r.stavke.map(s=>({id:uid(),sifra:s.sifra||'',opis:s.opis,jm:s.jm,kolicina:s.kolicina,odPostojeceg:s.odPostojeceg||'',rok:s.rok||'',atest:s.atest||''}))
     : [newSpecRow()];
   renderSpecRows(); renderPlate();
+  $('napomena').value = r.napomena||'';
+  currentPrilozi = [...(r.prilozi||[])]; pendingFiles = []; renderPrilogList();
   $('saveBtn').textContent = 'Sačuvaj izmene'; $('cancelEditBtn').style.display = 'inline-block';
   $('gradiliste').closest('.card').scrollIntoView({behavior:'smooth',block:'start'});
 }
@@ -1043,6 +1154,8 @@ async function openOveraView(id){
             <div><div class="k">Podneo</div><div class="v">${escapeHtml(r.createdByUsername||'—')}</div></div>
           </div>
           ${r.lastReturnComment?`<div class="err" style="margin:10px 0;">Poslednji komentar (vraćeno na doradu): ${escapeHtml(r.lastReturnComment)}</div>`:''}
+          ${r.napomena?`<div class="field"><label>Napomena</label><div style="white-space:pre-wrap;font-size:13px;">${escapeHtml(r.napomena)}</div></div>`:''}
+          ${(r.prilozi&&r.prilozi.length)?`<div class="field"><label>Prilozi</label><div id="overaPrilozi"></div></div>`:''}
           <table style="font-size:12.5px;margin-top:10px;">
             <thead><tr><th>Rb.</th><th>Opis</th><th>JM</th><th>Količina${mogucaOvera?' (može se izmeniti)':''}</th><th>Od postojećeg</th><th>Za nabavku</th></tr></thead>
             <tbody>${rows}</tbody>
@@ -1066,6 +1179,18 @@ async function openOveraView(id){
 
   $('closeOvera').addEventListener('click',()=>$('modalRoot').innerHTML='');
   $('overaOverlay').addEventListener('click',e=>{ if(e.target.id==='overaOverlay') $('modalRoot').innerHTML=''; });
+
+  if(r.prilozi && r.prilozi.length){
+    const prilContainer = $('overaPrilozi');
+    prilContainer.innerHTML = r.prilozi.map((p,idx)=>`
+      <div class="prilog-item">
+        <span class="naziv">📄 ${escapeHtml(p.filename)}</span>
+        <button type="button" class="btn-ghost" data-open-overa-prilog="${idx}" style="padding:3px 8px;font-size:11px;">Otvori</button>
+      </div>`).join('');
+    prilContainer.querySelectorAll('[data-open-overa-prilog]').forEach(b=>b.addEventListener('click',e=>{
+      otvoriPrilog_(r.prilozi[Number(e.currentTarget.dataset.openOveraPrilog)].path);
+    }));
+  }
 
   function gatherNoveStavke(){
     return r.stavke.map((s,idx)=>{
@@ -1351,7 +1476,7 @@ $('saveBtn').addEventListener('click', async ()=>{
     .map(r=>({ sifra:r.sifra.trim(), opis:r.opis.trim(), jm:r.jm.trim(), kolicina:r.kolicina, odPostojeceg:r.odPostojeceg, zaNabavku:zaNabavkuValue(r), rok:r.rok, atest:r.atest }));
   try{
     if(wasEditing){
-      const result = await apiUpdate(editingId, {nalog, stavke:validRows});
+      const result = await apiUpdate(editingId, {nalog, stavke:validRows, napomena: $('napomena').value.trim()});
       if(result && result.request){
         const idx=DATA.requests.findIndex(x=>x.id===result.request.id);
         if(idx!==-1) DATA.requests[idx]=result.request;
@@ -1359,12 +1484,28 @@ $('saveBtn').addEventListener('click', async ()=>{
       }else{ throw new Error(result&&result.error?result.error:'Neispravan odgovor servera.'); }
     }else{
       const brojVal = $('redniBrojManual').value.trim();
-      const payload = { gradiliste:g, godina:yy, nalog, stavke:validRows };
+      const payload = { gradiliste:g, godina:yy, nalog, stavke:validRows, napomena: $('napomena').value.trim() };
       if(brojVal!=='') payload.broj = parseInt(brojVal,10);
       const result = await apiAdd(payload);
       if(result && result.request){
         DATA.requests.push(result.request);
         $('countTag').textContent = DATA.requests.length+' zahteva evidentirano';
+        if(pendingFiles.length){
+          $('saveBtn').textContent = 'Otpremanje priloga…';
+          const noviId = result.request.id;
+          const otpremljeni = [];
+          for(const f of pendingFiles){
+            try{ otpremljeni.push(await uploadPrilogZaZahtev_(noviId, f)); }
+            catch(err){ alert(`Otpremanje "${f.name}" nije uspelo — ostalo je pridodato.`); }
+          }
+          if(otpremljeni.length){
+            try{
+              await apiUpdatePrilozi(noviId, otpremljeni);
+              const idxD=DATA.requests.findIndex(x=>x.id===noviId);
+              if(idxD!==-1) DATA.requests[idxD].prilozi = otpremljeni;
+            }catch(err){ alert('Prilozi su otpremljeni, ali čuvanje liste nije uspelo.'); }
+          }
+        }
         renderList(); resetForm(); refreshNextBrojPreview();
       }else{ throw new Error(result&&result.error?result.error:'Neispravan odgovor servera.'); }
     }
