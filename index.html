@@ -1159,7 +1159,7 @@ async function openOveraView(id){
       <td>${escapeHtml(s.opis)}</td>
       <td>${escapeHtml(s.jm)}</td>
       <td class="num">${mogucaOvera?`<input type="number" min="0" step="any" data-overa-kolicina="${idx}" value="${escapeHtml(s.kolicina)}" style="width:80px;">`:escapeHtml(s.kolicina)}</td>
-      <td class="num">${escapeHtml(s.odPostojeceg||'0')}</td>
+      <td class="num">${mogucaOvera?`<input type="number" min="0" step="any" data-overa-od="${idx}" value="${escapeHtml(s.odPostojeceg||'0')}" style="width:80px;">`:escapeHtml(s.odPostojeceg||'0')}</td>
       <td class="num" style="font-weight:600;" data-overa-zan="${idx}">${escapeHtml(s.zaNabavku!==undefined?s.zaNabavku:'')}</td>
     </tr>`).join('');
 
@@ -1181,7 +1181,7 @@ async function openOveraView(id){
           ${r.napomena?`<div class="field"><label>Napomena</label><div style="white-space:pre-wrap;font-size:13px;">${escapeHtml(r.napomena)}</div></div>`:''}
           ${(r.prilozi&&r.prilozi.length)?`<div class="field"><label>Prilozi</label><div id="overaPrilozi"></div></div>`:''}
           <table style="font-size:12.5px;margin-top:10px;">
-            <thead><tr><th>Rb.</th><th>Opis</th><th>JM</th><th>Količina${mogucaOvera?' (može se izmeniti)':''}</th><th>Od postojećeg</th><th>Za nabavku</th></tr></thead>
+            <thead><tr><th>Rb.</th><th>Opis</th><th>JM</th><th>Količina${mogucaOvera?' (može se izmeniti)':''}</th><th>Od postojećeg${mogucaOvera?' (može se izmeniti)':''}</th><th>Za nabavku</th></tr></thead>
             <tbody>${rows}</tbody>
           </table>
           ${mogucaOvera?`
@@ -1218,20 +1218,29 @@ async function openOveraView(id){
 
   function gatherNoveStavke(){
     return r.stavke.map((s,idx)=>{
-      const inp=$('modalRoot').querySelector(`[data-overa-kolicina="${idx}"]`);
-      const kolicina = inp ? inp.value : s.kolicina;
-      const k=parseFloat(kolicina)||0, o=parseFloat(s.odPostojeceg)||0;
-      return { ...s, kolicina, zaNabavku: Math.round((k-o)*1000)/1000 };
+      const inpK=$('modalRoot').querySelector(`[data-overa-kolicina="${idx}"]`);
+      const inpO=$('modalRoot').querySelector(`[data-overa-od="${idx}"]`);
+      const kolicina = inpK ? inpK.value : s.kolicina;
+      const odPostojeceg = inpO ? inpO.value : s.odPostojeceg;
+      const k=parseFloat(kolicina)||0, o=parseFloat(odPostojeceg)||0;
+      return { ...s, kolicina, odPostojeceg, zaNabavku: Math.round((k-o)*1000)/1000 };
     });
   }
 
   if(mogucaOvera){
-    $('modalRoot').querySelectorAll('[data-overa-kolicina]').forEach(inp=>inp.addEventListener('input',e=>{
-      const idx=Number(e.currentTarget.dataset.overaKolicina);
-      const k=parseFloat(e.currentTarget.value)||0;
-      const o=parseFloat(r.stavke[idx].odPostojeceg)||0;
+    function preracunajZan(idx){
+      const inpK=$('modalRoot').querySelector(`[data-overa-kolicina="${idx}"]`);
+      const inpO=$('modalRoot').querySelector(`[data-overa-od="${idx}"]`);
+      const k=parseFloat(inpK?inpK.value:r.stavke[idx].kolicina)||0;
+      const o=parseFloat(inpO?inpO.value:r.stavke[idx].odPostojeceg)||0;
       const zan=Math.round((k-o)*1000)/1000;
       $('modalRoot').querySelector(`[data-overa-zan="${idx}"]`).textContent=zan;
+    }
+    $('modalRoot').querySelectorAll('[data-overa-kolicina]').forEach(inp=>inp.addEventListener('input',e=>{
+      preracunajZan(Number(e.currentTarget.dataset.overaKolicina));
+    }));
+    $('modalRoot').querySelectorAll('[data-overa-od]').forEach(inp=>inp.addEventListener('input',e=>{
+      preracunajZan(Number(e.currentTarget.dataset.overaOd));
     }));
     $('overiBtn').addEventListener('click', async ()=>{
       $('overaErr').textContent='';
@@ -1272,18 +1281,49 @@ async function openOveraView(id){
       const komentar = $('overaKomentar').value.trim();
       if(!komentar){ $('overaErr').textContent='Komentar je obavezan kada vraćaš zahtev na doradu.'; return; }
       const noveStavke = gatherNoveStavke();
+      const vraceniOd = r.approvalStep; // korak koji vraća (pre akcije)
       $('vratiBtn').disabled=true;
       try{
         await apiVratiNaDoradu(r.id, komentar, noveStavke);
         await loadData();
         $('modalRoot').innerHTML='';
+
         const podnosilacEmail = r.createdByEmail || (r.createdByUsername ? `${r.createdByUsername}@te-enel.rs` : null);
-        if(podnosilacEmail){
-          const ok = await posaljiApprovalMail_({ ...r, stavke:noveStavke }, podnosilacEmail,
+        const azurirano = DATA.requests.find(x=>x.id===r.id) ||
+          { ...r, stavke:noveStavke, status: vraceniOd>1?'na_overi':'vracen_na_doradu', approvalStep: vraceniOd>1?vraceniOd-1:0 };
+        const idePrethodnomOveravaocu = azurirano.status==='na_overi';
+        const odKoga = imeUloge(vraceniOd);
+        const kome = idePrethodnomOveravaocu ? imeUloge(azurirano.approvalStep) : 'podnosiocu zahteva';
+
+        // Primarni primalac — onaj ko sada treba da postupi (prethodni
+        // overavalac, ili direktno podnosilac ako je vratio prvi u lancu).
+        const primaryEmail = idePrethodnomOveravaocu ? emailZaKorak(azurirano.approvalStep) : podnosilacEmail;
+        let primaryOk = false;
+        if(primaryEmail){
+          primaryOk = await posaljiApprovalMail_({ ...r, stavke:noveStavke }, primaryEmail,
             `Zahtev za nabavku ${r.redniBroj} - vraćen na doradu`,
-            `Zahtev za nabavku ${r.redniBroj} je vraćen na doradu.\nKomentar: ${komentar}`);
-          if(ok) alert('Zahtev je vraćen na doradu, mejl je automatski poslat.');
+            `Zahtev za nabavku ${r.redniBroj} je vratio/la ${odKoga} na doradu, ide ${kome}.\nKomentar: ${komentar}`);
         }
+
+        // Obaveštenje (FYI) ostalim učesnicima koji su već ranije učestvovali
+        // u ovom zahtevu — da znaju ko je vratio i kome, iako oni sada ne
+        // moraju ništa da preduzmu.
+        const fyiEmails = new Set();
+        if(idePrethodnomOveravaocu){
+          for(let s=1; s<azurirano.approvalStep; s++){
+            const e = emailZaKorak(s);
+            if(e) fyiEmails.add(e);
+          }
+          if(podnosilacEmail) fyiEmails.add(podnosilacEmail);
+        }
+        fyiEmails.delete(primaryEmail);
+        for(const e of fyiEmails){
+          await posaljiApprovalMail_({ ...r, stavke:noveStavke }, e,
+            `Zahtev za nabavku ${r.redniBroj} - vraćen na doradu (obaveštenje)`,
+            `Obaveštenje: zahtev za nabavku ${r.redniBroj} je vratio/la ${odKoga} na doradu, ide ${kome}.\nKomentar: ${komentar}`);
+        }
+
+        if(primaryOk) alert('Zahtev je vraćen na doradu, mejlovi su automatski poslati.');
       }catch(e){
         $('overaErr').textContent='Vraćanje na doradu nije uspelo. Pokušaj ponovo.';
         $('vratiBtn').disabled=false;
