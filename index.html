@@ -580,7 +580,11 @@ h1{font-family:'Space Grotesk',sans-serif;font-size:20px;text-transform:uppercas
 .sub{font-size:11.5px;color:#666;font-family:'IBM Plex Mono',monospace;margin-bottom:6px;}
 .toolbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;gap:10px;flex-wrap:wrap;}
 .status-msg{font-size:12px;color:#666;}
+.save-banner{font-size:12.5px;font-weight:600;padding:6px 12px;border-radius:3px;display:none;}
+.save-banner.ok{display:inline-block;background:#D7EBDC;color:#2E5E3B;}
+.save-banner.err{display:inline-block;background:#F8D3CC;color:#8A3B2B;}
 .toolbar button{font-family:'IBM Plex Sans',sans-serif;font-weight:600;font-size:13px;padding:9px 16px;border-radius:3px;border:1px solid #243D4C;background:#243D4C;color:#fff;cursor:pointer;}
+.toolbar button.ghost{background:#F7F7F2;color:#243D4C;}
 .card{background:#F7F7F2;border:1px solid #CBCFC5;border-radius:3px;padding:16px;overflow-x:auto;}
 table{width:100%;border-collapse:collapse;}
 th{text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:0.05em;border-bottom:1.5px solid #1a1a1a;padding:6px 8px;color:#444;white-space:nowrap;}
@@ -604,7 +608,9 @@ select:disabled, input[type=date]:disabled, input[type=number]:disabled, input[t
       <div class="sub">Nalog za realizaciju: ${escapeHtml(nalog)}${nalogOpisText ? ' — ' + escapeHtml(nalogOpisText) : ''} · Otvoreno ${new Date().toLocaleString('sr-RS')}</div>
     </div>
     <div style="display:flex;align-items:center;gap:12px;">
+      <span class="save-banner" id="saveBanner"></span>
       <span class="status-msg" id="statusMsg"></span>
+      <button type="button" class="ghost" id="sacuvajSveBtn">Sačuvaj</button>
       <button onclick="window.print()">Štampaj / sačuvaj PDF</button>
     </div>
   </div>
@@ -678,6 +684,29 @@ async function onFieldChange(e){
   }catch(err){ statusMsg.textContent='Greška pri čuvanju — proveri konekciju.'; }
   render();
 }
+async function sacuvajSve(){
+  const banner=document.getElementById('saveBanner');
+  const btn=document.getElementById('sacuvajSveBtn');
+  btn.disabled=true; btn.textContent='Čuvanje…';
+  banner.className='save-banner'; banner.textContent='';
+  let greske=0;
+  for(const req of REQUESTS){
+    try{
+      const { error } = await sbClient.from('requests').update({ nalog:NALOG, stavke:req.stavke }).eq('id', req.id);
+      if(error) greske++;
+    }catch(err){ greske++; }
+  }
+  btn.disabled=false; btn.textContent='Sačuvaj';
+  if(greske===0){
+    banner.className='save-banner ok';
+    banner.textContent='✓ Sve izmene su sačuvane ('+new Date().toLocaleTimeString('sr-RS')+')';
+  }else{
+    banner.className='save-banner err';
+    banner.textContent='Greška pri čuvanju za '+greske+' zahtev(a) — pokušaj ponovo.';
+  }
+  setTimeout(()=>{ banner.className='save-banner'; banner.textContent=''; }, 6000);
+}
+document.getElementById('sacuvajSveBtn').addEventListener('click', sacuvajSve);
 render();
 <\/script>
 </body>
