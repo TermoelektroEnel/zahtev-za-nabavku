@@ -168,6 +168,34 @@ td{padding:8px 8px 8px 0;border-bottom:1px solid var(--line-soft);font-size:13px
       </div>
     </div>
 
+    <div class="pozicija-block" style="background:#F3F4EE;">
+      <div class="pozicija-head">
+        <div class="naziv">Unos ponude dobavljača (sve pozicije odjednom)</div>
+        <div class="meta" id="bulkModeLabel"></div>
+      </div>
+      <div class="row3">
+        <div class="field"><label for="bulkDobavljac">Naziv dobavljača</label><input type="text" id="bulkDobavljac" placeholder="Naziv dobavljača"></div>
+        <div class="field"><label for="bulkAvans">Avans</label><input type="text" id="bulkAvans" placeholder="npr. 30%"></div>
+        <div class="field"><label for="bulkNacin">Način plaćanja</label><input type="text" id="bulkNacin" placeholder="npr. Virmanski 30 dana"></div>
+      </div>
+      <div class="field">
+        <label>Ponuda dobavljača (PDF) — jedan fajl, važi za sve pozicije</label>
+        <input type="file" id="bulkPdfInput" accept="application/pdf">
+        <div class="hint" id="bulkPdfHint"></div>
+      </div>
+      <div id="bulkStavkeWrap"></div>
+      <div class="err" id="bulkErr"></div>
+      <div style="display:flex;gap:8px;margin-top:10px;">
+        <button type="button" class="btn btn-primary" id="bulkSaveBtn">Sačuvaj ponudu ovog dobavljača</button>
+        <button type="button" class="btn-ghost" id="bulkResetBtn" style="display:none;">Otkaži izmenu</button>
+      </div>
+    </div>
+
+    <div class="field">
+      <label>Dobavljači uneti u ovaj izveštaj</label>
+      <div id="bulkDobavljaciWrap"><div class="hint">Još uvek nema unetih dobavljača.</div></div>
+    </div>
+
     <div id="peStavkeWrap"></div>
 
     <div style="display:flex;justify-content:flex-end;gap:24px;margin:16px 0;padding-top:12px;border-top:1px solid var(--line-soft);font-family:'IBM Plex Mono',monospace;">
@@ -325,6 +353,166 @@ async function removePonudaPdf_(posIdx, offIdx){
   renderPeStavke();
 }
 
+/* ============================================================
+   UNOS PONUDE DOBAVLJAČA (sve pozicije odjednom)
+   ============================================================ */
+let bulkPdfFile = null;   // izabran, još neotpremljen fajl
+let bulkPdfExisting = null; // {path, filename} ako se uređuje postojeći dobavljač koji već ima prilog
+let editingBulkDobavljac = null; // ime dobavljača koji se trenutno uređuje (ili null = novi)
+
+function renderBulkStavkeTable(){
+  const wrap = $('bulkStavkeWrap');
+  if(!currentPonuda.stavke.length){ wrap.innerHTML='<div class="empty">Ovaj zahtev nema pozicija.</div>'; return; }
+  wrap.innerHTML = `<table class="ponude-mini-table"><thead><tr>
+      <th>Rb.</th><th>Opis</th><th>JM</th><th>Za nabavku</th>
+      <th>Bruto cena</th><th>Rabat %</th><th>Valuta</th><th>Rok isporuke</th>
+    </tr></thead><tbody>
+    ${currentPonuda.stavke.map((s,idx)=>`
+      <tr>
+        <td>${idx+1}</td>
+        <td>${escapeHtml(s.opis)}</td>
+        <td>${escapeHtml(s.jm)}</td>
+        <td class="num">${escapeHtml(s.zaNabavku)}</td>
+        <td><input type="number" step="0.01" data-bulk-bruto="${idx}" style="width:90px;"></td>
+        <td><input type="number" step="0.01" data-bulk-rabat="${idx}" value="0" style="width:70px;"></td>
+        <td><select data-bulk-valuta="${idx}"><option value="RSD">RSD</option><option value="EUR">EUR</option></select></td>
+        <td><input type="text" data-bulk-rok="${idx}" style="width:100px;" placeholder="npr. 15 dana"></td>
+      </tr>`).join('')}
+    </tbody></table>`;
+}
+
+function popuniBulkZaDobavljaca_(dobavljac){
+  currentPonuda.stavke.forEach((s,idx)=>{
+    const o = s.ponude.find(x=>x.dobavljac===dobavljac);
+    const brutoInp=$('bulkStavkeWrap').querySelector(`[data-bulk-bruto="${idx}"]`);
+    const rabatInp=$('bulkStavkeWrap').querySelector(`[data-bulk-rabat="${idx}"]`);
+    const valutaInp=$('bulkStavkeWrap').querySelector(`[data-bulk-valuta="${idx}"]`);
+    const rokInp=$('bulkStavkeWrap').querySelector(`[data-bulk-rok="${idx}"]`);
+    if(o){
+      brutoInp.value=o.bruto; rabatInp.value=o.rabat; valutaInp.value=o.valuta||'RSD'; rokInp.value=o.rok||'';
+    }else{
+      brutoInp.value=''; rabatInp.value='0'; valutaInp.value='RSD'; rokInp.value='';
+    }
+  });
+}
+
+function otvoriUrediDobavljaca_(dobavljac){
+  editingBulkDobavljac = dobavljac;
+  bulkPdfFile = null;
+  const prviOffer = currentPonuda.stavke.map(s=>s.ponude.find(o=>o.dobavljac===dobavljac)).find(Boolean);
+  $('bulkDobavljac').value = dobavljac; $('bulkDobavljac').disabled = true;
+  $('bulkAvans').value = prviOffer?(prviOffer.avans||''):'';
+  $('bulkNacin').value = prviOffer?(prviOffer.nacinPlacanja||''):'';
+  bulkPdfExisting = prviOffer && prviOffer.pdfPath ? { path:prviOffer.pdfPath, filename:prviOffer.pdfName } : null;
+  $('bulkPdfInput').value = '';
+  $('bulkPdfHint').textContent = bulkPdfExisting ? `Trenutni prilog: ${bulkPdfExisting.filename} (otpremi novi da ga zameniš)` : '';
+  $('bulkModeLabel').textContent = `Izmena dobavljača: ${dobavljac}`;
+  $('bulkSaveBtn').textContent = 'Sačuvaj izmene ovog dobavljača';
+  $('bulkResetBtn').style.display = 'inline-block';
+  renderBulkStavkeTable();
+  popuniBulkZaDobavljaca_(dobavljac);
+  $('bulkDobavljac').closest('.pozicija-block').scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+function resetBulkForm(){
+  editingBulkDobavljac = null; bulkPdfFile = null; bulkPdfExisting = null;
+  $('bulkDobavljac').value=''; $('bulkDobavljac').disabled=false;
+  $('bulkAvans').value=''; $('bulkNacin').value='';
+  $('bulkPdfInput').value=''; $('bulkPdfHint').textContent='';
+  $('bulkModeLabel').textContent='';
+  $('bulkSaveBtn').textContent='Sačuvaj ponudu ovog dobavljača';
+  $('bulkResetBtn').style.display='none';
+  $('bulkErr').textContent='';
+  renderBulkStavkeTable();
+}
+$('bulkResetBtn').addEventListener('click', resetBulkForm);
+$('bulkPdfInput').addEventListener('change', e=>{
+  bulkPdfFile = e.currentTarget.files[0] || null;
+});
+
+function renderBulkDobavljaci(){
+  const wrap = $('bulkDobavljaciWrap');
+  const imena = [];
+  currentPonuda.stavke.forEach(s=>s.ponude.forEach(o=>{ if(!imena.includes(o.dobavljac)) imena.push(o.dobavljac); }));
+  if(!imena.length){ wrap.innerHTML='<div class="hint">Još uvek nema unetih dobavljača.</div>'; return; }
+  wrap.innerHTML = imena.map(name=>{
+    const brojPozicija = currentPonuda.stavke.filter(s=>s.ponude.some(o=>o.dobavljac===name)).length;
+    return `<div class="prilog-item">
+      <span class="naziv">🏢 ${escapeHtml(name)} <span class="hint">(ponuda za ${brojPozicija} od ${currentPonuda.stavke.length} pozicija)</span></span>
+      <div>
+        <button type="button" class="btn-ghost" data-uredi-dob="${escapeHtml(name)}" style="padding:3px 8px;font-size:11px;">Uredi</button>
+        <button type="button" class="btn-danger-ghost" data-ukloni-dob="${escapeHtml(name)}" style="padding:3px 8px;font-size:11px;">Ukloni</button>
+      </div>
+    </div>`;
+  }).join('');
+  wrap.querySelectorAll('[data-uredi-dob]').forEach(b=>b.addEventListener('click',e=>otvoriUrediDobavljaca_(e.currentTarget.dataset.urediDob)));
+  wrap.querySelectorAll('[data-ukloni-dob]').forEach(b=>b.addEventListener('click',async e=>{
+    const name = e.currentTarget.dataset.ukloniDob;
+    if(!confirm(`Ukloniti dobavljača "${name}" iz SVIH pozicija u ovom izveštaju?`)) return;
+    for(const s of currentPonuda.stavke){
+      const idx = s.ponude.findIndex(o=>o.dobavljac===name);
+      if(idx!==-1){
+        const o = s.ponude[idx];
+        if(o.pdfPath){ try{ await getSbStorage_().storage.from(PONUDA_PDF_BUCKET).remove([o.pdfPath]); }catch(err){} }
+        s.ponude.splice(idx,1);
+        if(s.predlogRukovodioca===name) s.predlogRukovodioca='';
+      }
+    }
+    if(editingBulkDobavljac===name) resetBulkForm();
+    renderPeStavke();
+  }));
+}
+
+$('bulkSaveBtn').addEventListener('click', async ()=>{
+  $('bulkErr').textContent='';
+  const dobavljac = $('bulkDobavljac').value.trim();
+  if(!dobavljac){ $('bulkErr').textContent='Unesi naziv dobavljača.'; return; }
+  const avans = $('bulkAvans').value.trim();
+  const nacinPlacanja = $('bulkNacin').value.trim();
+
+  const redovi = currentPonuda.stavke.map((s,idx)=>{
+    const bruto = Number($('bulkStavkeWrap').querySelector(`[data-bulk-bruto="${idx}"]`).value);
+    const rabat = Number($('bulkStavkeWrap').querySelector(`[data-bulk-rabat="${idx}"]`).value)||0;
+    const valuta = $('bulkStavkeWrap').querySelector(`[data-bulk-valuta="${idx}"]`).value;
+    const rok = $('bulkStavkeWrap').querySelector(`[data-bulk-rok="${idx}"]`).value.trim();
+    return { idx, bruto, rabat, valuta, rok };
+  });
+  if(!redovi.some(r=>r.bruto>0)){ $('bulkErr').textContent='Unesi bar jednu bruto cenu (za bar jednu poziciju).'; return; }
+
+  $('bulkSaveBtn').disabled=true; $('bulkSaveBtn').textContent='Čuvanje…';
+  let pdfMeta = bulkPdfExisting;
+  if(bulkPdfFile){
+    try{
+      const safeName = bulkPdfFile.name.replace(/[^a-zA-Z0-9._-]/g,'_');
+      const path = `${currentPonuda.id}/dob_${dobavljac.replace(/[^a-zA-Z0-9._-]/g,'_')}_${Date.now()}_${safeName}`;
+      const { error } = await getSbStorage_().storage.from(PONUDA_PDF_BUCKET).upload(path, bulkPdfFile, { contentType:'application/pdf', upsert:false });
+      if(error){ alert('Otpremanje PDF-a nije uspelo: '+error.message); }
+      else pdfMeta = { path, filename: bulkPdfFile.name };
+    }catch(e){ alert('Otpremanje PDF-a nije uspelo.'); }
+  }
+
+  redovi.forEach(row=>{
+    const s = currentPonuda.stavke[row.idx];
+    const postojeciIdx = s.ponude.findIndex(o=>o.dobavljac===dobavljac);
+    if(row.bruto>0){
+      const offer = {
+        dobavljac, bruto:row.bruto, rabat:row.rabat, valuta:row.valuta, rok:row.rok,
+        avans, nacinPlacanja,
+        pdfPath: pdfMeta?pdfMeta.path:undefined, pdfName: pdfMeta?pdfMeta.filename:undefined
+      };
+      if(postojeciIdx!==-1) s.ponude[postojeciIdx] = offer;
+      else s.ponude.push(offer);
+    }else if(postojeciIdx!==-1){
+      s.ponude.splice(postojeciIdx,1);
+      if(s.predlogRukovodioca===dobavljac) s.predlogRukovodioca='';
+    }
+  });
+
+  $('bulkSaveBtn').disabled=false;
+  resetBulkForm();
+  renderPeStavke();
+});
+
 let GRADILISTA=[], NALOZI=[];
 
 let ADRESE=[];
@@ -451,6 +639,9 @@ function openPonudaEditor(id){
   $('peKursHint').textContent='';
   $('peErr').textContent=''; $('peInfo').classList.remove('visible');
   renderPeStavke();
+  resetBulkForm();
+  renderBulkStavkeTable();
+  renderBulkDobavljaci();
   $('ponudaEditorCard').style.display='block';
   $('ponudaEditorCard').scrollIntoView({behavior:'smooth',block:'start'});
 }
@@ -652,6 +843,7 @@ function renderPeStavke(){
 
   currentPonuda.stavke.forEach((s,posIdx)=>updateMarzaLine_(posIdx));
   renderPeTotals();
+  renderBulkDobavljaci();
 }
 
 // SUMPRODUCT: ukupna vrednost pozicije = jedinična cena × količina (za nabavku)
