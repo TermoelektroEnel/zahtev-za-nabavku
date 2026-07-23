@@ -216,7 +216,7 @@ td{padding:8px 8px 8px 0;border-bottom:1px solid var(--line-soft);font-size:13px
 
     <div class="field" style="margin-top:20px;">
       <label>Pregled izveštaja (za overu i odobrenje)</label>
-      <div id="pePregledWrap" style="overflow-x:auto;"></div>
+      <div id="pePregledWrap" style="overflow-x:auto;padding-bottom:18px;"></div>
     </div>
 
     <div class="err" id="peErr"></div>
@@ -507,14 +507,14 @@ function renderPePregled(){
       const izabranaCela = izabrana && o===izabrana;
       const cls = izabranaCela ? ' class="izabrano"' : '';
       if(!o) return `<td class="num"${cls}>—</td><td class="center"${cls}>—</td>`;
-      return `<td class="num"${cls}>${fmtBroj_(jedCena_(o))}</td><td class="center"${cls}>${escapeHtml(o.rok||'—')}</td>`;
+      return `<td class="num"${cls}>${fmtCena_(jedCena_(o))}</td><td class="center"${cls}>${escapeHtml(o.rok||'—')}</td>`;
     }).join('');
 
     return `<tr>
       <td class="center">${idx+1}</td><td>${escapeHtml(s.opis)}</td>
       ${supplierCells}
       <td class="center">${escapeHtml(s.jm)}</td><td class="num">${escapeHtml(s.kolicina)}</td>
-      <td class="num">${s.ugovorenaCena!=null?fmtBroj_(s.ugovorenaCena):'—'}</td>
+      <td class="num">${s.ugovorenaCena!=null?fmtCena_(s.ugovorenaCena):'—'}</td>
       <td class="center">${escapeHtml(s.predlogRukovodioca||'—')}</td>
     </tr>`;
   }).join('');
@@ -533,8 +533,8 @@ function renderPePregled(){
     <tfoot>${footAvans}${footNacin}</tfoot>
   </table>
   <div class="pregled-summary">
-    <div>Ukupno (bez PDV): <strong>${fmtBroj_(ukupnoBezPdv)}</strong> RSD</div>
-    <div>Ukupno ugovoreno (bez PDV): <strong>${fmtBroj_(ukupnoUgovoreno)}</strong> RSD</div>
+    <div>Ukupno (bez PDV): <strong>${fmtCena_(ukupnoBezPdv)}</strong> RSD</div>
+    <div>Ukupno ugovoreno (bez PDV): <strong>${fmtCena_(ukupnoUgovoreno)}</strong> RSD</div>
   </div>`;
 }
 
