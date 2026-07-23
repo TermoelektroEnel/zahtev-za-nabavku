@@ -56,6 +56,14 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--steel);outline-o
 .add-ponuda-row .field{margin-bottom:0;}
 .pozicija-extra{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px;}
 .pozicija-extra .field{margin-bottom:0;}
+.pregled-table{width:100%;border-collapse:collapse;font-size:12px;}
+.pregled-table th,.pregled-table td{border:1px solid var(--line-soft);padding:5px 7px;text-align:left;}
+.pregled-table thead th{background:var(--steel-dark);color:#fff;font-size:10.5px;text-transform:uppercase;letter-spacing:.02em;text-align:center;}
+.pregled-table tbody td.num{text-align:right;font-family:'IBM Plex Mono',monospace;}
+.pregled-table tbody td.center{text-align:center;}
+.pregled-table td.izabrano{background:rgba(63,107,74,0.12);font-weight:600;color:#2E5E3B;}
+.pregled-table tfoot td{background:var(--card);font-weight:600;font-size:11.5px;border-top:2px solid var(--ink);}
+.pregled-summary{display:flex;gap:24px;margin-top:10px;font-family:'IBM Plex Mono',monospace;font-size:13px;}
 
 .btn{font-family:'IBM Plex Sans',sans-serif;font-weight:600;font-size:13px;padding:11px 18px;border-radius:var(--radius);border:none;cursor:pointer;letter-spacing:0.02em;}
 .btn-primary{background:var(--steel-dark);color:#fff;}
@@ -205,6 +213,11 @@ td{padding:8px 8px 8px 0;border-bottom:1px solid var(--line-soft);font-size:13px
       <div>Ukupno ugovoreno sa PDV (20%): <strong id="peUkupnoUgovorenoSaPdv">0</strong> RSD</div>
     </div>
     <div class="hint">Napomena: PDV je pretpostavljen na 20% (standardna stopa u Srbiji) — javi ako treba drugačije.</div>
+
+    <div class="field" style="margin-top:20px;">
+      <label>Pregled izveštaja (za overu i odobrenje)</label>
+      <div id="pePregledWrap" style="overflow-x:auto;"></div>
+    </div>
 
     <div class="err" id="peErr"></div>
     <div class="info-msg" id="peInfo"></div>
@@ -463,6 +476,68 @@ function renderBulkDobavljaci(){
   }));
 }
 
+function renderPePregled(){
+  const wrap = $('pePregledWrap');
+  if(!currentPonuda.stavke.length){ wrap.innerHTML='<div class="empty">Nema pozicija za pregled.</div>'; return; }
+
+  const SUPPLIERS = [];
+  currentPonuda.stavke.forEach(s => s.ponude.forEach(o => { if(!SUPPLIERS.includes(o.dobavljac)) SUPPLIERS.push(o.dobavljac); }));
+
+  if(!SUPPLIERS.length){ wrap.innerHTML='<div class="empty">Još uvek nema unetih ponuda ni za jednu poziciju.</div>'; return; }
+
+  let ukupnoBezPdv = 0, ukupnoUgovoreno = 0;
+
+  const headRow1 = `<tr>
+    <th rowspan="2">Rb.</th><th rowspan="2">Naziv</th>
+    ${SUPPLIERS.map(name=>`<th colspan="2">${escapeHtml(name)}</th>`).join('')}
+    <th rowspan="2">JM</th><th rowspan="2">Količina</th>
+    <th rowspan="2">Ugovorena cena<br>(bez PDV)</th><th rowspan="2">Predlog<br>rukovodioca</th>
+  </tr>`;
+  const headRow2 = `<tr>${SUPPLIERS.map(()=>'<th>Jed.cena</th><th>Rok isporuke</th>').join('')}</tr>`;
+
+  const bodyRows = currentPonuda.stavke.map((s,idx)=>{
+    const izabrana = izabranaPonuda_(s);
+    const nabavna = izabrana ? ukupnoRSD_(izabrana, s.zaNabavku) : null;
+    if(nabavna!=null) ukupnoBezPdv += nabavna;
+    const ugovorenoUkupno = ukupnoUgovorenoZaPoziciju_(s);
+    if(ugovorenoUkupno!=null) ukupnoUgovoreno += ugovorenoUkupno;
+
+    const supplierCells = SUPPLIERS.map(name=>{
+      const o = s.ponude.find(x=>x.dobavljac===name);
+      const izabranaCela = izabrana && o===izabrana;
+      const cls = izabranaCela ? ' class="izabrano"' : '';
+      if(!o) return `<td class="num"${cls}>—</td><td class="center"${cls}>—</td>`;
+      return `<td class="num"${cls}>${fmtBroj_(jedCena_(o))}</td><td class="center"${cls}>${escapeHtml(o.rok||'—')}</td>`;
+    }).join('');
+
+    return `<tr>
+      <td class="center">${idx+1}</td><td>${escapeHtml(s.opis)}</td>
+      ${supplierCells}
+      <td class="center">${escapeHtml(s.jm)}</td><td class="num">${escapeHtml(s.kolicina)}</td>
+      <td class="num">${s.ugovorenaCena!=null?fmtBroj_(s.ugovorenaCena):'—'}</td>
+      <td class="center">${escapeHtml(s.predlogRukovodioca||'—')}</td>
+    </tr>`;
+  }).join('');
+
+  const supplierTerms = {};
+  currentPonuda.stavke.forEach(s => s.ponude.forEach(o => {
+    if(!supplierTerms[o.dobavljac]) supplierTerms[o.dobavljac] = { avans:o.avans||'—', nacin:o.nacinPlacanja||'—' };
+  }));
+  const tailCols = 4;
+  const footAvans = `<tr><td colspan="2">Avans</td>${SUPPLIERS.map(name=>`<td colspan="2" class="center">${escapeHtml(supplierTerms[name].avans)}</td>`).join('')}${'<td></td>'.repeat(tailCols)}</tr>`;
+  const footNacin = `<tr><td colspan="2">Način plaćanja</td>${SUPPLIERS.map(name=>`<td colspan="2" class="center">${escapeHtml(supplierTerms[name].nacin)}</td>`).join('')}${'<td></td>'.repeat(tailCols)}</tr>`;
+
+  wrap.innerHTML = `<table class="pregled-table">
+    <thead>${headRow1}${headRow2}</thead>
+    <tbody>${bodyRows}</tbody>
+    <tfoot>${footAvans}${footNacin}</tfoot>
+  </table>
+  <div class="pregled-summary">
+    <div>Ukupno (bez PDV): <strong>${fmtBroj_(ukupnoBezPdv)}</strong> RSD</div>
+    <div>Ukupno ugovoreno (bez PDV): <strong>${fmtBroj_(ukupnoUgovoreno)}</strong> RSD</div>
+  </div>`;
+}
+
 $('bulkSaveBtn').addEventListener('click', async ()=>{
   $('bulkErr').textContent='';
   const dobavljac = $('bulkDobavljac').value.trim();
@@ -608,7 +683,7 @@ $('pKreirajBtn').addEventListener('click', async ()=>{
     rok:s.rok||'', atest:s.atest||'',
     ponude:[],
     ugovorenaCena:null,
-    rokIsporuke:'', predlogRukovodioca:'', ugovorBroj:'', racunBroj:''
+    rokIsporuke:'', predlogRukovodioca:''
   }));
   $('pKreirajBtn').disabled=true;
   const r=await apiPost('addPonuda',{ requestId, stavke });
@@ -642,6 +717,7 @@ function openPonudaEditor(id){
   resetBulkForm();
   renderBulkStavkeTable();
   renderBulkDobavljaci();
+  renderPePregled();
   $('ponudaEditorCard').style.display='block';
   $('ponudaEditorCard').scrollIntoView({behavior:'smooth',block:'start'});
 }
@@ -682,7 +758,7 @@ function renderPeStavke(){
         <div class="meta">${escapeHtml(s.jm)} · za nabavku: ${escapeHtml(s.zaNabavku)}</div>
       </div>
       ${s.ponude.length?'':'<div class="hint" style="margin-bottom:10px;">Još uvek nema unetih ponuda za ovu poziciju (unesi ih gore, kroz unos po dobavljaču).</div>'}
-      <div class="pozicija-extra" style="grid-template-columns:1fr 1fr 1fr 1fr;">
+      <div class="pozicija-extra" style="grid-template-columns:1fr 1fr;">
         <div class="field"><label>Predlog rukovodioca</label>
           <select data-predlog="${posIdx}">
             <option value="">— izaberi dobavljača —</option>
@@ -690,8 +766,6 @@ function renderPeStavke(){
           </select>
         </div>
         <div class="field"><label>Rok isporuke (predloženog)</label><div style="padding:9px 0;font-size:13px;">${izabrana?escapeHtml(izabrana.rok||'—'):'<span class="hint">— nema predloga —</span>'}</div></div>
-        <div class="field"><label>Ugovor/porudžbenica br.</label><input type="text" data-ugovor="${posIdx}" value="${escapeHtml(s.ugovorBroj||'')}"></div>
-        <div class="field"><label>Račun br.</label><input type="text" data-racun="${posIdx}" value="${escapeHtml(s.racunBroj||'')}"></div>
       </div>
       <div class="pozicija-extra" style="margin-top:8px;">
         <div class="field">
@@ -710,19 +784,19 @@ function renderPeStavke(){
     currentPonuda.stavke[posIdx].predlogRukovodioca=e.currentTarget.value;
     renderPeStavke();
   }));
-  wrap.querySelectorAll('[data-ugovor]').forEach(i=>i.addEventListener('input',e=>{ currentPonuda.stavke[Number(e.currentTarget.dataset.ugovor)].ugovorBroj=e.currentTarget.value; }));
-  wrap.querySelectorAll('[data-racun]').forEach(i=>i.addEventListener('input',e=>{ currentPonuda.stavke[Number(e.currentTarget.dataset.racun)].racunBroj=e.currentTarget.value; }));
   wrap.querySelectorAll('[data-ugovorena-cena]').forEach(i=>i.addEventListener('input',e=>{
     const posIdx=Number(e.currentTarget.dataset.ugovorenaCena);
     const v=e.currentTarget.value;
     currentPonuda.stavke[posIdx].ugovorenaCena = v===''?null:Number(v);
     updateMarzaLine_(posIdx);
     renderPeTotals();
+    renderPePregled();
   }));
 
   currentPonuda.stavke.forEach((s,posIdx)=>updateMarzaLine_(posIdx));
   renderPeTotals();
   renderBulkDobavljaci();
+  renderPePregled();
 }
 
 // SUMPRODUCT: ukupna vrednost pozicije = jedinična cena × količina (za nabavku)
