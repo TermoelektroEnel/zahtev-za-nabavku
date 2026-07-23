@@ -56,8 +56,9 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--steel);outline-o
 .add-ponuda-row .field{margin-bottom:0;}
 .pozicija-extra{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px;}
 .pozicija-extra .field{margin-bottom:0;}
-.pregled-table{width:100%;border-collapse:collapse;font-size:12px;}
+.pregled-table{min-width:100%;border-collapse:collapse;font-size:12px;}
 .pregled-table th,.pregled-table td{border:1px solid var(--line-soft);padding:5px 7px;text-align:left;}
+.pregled-table th:nth-child(2),.pregled-table td:nth-child(2){min-width:420px;white-space:normal;}
 .pregled-table thead th{background:var(--steel-dark);color:#fff;font-size:10.5px;text-transform:uppercase;letter-spacing:.02em;text-align:center;}
 .pregled-table tbody td.num{text-align:right;font-family:'IBM Plex Mono',monospace;}
 .pregled-table tbody td.center{text-align:center;}
