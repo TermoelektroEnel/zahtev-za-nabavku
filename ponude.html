@@ -450,14 +450,22 @@ function renderBulkDobavljaci(){
   if(!imena.length){ wrap.innerHTML='<div class="hint">Još uvek nema unetih dobavljača.</div>'; return; }
   wrap.innerHTML = imena.map(name=>{
     const brojPozicija = currentPonuda.stavke.filter(s=>s.ponude.some(o=>o.dobavljac===name)).length;
+    const prviOffer = currentPonuda.stavke.map(s=>s.ponude.find(o=>o.dobavljac===name)).find(Boolean);
+    const imaPrilog = prviOffer && prviOffer.pdfPath;
     return `<div class="prilog-item">
       <span class="naziv">🏢 ${escapeHtml(name)} <span class="hint">(ponuda za ${brojPozicija} od ${currentPonuda.stavke.length} pozicija)</span></span>
       <div>
+        ${imaPrilog?`<button type="button" class="btn-ghost" data-otvori-prilog-dob="${escapeHtml(name)}" style="padding:3px 8px;font-size:11px;" title="${escapeHtml(prviOffer.pdfName||'')}">📄 Otvori</button>`:''}
         <button type="button" class="btn-ghost" data-uredi-dob="${escapeHtml(name)}" style="padding:3px 8px;font-size:11px;">Uredi</button>
         <button type="button" class="btn-danger-ghost" data-ukloni-dob="${escapeHtml(name)}" style="padding:3px 8px;font-size:11px;">Ukloni</button>
       </div>
     </div>`;
   }).join('');
+  wrap.querySelectorAll('[data-otvori-prilog-dob]').forEach(b=>b.addEventListener('click',e=>{
+    const name = e.currentTarget.dataset.otvoriPrilogDob;
+    const o = currentPonuda.stavke.map(s=>s.ponude.find(x=>x.dobavljac===name)).find(Boolean);
+    if(o && o.pdfPath) openPonudaPdf_(o.pdfPath);
+  }));
   wrap.querySelectorAll('[data-uredi-dob]').forEach(b=>b.addEventListener('click',e=>otvoriUrediDobavljaca_(e.currentTarget.dataset.urediDob)));
   wrap.querySelectorAll('[data-ukloni-dob]').forEach(b=>b.addEventListener('click',async e=>{
     const name = e.currentTarget.dataset.ukloniDob;
