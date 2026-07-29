@@ -84,6 +84,8 @@
       garancijaZaPlacanje: p.garancija_za_placanje,
       stavke: p.stavke,
       status: p.status,
+      approvalStep: p.approval_step || 0,
+      lastReturnComment: p.last_return_comment || null,
       createdAt: p.created_at ? new Date(p.created_at).getTime() : Date.now(),
       updatedAt: p.updated_at ? new Date(p.updated_at).getTime() : Date.now()
     };
@@ -150,7 +152,40 @@
     if (action === 'listPonude') {
       const { data, error } = await sbClient.from('ponude_izvestaji').select('*').order('created_at', { ascending: false });
       if (error) throw error;
-      return { ponude: data.map(mapPonuda_) };
+      const creatorIds = [...new Set(data.map(r => r.created_by).filter(Boolean))];
+      let creatorsById = {};
+      if (creatorIds.length) {
+        const { data: profs } = await sbClient.from('profiles_public').select('id, username, email').in('id', creatorIds);
+        if (profs) profs.forEach(p => { creatorsById[p.id] = p; });
+      }
+      return {
+        ponude: data.map(r => {
+          const p = r.created_by ? creatorsById[r.created_by] : null;
+          return { ...mapPonuda_(r), createdByUsername: p ? p.username : null, createdByEmail: p ? (p.email || null) : null };
+        })
+      };
+    }
+    if (action === 'listPonudaLog') {
+      const ponudaId = params.ponudaId;
+      if (!ponudaId) return { error: 'Nedostaje ID izveštaja.' };
+      const { data, error } = await sbClient.from('ponuda_approval_log')
+        .select('*').eq('ponuda_id', ponudaId).order('created_at', { ascending: true });
+      if (error) throw error;
+      const actorIds = [...new Set(data.map(r => r.actor_id).filter(Boolean))];
+      let usernames = {};
+      if (actorIds.length) {
+        const { data: profs } = await sbClient.from('profiles_public').select('id, username').in('id', actorIds);
+        if (profs) profs.forEach(p => { usernames[p.id] = p.username; });
+      }
+      return {
+        log: data.map(r => ({
+          step: r.step,
+          action: r.action,
+          actorUsername: r.actor_id ? (usernames[r.actor_id] || null) : null,
+          komentar: r.komentar,
+          createdAt: r.created_at ? new Date(r.created_at).getTime() : Date.now()
+        }))
+      };
     }
     if (action === 'listAdrese') {
       const { data, error } = await sbClient.from('adrese_isporuke').select('*').order('naziv');
@@ -223,6 +258,9 @@
       case 'addPonuda': return addPonuda_(body);
       case 'updatePonuda': return updatePonuda_(body);
       case 'deletePonuda': return deletePonuda_(body);
+      case 'posaljiPonuduNaOveru': return posaljiPonuduNaOveru_(body);
+      case 'overiPonudu': return overiPonudu_(body);
+      case 'vratiPonuduNaDoradu': return vratiPonuduNaDoradu_(body);
       case 'addAdresa': return addAdresa_(body);
       case 'updateAdresa': return updateAdresa_(body);
       case 'deleteAdresa': return deleteAdresa_(body);
@@ -367,7 +405,6 @@
       nacin_placanja: body.nacinPlacanja ?? '',
       garancija_za_placanje: body.garancijaZaPlacanje ?? '',
       stavke: body.stavke ?? [],
-      status: body.status || 'u_izradi',
       updated_at: new Date().toISOString()
     };
     const { data, error } = await sbClient.from('ponude_izvestaji')
@@ -379,6 +416,32 @@
 
   async function deletePonuda_(body) {
     const { error } = await sbClient.from('ponude_izvestaji').delete().eq('id', body.id);
+    if (error) return { error: error.message };
+    return { ok: true };
+  }
+
+  async function posaljiPonuduNaOveru_(body) {
+    const { error } = await sbClient.rpc('posalji_ponudu_na_overu', { p_ponuda_id: body.id });
+    if (error) return { error: error.message };
+    return { ok: true };
+  }
+
+  async function overiPonudu_(body) {
+    const { error } = await sbClient.rpc('overi_ponudu', {
+      p_ponuda_id: body.id,
+      p_stavke: body.stavke || null,
+      p_komentar: body.komentar || null
+    });
+    if (error) return { error: error.message };
+    return { ok: true };
+  }
+
+  async function vratiPonuduNaDoradu_(body) {
+    const { error } = await sbClient.rpc('vrati_ponudu_na_doradu', {
+      p_ponuda_id: body.id,
+      p_komentar: body.komentar || '',
+      p_stavke: body.stavke || null
+    });
     if (error) return { error: error.message };
     return { ok: true };
   }
