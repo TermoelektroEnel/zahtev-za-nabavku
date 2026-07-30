@@ -240,7 +240,7 @@ td{padding:8px 8px 8px 0;border-bottom:1px solid var(--line-soft);font-size:13px
     <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;" id="peActionsWrap">
       <button type="button" class="btn btn-primary editor-only-part" id="peSaveBtn">Sačuvaj izveštaj</button>
       <button type="button" class="btn-ghost" id="peExportBtn">Izvezi PDF</button>
-      <button type="button" class="btn-ghost admin-only-inline" id="pePosaljiNaOveruBtn" style="display:none;">Pošalji na overu</button>
+      <button type="button" class="btn-ghost" id="pePosaljiNaOveruBtn" style="display:none;">Pošalji na overu</button>
       <button type="button" class="btn-ghost" id="peCloseBtn">Zatvori</button>
     </div>
 
@@ -281,6 +281,7 @@ const LOGO_DATA_URI = "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAA
 const SESSION_KEY = 'zn_ponude_session';
 const PONUDA_LINK_ID = new URLSearchParams(location.search).get('ponuda');
 let IS_ADMIN_PONUDE = false;
+let trenutniMozeUredovati = false; // admin ili kreator TRENUTNO otvorenog izveštaja
 
 const $ = id => document.getElementById(id);
 function escapeHtml(s){ return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
@@ -324,17 +325,22 @@ async function doLogin(){
   $('loginBtn').disabled = false;
 }
 
+let MOZE_KREIRATI_PONUDE = false;
+
 async function handlePostAuth(){
   IS_ADMIN_PONUDE = await ZN.isAdmin();
   CURRENT_USER_ID = await ZN.currentUserId();
   sessionStorage.setItem(SESSION_KEY, '1');
 
-  document.querySelectorAll('.admin-only-card').forEach(el=>{ el.style.display = IS_ADMIN_PONUDE ? '' : 'none'; });
+  await loadApprovalRoles();
+  const jeRukovodilacNabavke = !!(CURRENT_USER_ID && APPROVAL_ROLES.some(r=>r.step===4 && r.userId===CURRENT_USER_ID));
+  MOZE_KREIRATI_PONUDE = IS_ADMIN_PONUDE || jeRukovodilacNabavke;
+
+  document.querySelectorAll('.admin-only-card').forEach(el=>{ el.style.display = MOZE_KREIRATI_PONUDE ? '' : 'none'; });
   document.querySelectorAll('.admin-only-inline').forEach(el=>{ if(!IS_ADMIN_PONUDE) el.style.display='none'; });
-  document.querySelectorAll('.editor-only-part').forEach(el=>{ if(!IS_ADMIN_PONUDE) el.style.display='none'; });
   $('app').classList.toggle('wide-mode', !IS_ADMIN_PONUDE);
 
-  if(!IS_ADMIN_PONUDE && !PONUDA_LINK_ID){
+  if(!MOZE_KREIRATI_PONUDE && !PONUDA_LINK_ID){
     $('noAccessCard').style.display='block';
     showApp();
     return;
@@ -513,7 +519,7 @@ function renderBulkDobavljaci(){
       <span class="naziv">🏢 ${escapeHtml(name)} <span class="hint">(ponuda za ${brojPozicija} od ${currentPonuda.stavke.length} pozicija)</span></span>
       <div>
         ${imaPrilog?`<button type="button" class="btn-ghost" data-otvori-prilog-dob="${escapeHtml(name)}" style="padding:3px 8px;font-size:11px;" title="${escapeHtml(prviOffer.pdfName||'')}">📄 Otvori</button>`:''}
-        ${IS_ADMIN_PONUDE?`<button type="button" class="btn-ghost" data-uredi-dob="${escapeHtml(name)}" style="padding:3px 8px;font-size:11px;">Uredi</button>
+        ${trenutniMozeUredovati?`<button type="button" class="btn-ghost" data-uredi-dob="${escapeHtml(name)}" style="padding:3px 8px;font-size:11px;">Uredi</button>
         <button type="button" class="btn-danger-ghost" data-ukloni-dob="${escapeHtml(name)}" style="padding:3px 8px;font-size:11px;">Ukloni</button>`:''}
       </div>
     </div>`;
@@ -771,7 +777,7 @@ function renderPonudaList(){
         <td>${ponudaStatusBadgeHtml(p)}</td>
         <td class="row-actions">
           <button class="btn-ghost" data-open-p="${p.id}">Otvori</button>
-          <button class="btn-danger-ghost" data-del-p="${p.id}" data-broj="${escapeHtml(p.brojIzvestaja)}">Obriši</button>
+          ${IS_ADMIN_PONUDE?`<button class="btn-danger-ghost" data-del-p="${p.id}" data-broj="${escapeHtml(p.brojIzvestaja)}">Obriši</button>`:''}
         </td>
       </tr>`;
     }).join('')}
@@ -836,7 +842,13 @@ function openPonudaEditor(id){
     $('peReturnComment').style.display='none';
   }
 
-  const mozeNaOveru = IS_ADMIN_PONUDE && (p.status==='u_izradi' || p.status==='vracen_na_doradu');
+  // Pun uređivač (unos po dobavljaču, izmena pozicija) vidi admin ili onaj
+  // ko je kreirao ovaj konkretan izveštaj (npr. Rukovodilac nabavke).
+  // Tehnički/Generalni direktor (overavaoci) vide samo pregled.
+  trenutniMozeUredovati = IS_ADMIN_PONUDE || (p.createdBy && p.createdBy===CURRENT_USER_ID);
+  document.querySelectorAll('.editor-only-part').forEach(el=>{ el.style.display = trenutniMozeUredovati ? '' : 'none'; });
+
+  const mozeNaOveru = trenutniMozeUredovati && (p.status==='u_izradi' || p.status==='vracen_na_doradu');
   $('pePosaljiNaOveruBtn').style.display = mozeNaOveru ? 'inline-block' : 'none';
 
   const mogucaOvera = jeTrenutniPonudaOveravalac(p);
@@ -1333,14 +1345,20 @@ $('peOveriBtn').addEventListener('click', async ()=>{
     await loadPonudeSection();
     const azurirano = PONUDE.find(x=>x.id===currentPonuda.id) || p;
     if(azurirano.status==='odobren'){
-      const podnosilacEmail = azurirano.createdByEmail || (azurirano.createdByUsername?`${azurirano.createdByUsername}@te-enel.rs`:null);
-      if(podnosilacEmail){
-        const ok = await posaljiPonudaMail_(azurirano, podnosilacEmail, 'konačno odobren', `Izveštaj o ponudama ${azurirano.brojIzvestaja} je konačno odobren.${komentar?'\n\nKomentar: '+komentar:''}`);
+      const rukovodilacNabavkeEmail = emailZaKorak(4);
+      if(rukovodilacNabavkeEmail){
+        const ok = await posaljiPonudaMail_(azurirano, rukovodilacNabavkeEmail, 'konačno odobren', `Izveštaj o ponudama ${azurirano.brojIzvestaja} je konačno odobren i spreman je za realizaciju nabavke.${komentar?'\n\nKomentar: '+komentar:''}`);
         if(ok) alert('Izveštaj je konačno odobren, mejl je poslat.');
+      }else{
+        alert(`Nije dodeljen korisnik za korak "${imeUloge(4)}" (Rukovodilac nabavke). Obratite se administratoru.`);
       }
-      // Obavesti i onog ko je bio pre (Tehnički direktor) da je odobreno
+      // FYI podnosiocu (ako je različit od Rukovodioca nabavke) i Tehničkom direktoru
+      const podnosilacEmail = azurirano.createdByEmail || (azurirano.createdByUsername?`${azurirano.createdByUsername}@te-enel.rs`:null);
+      if(podnosilacEmail && podnosilacEmail!==rukovodilacNabavkeEmail){
+        await posaljiPonudaMail_(azurirano, podnosilacEmail, 'konačno odobren (obaveštenje)', `Izveštaj o ponudama ${azurirano.brojIzvestaja} je konačno odobren.${komentar?'\n\nKomentar: '+komentar:''}`);
+      }
       const prethodniEmail = emailZaKorak(2);
-      if(prethodniEmail){
+      if(prethodniEmail && prethodniEmail!==rukovodilacNabavkeEmail){
         await posaljiPonudaMail_(azurirano, prethodniEmail, 'konačno odobren (obaveštenje)', `Izveštaj o ponudama ${azurirano.brojIzvestaja} je konačno odobren.${komentar?'\n\nKomentar: '+komentar:''}`);
       }
     }else{
