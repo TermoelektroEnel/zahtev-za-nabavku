@@ -138,7 +138,7 @@ td{padding:8px 8px 8px 0;border-bottom:1px solid var(--line-soft);font-size:13px
       <div class="sub">Poređenje ponuda dobavljača i izbor — Zahtev za nabavku</div>
     </div>
     <div class="masthead-right">
-      <span class="current-user-badge">▸ admin</span>
+      <span class="current-user-badge" id="currentUserBadge">▸ …</span>
       <a class="back-link" href="index.html">← Nazad na glavnu stranicu</a>
       <a class="back-link admin-only-inline" href="admin.html">Administracija</a>
       <button type="button" class="btn-logout" id="logoutBtn">Odjavi se</button>
@@ -332,9 +332,14 @@ async function handlePostAuth(){
   CURRENT_USER_ID = await ZN.currentUserId();
   sessionStorage.setItem(SESSION_KEY, '1');
 
+  const trenutnoIme = await ZN.currentUsername();
+  $('currentUserBadge').textContent = `▸ ${trenutnoIme||'?'}${IS_ADMIN_PONUDE?' (admin)':''}`;
+  console.log('DIJAGNOSTIKA prijave:', { trenutnoIme, CURRENT_USER_ID, IS_ADMIN_PONUDE });
+
   await loadApprovalRoles();
   const jeRukovodilacNabavke = !!(CURRENT_USER_ID && APPROVAL_ROLES.some(r=>r.step===4 && r.userId===CURRENT_USER_ID));
   MOZE_KREIRATI_PONUDE = IS_ADMIN_PONUDE || jeRukovodilacNabavke;
+  console.log('DIJAGNOSTIKA uloge:', { jeRukovodilacNabavke, MOZE_KREIRATI_PONUDE, APPROVAL_ROLES });
 
   document.querySelectorAll('.admin-only-card').forEach(el=>{ el.style.display = MOZE_KREIRATI_PONUDE ? '' : 'none'; });
   document.querySelectorAll('.admin-only-inline').forEach(el=>{ if(!IS_ADMIN_PONUDE) el.style.display='none'; });
