@@ -14,6 +14,7 @@
 *{box-sizing:border-box;}
 body{margin:0;background:var(--paper);color:var(--ink);font-family:'IBM Plex Sans',sans-serif;font-size:14px;-webkit-font-smoothing:antialiased;}
 .app{max-width:960px;margin:0 auto;padding:28px 24px 60px;}
+.app.wide-mode{max-width:1700px;}
 
 .masthead{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:3px solid var(--ink);padding-bottom:14px;margin-bottom:26px;flex-wrap:wrap;gap:10px;}
 .masthead h1{font-family:'Space Grotesk',sans-serif;font-size:24px;font-weight:700;letter-spacing:0.02em;margin:0;text-transform:uppercase;}
@@ -172,7 +173,7 @@ td{padding:8px 8px 8px 0;border-bottom:1px solid var(--line-soft);font-size:13px
     <h2 id="ponudaEditorTitle">Izveštaj o ponudama</h2>
     <div style="margin-bottom:10px;" id="peStatusBadgeWrap"></div>
     <div class="err" id="peReturnComment" style="display:none;margin-bottom:10px;"></div>
-    <div class="row3">
+    <div class="row3 editor-only-part">
       <div class="field">
         <label for="peVrstaRadova">Vrsta radova</label>
         <input type="text" id="peVrstaRadova" placeholder="npr. Isporuka kablova">
@@ -191,7 +192,7 @@ td{padding:8px 8px 8px 0;border-bottom:1px solid var(--line-soft);font-size:13px
       </div>
     </div>
 
-    <div class="pozicija-block" id="peBulkBlock" style="background:#F3F4EE;">
+    <div class="pozicija-block editor-only-part" id="peBulkBlock" style="background:#F3F4EE;">
       <div class="pozicija-head">
         <div class="naziv">Unos ponude dobavljača (sve pozicije odjednom)</div>
         <div class="meta" id="bulkModeLabel"></div>
@@ -214,20 +215,20 @@ td{padding:8px 8px 8px 0;border-bottom:1px solid var(--line-soft);font-size:13px
       </div>
     </div>
 
-    <div class="field">
-      <label>Dobavljači uneti u ovaj izveštaj</label>
+    <div class="field" id="peDobavljaciField">
+      <label>Dobavljači uneti u ovaj izveštaj <span class="hint">(dugme "Otvori" otvara priloženu ponudu tog dobavljača)</span></label>
       <div id="bulkDobavljaciWrap"><div class="hint">Još uvek nema unetih dobavljača.</div></div>
     </div>
 
-    <div id="peStavkeWrap"></div>
+    <div id="peStavkeWrap" class="editor-only-part"></div>
 
-    <div style="display:flex;justify-content:flex-end;gap:24px;margin:16px 0;padding-top:12px;border-top:1px solid var(--line-soft);font-family:'IBM Plex Mono',monospace;">
+    <div class="editor-only-part" style="display:flex;justify-content:flex-end;gap:24px;margin:16px 0;padding-top:12px;border-top:1px solid var(--line-soft);font-family:'IBM Plex Mono',monospace;">
       <div>Ukupno bez PDV: <strong id="peUkupnoBezPdv">0</strong> RSD</div>
       <div>Ukupno sa PDV (20%): <strong id="peUkupnoSaPdv">0</strong> RSD</div>
       <div>Ukupno ugovoreno bez PDV: <strong id="peUkupnoUgovorenoBezPdv">0</strong> RSD</div>
       <div>Ukupno ugovoreno sa PDV (20%): <strong id="peUkupnoUgovorenoSaPdv">0</strong> RSD</div>
     </div>
-    <div class="hint">Napomena: PDV je pretpostavljen na 20% (standardna stopa u Srbiji) — javi ako treba drugačije.</div>
+    <div class="hint editor-only-part">Napomena: PDV je pretpostavljen na 20% (standardna stopa u Srbiji) — javi ako treba drugačije.</div>
 
     <div class="field" style="margin-top:20px;">
       <label>Pregled izveštaja (za overu i odobrenje)</label>
@@ -237,7 +238,7 @@ td{padding:8px 8px 8px 0;border-bottom:1px solid var(--line-soft);font-size:13px
     <div class="err" id="peErr"></div>
     <div class="info-msg" id="peInfo"></div>
     <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;" id="peActionsWrap">
-      <button type="button" class="btn btn-primary" id="peSaveBtn">Sačuvaj izveštaj</button>
+      <button type="button" class="btn btn-primary editor-only-part" id="peSaveBtn">Sačuvaj izveštaj</button>
       <button type="button" class="btn-ghost" id="peExportBtn">Izvezi PDF</button>
       <button type="button" class="btn-ghost admin-only-inline" id="pePosaljiNaOveruBtn" style="display:none;">Pošalji na overu</button>
       <button type="button" class="btn-ghost" id="peCloseBtn">Zatvori</button>
@@ -245,7 +246,7 @@ td{padding:8px 8px 8px 0;border-bottom:1px solid var(--line-soft);font-size:13px
 
     <div id="peOveraActionsWrap" style="display:none;margin-top:14px;padding-top:14px;border-top:1px solid var(--line-soft);">
       <div class="field">
-        <label for="peOveraKomentar">Komentar (opciono uz overu, obavezno ako vraćaš na doradu)</label>
+        <label for="peOveraKomentar">Napomena (opciono uz overu, obavezno ako vraćaš na doradu)</label>
         <textarea id="peOveraKomentar" rows="2" style="width:100%;padding:8px;border:1px solid var(--line);border-radius:var(--radius);font-family:inherit;"></textarea>
       </div>
       <div style="display:flex;gap:8px;">
@@ -330,6 +331,8 @@ async function handlePostAuth(){
 
   document.querySelectorAll('.admin-only-card').forEach(el=>{ el.style.display = IS_ADMIN_PONUDE ? '' : 'none'; });
   document.querySelectorAll('.admin-only-inline').forEach(el=>{ if(!IS_ADMIN_PONUDE) el.style.display='none'; });
+  document.querySelectorAll('.editor-only-part').forEach(el=>{ if(!IS_ADMIN_PONUDE) el.style.display='none'; });
+  $('app').classList.toggle('wide-mode', !IS_ADMIN_PONUDE);
 
   if(!IS_ADMIN_PONUDE && !PONUDA_LINK_ID){
     $('noAccessCard').style.display='block';
@@ -510,8 +513,8 @@ function renderBulkDobavljaci(){
       <span class="naziv">🏢 ${escapeHtml(name)} <span class="hint">(ponuda za ${brojPozicija} od ${currentPonuda.stavke.length} pozicija)</span></span>
       <div>
         ${imaPrilog?`<button type="button" class="btn-ghost" data-otvori-prilog-dob="${escapeHtml(name)}" style="padding:3px 8px;font-size:11px;" title="${escapeHtml(prviOffer.pdfName||'')}">📄 Otvori</button>`:''}
-        <button type="button" class="btn-ghost" data-uredi-dob="${escapeHtml(name)}" style="padding:3px 8px;font-size:11px;">Uredi</button>
-        <button type="button" class="btn-danger-ghost" data-ukloni-dob="${escapeHtml(name)}" style="padding:3px 8px;font-size:11px;">Ukloni</button>
+        ${IS_ADMIN_PONUDE?`<button type="button" class="btn-ghost" data-uredi-dob="${escapeHtml(name)}" style="padding:3px 8px;font-size:11px;">Uredi</button>
+        <button type="button" class="btn-danger-ghost" data-ukloni-dob="${escapeHtml(name)}" style="padding:3px 8px;font-size:11px;">Ukloni</button>`:''}
       </div>
     </div>`;
   }).join('');
