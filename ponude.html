@@ -334,12 +334,10 @@ async function handlePostAuth(){
 
   const trenutnoIme = await ZN.currentUsername();
   $('currentUserBadge').textContent = `▸ ${trenutnoIme||'?'}${IS_ADMIN_PONUDE?' (admin)':''}`;
-  console.log('DIJAGNOSTIKA prijave:', { trenutnoIme, CURRENT_USER_ID, IS_ADMIN_PONUDE });
 
   await loadApprovalRoles();
   const jeRukovodilacNabavke = !!(CURRENT_USER_ID && APPROVAL_ROLES.some(r=>r.step===4 && r.userId===CURRENT_USER_ID));
   MOZE_KREIRATI_PONUDE = IS_ADMIN_PONUDE || jeRukovodilacNabavke;
-  console.log('DIJAGNOSTIKA uloge:', { jeRukovodilacNabavke, MOZE_KREIRATI_PONUDE, APPROVAL_ROLES });
 
   document.querySelectorAll('.admin-only-card').forEach(el=>{ el.style.display = MOZE_KREIRATI_PONUDE ? '' : 'none'; });
   document.querySelectorAll('.admin-only-inline').forEach(el=>{ if(!IS_ADMIN_PONUDE) el.style.display='none'; });
@@ -851,7 +849,6 @@ function openPonudaEditor(id){
   // ko je kreirao ovaj konkretan izveštaj (npr. Rukovodilac nabavke).
   // Tehnički/Generalni direktor (overavaoci) vide samo pregled.
   trenutniMozeUredovati = IS_ADMIN_PONUDE || (p.createdBy && p.createdBy===CURRENT_USER_ID);
-  console.log('DIJAGNOSTIKA:', { IS_ADMIN_PONUDE, createdBy: p.createdBy, CURRENT_USER_ID, poklapaSe: p.createdBy===CURRENT_USER_ID, trenutniMozeUredovati });
   document.querySelectorAll('.editor-only-part').forEach(el=>{ el.style.display = trenutniMozeUredovati ? '' : 'none'; });
 
   const mozeNaOveru = trenutniMozeUredovati && (p.status==='u_izradi' || p.status==='vracen_na_doradu');

@@ -86,6 +86,7 @@
       status: p.status,
       approvalStep: p.approval_step || 0,
       lastReturnComment: p.last_return_comment || null,
+      createdBy: p.created_by,
       createdAt: p.created_at ? new Date(p.created_at).getTime() : Date.now(),
       updatedAt: p.updated_at ? new Date(p.updated_at).getTime() : Date.now()
     };
