@@ -451,7 +451,7 @@ function renderBulkStavkeTable(){
         <td>${idx+1}</td>
         <td>${escapeHtml(s.opis)}</td>
         <td>${escapeHtml(s.jm)}</td>
-        <td class="num">${escapeHtml(s.zaNabavku)}</td>
+        <td class="num">${fmtBroj_(s.zaNabavku)}</td>
         <td><input type="number" step="0.01" data-bulk-bruto="${idx}" style="width:90px;"></td>
         <td><input type="number" step="0.01" data-bulk-rabat="${idx}" value="0" style="width:70px;"></td>
         <td><select data-bulk-valuta="${idx}"><option value="RSD">RSD</option><option value="EUR">EUR</option></select></td>
@@ -587,7 +587,7 @@ function renderPePregled(){
     return `<tr>
       <td class="center">${idx+1}</td><td>${escapeHtml(s.opis)}</td>
       ${supplierCells}
-      <td class="center">${escapeHtml(s.jm)}</td><td class="num">${escapeHtml(s.kolicina)}</td>
+      <td class="center">${escapeHtml(s.jm)}</td><td class="num">${fmtBroj_(s.kolicina)}</td>
       <td class="num">${s.ugovorenaCena!=null?fmtCena_(s.ugovorenaCena):'—'}</td>
       <td class="center">${escapeHtml(s.predlogRukovodioca||'—')}</td>
     </tr>`;
@@ -1151,7 +1151,7 @@ async function buildPonudaPdfBlob_(p, zahtev){
     return [
       idx+1, s.opis,
       ...supplierCells,
-      s.jm, String(s.kolicina),
+      s.jm, fmtBroj_(s.kolicina),
       s.ugovorenaCena!=null?fmtCena_(s.ugovorenaCena):'—',
       s.predlogRukovodioca||'—'
     ];
