@@ -850,12 +850,8 @@ function renderSpecRows(){
       <td class="col-od"><input type="number" min="0" step="any" data-id="${row.id}" data-field="odPostojeceg" value="${escapeHtml(row.odPostojeceg)}" placeholder="0"></td>
       <td class="col-zan"><span class="zan-val" data-zan="${row.id}">${zaNabavkuValue(row)}</span></td>
       <td class="col-rok"><input type="date" data-id="${row.id}" data-field="rok" value="${escapeHtml(row.rok)}"></td>
-      <td class="col-atest">
-        <select data-id="${row.id}" data-field="atest">
-          <option value="" ${row.atest===''?'selected':''}>—</option>
-          <option value="DA" ${row.atest==='DA'?'selected':''}>DA</option>
-          <option value="NE" ${row.atest==='NE'?'selected':''}>NE</option>
-        </select>
+      <td class="col-atest" style="text-align:center;">
+        <input type="checkbox" data-id="${row.id}" data-field="atest" ${row.atest==='DA'?'checked':''} title="Čekiraj ako je atest potreban" style="width:18px;height:18px;cursor:pointer;">
       </td>
       <td class="col-del">${specRows.length>1 ? `<button type="button" class="rm-btn" data-rm="${row.id}" title="Ukloni stavku">×</button>` : ''}</td>
     `;
@@ -864,6 +860,10 @@ function renderSpecRows(){
   body.querySelectorAll('input, select').forEach(inp=>{
     inp.addEventListener('input', e=>{
       const row = specRows.find(r=>r.id===e.target.dataset.id); if(!row) return;
+      if(e.target.dataset.field==='atest'){
+        row.atest = e.target.checked ? 'DA' : '';
+        return;
+      }
       row[e.target.dataset.field] = e.target.value;
       if(e.target.dataset.field==='kolicina'||e.target.dataset.field==='odPostojeceg'){
         const zan = body.querySelector(`[data-zan="${row.id}"]`);
