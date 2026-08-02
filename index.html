@@ -596,7 +596,9 @@ td{padding:7px 8px;border-bottom:1px solid #ddd;font-size:12.5px;}
 .status-isporucena td{background:#82E0AA;color:#1a1a1a;}
 select, input[type=date], input[type=number], input[type=text]{font-family:'IBM Plex Sans',sans-serif;font-size:12.5px;padding:5px 6px;border-radius:3px;border:1px solid #CBCFC5;background:#fff;color:inherit;}
 select:disabled, input[type=date]:disabled, input[type=number]:disabled, input[type=text]:disabled{background:#E7E8E1;color:var(--ink-soft);cursor:not-allowed;}
-@media print{.toolbar{display:none;}body{background:#fff;}.card{border:none;padding:0;overflow:visible;}table{width:auto;}th{white-space:normal;}}
+.filter-row th{padding:4px 8px 8px;border-bottom:1.5px solid #1a1a1a;}
+.filter-row input[type=text]{width:100%;min-width:70px;padding:5px 7px;font-size:11.5px;font-weight:400;text-transform:none;letter-spacing:normal;}
+@media print{.toolbar{display:none;}.filter-row{display:none;}body{background:#fff;}.card{border:none;padding:0;overflow:visible;}table{width:auto;}th{white-space:normal;}}
 @page{ margin:10mm; }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"><\/script>
@@ -626,6 +628,24 @@ select:disabled, input[type=date]:disabled, input[type=number]:disabled, input[t
         <th>Rok isporuke</th><th style="text-align:center;">Atest</th>
         <th>Status</th><th>Datum isporuke</th>
         <th>Dobavljač</th><th>Otpremnica</th><th>Prijemnica</th>
+      </tr>
+      <tr class="filter-row">
+        <th><input type="text" data-filter="redniBroj" placeholder="filtriraj…"></th>
+        <th><input type="text" data-filter="gradiliste" placeholder="filtriraj…"></th>
+        <th></th>
+        <th><input type="text" data-filter="sifra" placeholder="filtriraj…"></th>
+        <th><input type="text" data-filter="opis" placeholder="filtriraj…"></th>
+        <th><input type="text" data-filter="jm" placeholder="filtriraj…"></th>
+        <th></th>
+        <th></th>
+        <th></th>
+        <th></th>
+        <th></th>
+        <th><input type="text" data-filter="status" placeholder="filtriraj…"></th>
+        <th></th>
+        <th><input type="text" data-filter="dobavljac" placeholder="filtriraj…"></th>
+        <th><input type="text" data-filter="otpremnica" placeholder="filtriraj…"></th>
+        <th><input type="text" data-filter="prijemnica" placeholder="filtriraj…"></th>
       </tr></thead>
       <tbody id="tbody"></tbody>
     </table>
@@ -641,9 +661,24 @@ function escapeHtml(s){ return String(s??'').replace(/[&<>"']/g, c=>({'&':'&amp;
 function formatDatumSr(iso){ if(!iso) return '—'; const p=String(iso).split('-'); if(p.length!==3) return iso; return p[2]+'.'+p[1]+'.'+p[0]+'.'; }
 function statusKlasa(s){ if(s==='poručeno') return 'status-porucena'; if(s==='isporučeno') return 'status-isporucena'; return 'status-nije'; }
 function preostaloZaIsporuku(s){ const z=isNaN(parseFloat(s.zaNabavku))?0:parseFloat(s.zaNabavku); const i=isNaN(parseFloat(s.isporuceno))?0:parseFloat(s.isporuceno); return Math.round((z-i)*1000)/1000; }
+let FILTERI = { redniBroj:'', gradiliste:'', sifra:'', opis:'', jm:'', status:'', dobavljac:'', otpremnica:'', prijemnica:'' };
+function podudaraSeFilteru_(vrednost, filter){
+  if(!filter) return true;
+  return String(vrednost??'').toLowerCase().includes(filter.toLowerCase());
+}
 function render(){
-  const tbody=document.getElementById('tbody'); let html='';
+  const tbody=document.getElementById('tbody'); let html=''; let brojPrikazanih=0;
   REQUESTS.forEach((r,reqIdx)=>{ (r.stavke||[]).forEach((s,idx)=>{ if(!s.status) s.status='nije poručeno';
+    if(!podudaraSeFilteru_(r.redniBroj, FILTERI.redniBroj)) return;
+    if(!podudaraSeFilteru_(r.gradilisteNaziv, FILTERI.gradiliste)) return;
+    if(!podudaraSeFilteru_(s.sifra, FILTERI.sifra)) return;
+    if(!podudaraSeFilteru_(s.opis, FILTERI.opis)) return;
+    if(!podudaraSeFilteru_(s.jm, FILTERI.jm)) return;
+    if(!podudaraSeFilteru_(s.status, FILTERI.status)) return;
+    if(!podudaraSeFilteru_(s.dobavljac, FILTERI.dobavljac)) return;
+    if(!podudaraSeFilteru_(s.otpremnica, FILTERI.otpremnica)) return;
+    if(!podudaraSeFilteru_(s.prijemnica, FILTERI.prijemnica)) return;
+    brojPrikazanih++;
     html+='<tr class="'+statusKlasa(s.status)+'">'
       +'<td style="font-family:\\'IBM Plex Mono\\',monospace;white-space:nowrap;">'+escapeHtml(r.redniBroj)+'</td>'
       +'<td>'+escapeHtml(r.gradilisteNaziv)+'</td>'
@@ -667,9 +702,15 @@ function render(){
       +'<td><input type="text" style="width:100px;" data-req="'+reqIdx+'" data-idx="'+idx+'" data-field="prijemnica" value="'+escapeHtml(s.prijemnica||'')+'"></td>'
       +'</tr>';
   }); });
-  tbody.innerHTML=html;
+  tbody.innerHTML = html || '<tr><td colspan="16" style="text-align:center;color:#888;padding:16px;">Nema pozicija koje odgovaraju filterima.</td></tr>';
   tbody.querySelectorAll('[data-field]').forEach(el=>el.addEventListener('change',onFieldChange));
 }
+document.querySelectorAll('[data-filter]').forEach(inp=>{
+  inp.addEventListener('input', e=>{
+    FILTERI[e.target.dataset.filter] = e.target.value;
+    render();
+  });
+});
 async function onFieldChange(e){
   const reqIdx=parseInt(e.target.dataset.req,10); const idx=parseInt(e.target.dataset.idx,10);
   const field=e.target.dataset.field; const value=e.target.value;
