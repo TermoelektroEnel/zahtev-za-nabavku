@@ -1609,7 +1609,34 @@ $('saveBtn').addEventListener('click', async ()=>{
   $('saveBtn').textContent=editingId?'Sačuvaj izmene':'Sačuvaj zahtev';
 });
 
-$('mastheadLogo').src = LOGO_DATA_URI;
+// Logo je JPEG (nema providnost ugrađenu u fajl), pa belu pozadinu
+// uklanjamo u browseru: piksele bliske beloj boji pretvaramo u providne.
+function ukloniBeluPozadinu_(dataUri){
+  return new Promise((resolve)=>{
+    const img = new Image();
+    img.onload = ()=>{
+      const canvas = document.createElement('canvas');
+      canvas.width = img.naturalWidth; canvas.height = img.naturalHeight;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0);
+      try{
+        const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const d = imgData.data;
+        const prag = 235; // piksel se smatra "belim" ako su sve 3 komponente iznad ovoga
+        for(let i=0; i<d.length; i+=4){
+          if(d[i]>=prag && d[i+1]>=prag && d[i+2]>=prag) d[i+3] = 0;
+        }
+        ctx.putImageData(imgData, 0, 0);
+        resolve(canvas.toDataURL('image/png'));
+      }catch(e){
+        resolve(dataUri); // ako obrada ne uspe (npr. CORS), koristi original
+      }
+    };
+    img.onerror = ()=>resolve(dataUri);
+    img.src = dataUri;
+  });
+}
+ukloniBeluPozadinu_(LOGO_DATA_URI).then(rezultat=>{ $('mastheadLogo').src = rezultat; });
 
 /* ============================================================
    INICIJALIZACIJA
