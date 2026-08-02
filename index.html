@@ -832,7 +832,7 @@ function zaNabavkuValue(row){
 function updateSpecEnabled(){
   const spreman = !!($('gradiliste').value && $('nalog').value);
   $('addRowBtn').disabled = !spreman;
-  $('specBody').querySelectorAll('input, select').forEach(el=>{ el.disabled = !spreman; });
+  $('specBody').querySelectorAll('input, select, textarea').forEach(el=>{ el.disabled = !spreman; });
   $('specDisabledHint').style.display = spreman ? 'none' : 'block';
 }
 
@@ -844,7 +844,7 @@ function renderSpecRows(){
     tr.innerHTML = `
       <td class="col-rb">${idx+1}</td>
       <td class="col-sifra"><input type="text" maxlength="3" data-id="${row.id}" data-field="sifra" value="${escapeHtml(row.sifra)}" placeholder="npr. A12" style="text-transform:uppercase;"></td>
-      <td class="col-opis"><input type="text" data-id="${row.id}" data-field="opis" value="${escapeHtml(row.opis)}" placeholder="npr. Kabl PP00 5X2,5mm"></td>
+      <td class="col-opis"><textarea data-id="${row.id}" data-field="opis" rows="1" placeholder="npr. Kabl PP00 5X2,5mm" style="width:100%;resize:none;overflow:hidden;font-family:inherit;font-size:inherit;line-height:1.35;padding:9px 10px;border:1px solid var(--line);border-radius:var(--radius);">${escapeHtml(row.opis)}</textarea></td>
       <td class="col-jm"><input type="text" data-id="${row.id}" data-field="jm" value="${escapeHtml(row.jm)}" placeholder="kom / m / kg"></td>
       <td class="col-kol"><input type="number" min="0" step="any" data-id="${row.id}" data-field="kolicina" value="${escapeHtml(row.kolicina)}" placeholder="0"></td>
       <td class="col-od"><input type="number" min="0" step="any" data-id="${row.id}" data-field="odPostojeceg" value="${escapeHtml(row.odPostojeceg)}" placeholder="0"></td>
@@ -857,7 +857,7 @@ function renderSpecRows(){
     `;
     body.appendChild(tr);
   });
-  body.querySelectorAll('input, select').forEach(inp=>{
+  body.querySelectorAll('input, select, textarea').forEach(inp=>{
     inp.addEventListener('input', e=>{
       const row = specRows.find(r=>r.id===e.target.dataset.id); if(!row) return;
       if(e.target.dataset.field==='atest'){
@@ -869,7 +869,15 @@ function renderSpecRows(){
         const zan = body.querySelector(`[data-zan="${row.id}"]`);
         if(zan) zan.textContent = zaNabavkuValue(row);
       }
+      if(e.target.tagName==='TEXTAREA'){
+        e.target.style.height = 'auto';
+        e.target.style.height = e.target.scrollHeight + 'px';
+      }
     });
+  });
+  body.querySelectorAll('textarea[data-field="opis"]').forEach(ta=>{
+    ta.style.height = 'auto';
+    ta.style.height = ta.scrollHeight + 'px';
   });
   body.querySelectorAll('[data-rm]').forEach(btn=>{
     btn.addEventListener('click', e=>{ specRows=specRows.filter(r=>r.id!==e.target.dataset.rm); renderSpecRows(); });
