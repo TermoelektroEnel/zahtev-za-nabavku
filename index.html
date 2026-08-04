@@ -560,7 +560,15 @@ $('zbirniNalog').addEventListener('change', ()=>{
 function openZbirniNoviTab(nalog){
   const matching = DATA.requests.filter(r => r.nalog === nalog);
   if(matching.length === 0){ alert('Nema sačuvanih zahteva za ovaj nalog.'); return; }
-  const requestsData = matching.map(r => ({
+  // Sortiraj od manjeg ka većem po brojčanom delu rednog broja (poslednji
+  // segment posle '/'), bez obzira na redosled unosa.
+  const brojZaSortZbirno = r => {
+    const parts = String(r.redniBroj||'').split('/');
+    const n = parseInt(parts[parts.length-1], 10);
+    return Number.isFinite(n) ? n : 0;
+  };
+  const sortedMatching = matching.slice().sort((a,b)=>brojZaSortZbirno(a)-brojZaSortZbirno(b));
+  const requestsData = sortedMatching.map(r => ({
     id: r.id, redniBroj: r.redniBroj,
     gradilisteNaziv: nazivGradilista(r.gradiliste) || r.gradiliste,
     stavke: r.stavke || []
