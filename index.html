@@ -777,7 +777,7 @@ async function onFieldChange(e){
   }
   const statusMsg=document.getElementById('statusMsg'); statusMsg.textContent='Čuvanje…';
   try{
-    const { error }=await sbClient.from('requests').update({ nalog:NALOG, stavke:req.stavke }).eq('id', req.id);
+    const { error }=await sbClient.rpc('update_isporuka_stavke', { p_request_id: req.id, p_stavke: req.stavke });
     statusMsg.textContent=error?'Greška: '+error.message:'Sačuvano '+new Date().toLocaleTimeString('sr-RS');
   }catch(err){ statusMsg.textContent='Greška pri čuvanju — proveri konekciju.'; }
   render();
@@ -790,7 +790,7 @@ async function sacuvajSve(){
   let greske=0;
   for(const req of REQUESTS){
     try{
-      const { error } = await sbClient.from('requests').update({ nalog:NALOG, stavke:req.stavke }).eq('id', req.id);
+      const { error } = await sbClient.rpc('update_isporuka_stavke', { p_request_id: req.id, p_stavke: req.stavke });
       if(error) greske++;
     }catch(err){ greske++; }
   }
