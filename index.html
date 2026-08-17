@@ -177,6 +177,24 @@ input[type=password]:focus{outline:2px solid var(--steel);outline-offset:1px;}
   </div>
 </div>
 
+<div class="login-overlay" id="pwOverlay" style="display:none;">
+  <div class="login-box">
+    <div class="login-title">Potrebna je nova lozinka</div>
+    <div class="login-sub">Iz bezbednosnih razloga, postavi novu lozinku pre nastavka rada</div>
+    <hr class="login-divider">
+    <div class="login-err" id="pwErr"></div>
+    <div class="field">
+      <label for="pwNova1">Nova lozinka</label>
+      <input type="password" id="pwNova1" autocomplete="new-password" placeholder="najmanje 8 znakova">
+    </div>
+    <div class="field">
+      <label for="pwNova2">Ponovi novu lozinku</label>
+      <input type="password" id="pwNova2" autocomplete="new-password">
+    </div>
+    <button type="button" class="btn btn-primary" id="pwSaveBtn">Sačuvaj novu lozinku</button>
+  </div>
+</div>
+
 <!-- ====== GLAVNA APLIKACIJA ====== -->
 <div class="app" id="app" style="display:none;">
   <div class="masthead">
@@ -326,6 +344,31 @@ function showLogin(){
   setTimeout(()=> $i('loginUser').focus(), 50);
 }
 
+async function proveriIPrikaziPromenuLozinke_(){
+  if(await ZN.mustChangePassword()){
+    $i('pwOverlay').style.display = 'flex';
+    $i('pwNova1').focus();
+    return true;
+  }
+  return false;
+}
+$i('pwSaveBtn').addEventListener('click', async ()=>{
+  const p1 = $i('pwNova1').value, p2 = $i('pwNova2').value;
+  $i('pwErr').textContent=''; $i('pwErr').classList.remove('visible');
+  if(p1.length < 8){ $i('pwErr').textContent='Lozinka mora imati bar 8 znakova.'; $i('pwErr').classList.add('visible'); return; }
+  if(p1 !== p2){ $i('pwErr').textContent='Lozinke se ne poklapaju.'; $i('pwErr').classList.add('visible'); return; }
+  $i('pwSaveBtn').disabled = true;
+  const r = await ZN.promeniLozinku(p1);
+  $i('pwSaveBtn').disabled = false;
+  if(r && r.error){ $i('pwErr').textContent = r.error; $i('pwErr').classList.add('visible'); return; }
+  $i('pwOverlay').style.display = 'none';
+  showApp();
+  await Promise.all([loadRefData(), loadData()]);
+  resetForm();
+  const zahtevId = new URLSearchParams(location.search).get('zahtev');
+  if(zahtevId) openOveraView(zahtevId);
+});
+
 async function doLogin(){
   const username = $i('loginUser').value.trim();
   const password = $i('loginPass').value;
@@ -345,6 +388,11 @@ async function doLogin(){
     const result = await res.json();
     if(result && result.ok){
       sessionStorage.setItem(SESSION_KEY, username);
+      if(await proveriIPrikaziPromenuLozinke_()){
+        $i('loginBtn').disabled = false;
+        $i('loginSpinner').classList.remove('visible');
+        return;
+      }
       showApp();
       await Promise.all([loadRefData(), loadData()]);
       const zahtevId = new URLSearchParams(location.search).get('zahtev');
@@ -1702,6 +1750,7 @@ ukloniBeluPozadinu_(LOGO_DATA_URI).then(rezultat=>{ $('mastheadLogo').src = rezu
   const user = await ZN.currentUsername();
   if(user){
     sessionStorage.setItem(SESSION_KEY, user);
+    if(await proveriIPrikaziPromenuLozinke_()) return;
     showApp();
     await Promise.all([loadRefData(), loadData()]);
     resetForm();

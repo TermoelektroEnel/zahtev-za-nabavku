@@ -567,6 +567,27 @@
       const { data, error } = await sbClient.rpc('is_admin');
       return !error && !!data;
     },
+    // Da li trenutni korisnik mora da promeni lozinku pre nastavka rada.
+    async mustChangePassword() {
+      const { data: sessionData } = await sbClient.auth.getSession();
+      if (!sessionData.session) return false;
+      const { data, error } = await sbClient
+        .from('profiles')
+        .select('must_change_password')
+        .eq('id', sessionData.session.user.id)
+        .maybeSingle();
+      if (error || !data) return false;
+      return !!data.must_change_password;
+    },
+    // Menja lozinku trenutno prijavljenog korisnika i skida oznaku
+    // "mora da promeni lozinku".
+    async promeniLozinku(novaLozinka) {
+      const { error } = await sbClient.auth.updateUser({ password: novaLozinka });
+      if (error) return { error: error.message };
+      const { error: err2 } = await sbClient.rpc('mark_password_changed');
+      if (err2) return { error: err2.message };
+      return { ok: true };
+    },
     // null = sva gradilišta, [] = nijedno, ['901','902',...] = dodeljena lista
     async myGradilista() {
       const { data: sessionData } = await sbClient.auth.getSession();

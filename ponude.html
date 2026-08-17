@@ -131,6 +131,24 @@ td{padding:8px 8px 8px 0;border-bottom:1px solid var(--line-soft);font-size:13px
   </div>
 </div>
 
+<div class="login-overlay" id="pwOverlay" style="display:none;">
+  <div class="login-box">
+    <div class="login-title">Potrebna je nova lozinka</div>
+    <div class="login-sub">Iz bezbednosnih razloga, postavi novu lozinku pre nastavka rada</div>
+    <hr class="login-divider">
+    <div class="login-err" id="pwErr"></div>
+    <div class="field">
+      <label for="pwNova1">Nova lozinka</label>
+      <input type="password" id="pwNova1" autocomplete="new-password" placeholder="najmanje 8 znakova">
+    </div>
+    <div class="field">
+      <label for="pwNova2">Ponovi novu lozinku</label>
+      <input type="password" id="pwNova2" autocomplete="new-password">
+    </div>
+    <button type="button" class="btn btn-primary" id="pwSaveBtn">Sačuvaj novu lozinku</button>
+  </div>
+</div>
+
 <!-- GLAVNI SADRŽAJ -->
 <div class="app" id="app" style="display:none;">
   <div class="masthead">
@@ -328,7 +346,29 @@ async function doLogin(){
 
 let MOZE_KREIRATI_PONUDE = false;
 
+async function proveriIPrikaziPromenuLozinke_(){
+  if(await ZN.mustChangePassword()){
+    $('pwOverlay').style.display = 'flex';
+    $('pwNova1').focus();
+    return true;
+  }
+  return false;
+}
+$('pwSaveBtn').addEventListener('click', async ()=>{
+  const p1 = $('pwNova1').value, p2 = $('pwNova2').value;
+  $('pwErr').textContent=''; $('pwErr').classList.remove('visible');
+  if(p1.length < 8){ $('pwErr').textContent='Lozinka mora imati bar 8 znakova.'; $('pwErr').classList.add('visible'); return; }
+  if(p1 !== p2){ $('pwErr').textContent='Lozinke se ne poklapaju.'; $('pwErr').classList.add('visible'); return; }
+  $('pwSaveBtn').disabled = true;
+  const r = await ZN.promeniLozinku(p1);
+  $('pwSaveBtn').disabled = false;
+  if(r && r.error){ $('pwErr').textContent = r.error; $('pwErr').classList.add('visible'); return; }
+  $('pwOverlay').style.display = 'none';
+  await handlePostAuth();
+});
+
 async function handlePostAuth(){
+  if(await proveriIPrikaziPromenuLozinke_()) return;
   IS_ADMIN_PONUDE = await ZN.isAdmin();
   CURRENT_USER_ID = await ZN.currentUserId();
   sessionStorage.setItem(SESSION_KEY, '1');
