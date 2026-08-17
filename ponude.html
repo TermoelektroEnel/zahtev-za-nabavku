@@ -1,0 +1,1450 @@
+<!DOCTYPE html>
+<html lang="sr">
+<head>
+<meta charset="UTF-8">
+<title>Izveštaji o ponudama — Zahtev za nabavku</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600;700&display=swap');
+
+:root{
+  --paper:#EAEBE4;--card:#F7F7F2;--ink:#1E2A2E;--ink-soft:#4A5559;
+  --steel:#35566B;--steel-dark:#243D4C;--safety:#C0762A;
+  --line:#CBCFC5;--line-soft:#DEE0D8;--danger:#A8432F;--good:#3F6B4A;--radius:3px;
+}
+*{box-sizing:border-box;}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:'IBM Plex Sans',sans-serif;font-size:14px;-webkit-font-smoothing:antialiased;}
+.app{max-width:960px;margin:0 auto;padding:28px 24px 60px;}
+.app.wide-mode{max-width:1700px;}
+
+.masthead{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:3px solid var(--ink);padding-bottom:14px;margin-bottom:26px;flex-wrap:wrap;gap:10px;}
+.masthead h1{font-family:'Space Grotesk',sans-serif;font-size:24px;font-weight:700;letter-spacing:0.02em;margin:0;text-transform:uppercase;}
+.masthead .sub{font-family:'IBM Plex Mono',monospace;font-size:11.5px;color:var(--ink-soft);letter-spacing:0.04em;}
+.masthead-right{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+.back-link{font-size:12.5px;color:var(--steel-dark);text-decoration:none;border:1px solid var(--line);padding:6px 12px;border-radius:var(--radius);white-space:nowrap;}
+.back-link:hover{border-color:var(--steel);}
+.current-user-badge{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--steel);border:1px solid var(--line);padding:4px 10px;border-radius:var(--radius);letter-spacing:0.04em;white-space:nowrap;}
+
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:20px 22px;margin-bottom:24px;}
+.card h2{font-family:'Space Grotesk',sans-serif;font-size:14px;text-transform:uppercase;letter-spacing:0.08em;margin:0 0 16px;padding-bottom:10px;border-bottom:1px solid var(--line-soft);color:var(--steel-dark);}
+.card .section-note{font-size:12px;color:var(--ink-soft);margin:-8px 0 14px;padding-bottom:10px;border-bottom:1px dashed var(--line-soft);}
+
+label{display:block;font-size:11.5px;font-weight:600;color:var(--ink-soft);text-transform:uppercase;letter-spacing:0.05em;margin:0 0 5px;}
+input[type=text],input[type=number],input[type=password],select,textarea{width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:var(--radius);background:#fff;font-family:'IBM Plex Sans',sans-serif;font-size:13.5px;color:var(--ink);}
+input:focus,select:focus,textarea:focus{outline:2px solid var(--steel);outline-offset:1px;}
+.field{margin-bottom:14px;}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;}
+.hint{font-size:11px;color:var(--ink-soft);margin-top:4px;}
+.err{font-size:11.5px;color:var(--danger);margin-top:4px;font-weight:500;}
+
+.checkbox-row{display:flex;align-items:center;gap:8px;margin-bottom:10px;}
+.checkbox-row input[type=checkbox]{width:auto;}
+.checkbox-row label{margin:0;text-transform:none;font-weight:500;font-size:13px;letter-spacing:0;color:var(--ink);}
+
+.chip-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:6px 10px;padding:10px;border:1px solid var(--line-soft);border-radius:var(--radius);background:#fff;max-height:220px;overflow-y:auto;}
+.chip-grid label{display:flex;align-items:center;gap:6px;font-size:12.5px;text-transform:none;font-weight:500;color:var(--ink);margin:0;cursor:pointer;}
+.chip-grid input{width:auto;}
+
+.pozicija-block{border:1px solid var(--line);border-radius:var(--radius);padding:14px 16px;margin-bottom:14px;background:#fff;}
+.pozicija-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px;padding-bottom:8px;border-bottom:1px dashed var(--line-soft);}
+.pozicija-head .naziv{font-weight:600;font-size:13.5px;}
+.pozicija-head .meta{font-size:11.5px;color:var(--ink-soft);font-family:'IBM Plex Mono',monospace;}
+.ponude-mini-table{width:100%;border-collapse:collapse;margin-bottom:10px;font-size:12.5px;}
+.ponude-mini-table th{font-size:10px;text-transform:uppercase;color:var(--ink-soft);padding:0 6px 6px 0;border-bottom:1px solid var(--line-soft);text-align:left;}
+.ponude-mini-table td{padding:6px 6px 6px 0;border-bottom:1px solid var(--line-soft);vertical-align:middle;}
+.ponude-mini-table input[type=text],.ponude-mini-table input[type=number]{padding:5px 7px;font-size:12.5px;}
+.add-ponuda-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px;align-items:end;margin-bottom:12px;}
+.add-ponuda-row .field{margin-bottom:0;}
+.pozicija-extra{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px;}
+.pozicija-extra .field{margin-bottom:0;}
+.pregled-table{border-collapse:collapse;font-size:12px;table-layout:fixed;}
+.pregled-table th,.pregled-table td{border:1px solid var(--line-soft);padding:5px 7px;text-align:left;overflow-wrap:break-word;}
+.pregled-table thead th{background:var(--steel-dark);color:#fff;font-size:10.5px;text-transform:uppercase;letter-spacing:.02em;text-align:center;}
+.pregled-table tbody td.num{text-align:right;font-family:'IBM Plex Mono',monospace;}
+.pregled-table tbody td.center{text-align:center;}
+.pregled-table td.izabrano{background:rgba(63,107,74,0.12);font-weight:600;color:#2E5E3B;}
+.pregled-table tfoot td{background:var(--card);font-weight:600;font-size:11.5px;border-top:2px solid var(--ink);}
+.pregled-summary{display:flex;flex-direction:column;align-items:flex-end;gap:4px;margin-top:10px;font-family:'IBM Plex Mono',monospace;font-size:13px;text-align:right;}
+.pregled-summary .razlika{padding-top:6px;margin-top:4px;border-top:1px solid var(--line-soft);}
+.status-badge{display:inline-block;font-size:10.5px;font-weight:600;padding:2px 8px;border-radius:10px;text-transform:uppercase;letter-spacing:.02em;white-space:nowrap;}
+.status-u_izradi{background:var(--line-soft);color:var(--ink-soft);}
+.status-na_overi{background:#FCE9C7;color:#8A5A00;}
+.status-vracen_na_doradu{background:#F8D3CC;color:var(--danger);}
+.status-odobren{background:#D7EBDC;color:var(--good);}
+.log-table{width:100%;border-collapse:collapse;font-size:12px;}
+.log-table th,.log-table td{padding:5px 8px;border-bottom:1px solid var(--line-soft);text-align:left;}
+
+.btn{font-family:'IBM Plex Sans',sans-serif;font-weight:600;font-size:13px;padding:11px 18px;border-radius:var(--radius);border:none;cursor:pointer;letter-spacing:0.02em;}
+.btn-primary{background:var(--steel-dark);color:#fff;}
+.btn-primary:hover{background:var(--steel);}
+.btn-primary:disabled{background:#9AA3A6;cursor:not-allowed;}
+.btn-ghost{background:none;border:1px solid var(--line);color:var(--ink);padding:7px 12px;font-size:12px;cursor:pointer;border-radius:var(--radius);font-family:'IBM Plex Sans',sans-serif;font-weight:600;}
+.btn-ghost:hover{border-color:var(--steel);color:var(--steel-dark);}
+.btn-danger-ghost{background:none;border:1px solid var(--line);color:var(--danger);padding:7px 12px;font-size:12px;cursor:pointer;border-radius:var(--radius);font-family:'IBM Plex Sans',sans-serif;font-weight:600;}
+.btn-danger-ghost:hover{border-color:var(--danger);background:rgba(168,67,47,0.07);}
+.btn-logout{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--ink-soft);border:1px solid var(--line);padding:5px 11px;border-radius:var(--radius);background:none;cursor:pointer;letter-spacing:0.04em;white-space:nowrap;}
+.btn-logout:hover{border-color:var(--danger);color:var(--danger);}
+
+table{width:100%;border-collapse:collapse;margin-bottom:6px;}
+th{text-align:left;font-size:10.5px;text-transform:uppercase;letter-spacing:0.05em;color:var(--ink-soft);padding:0 8px 8px 0;font-weight:600;border-bottom:1px solid var(--line-soft);}
+td{padding:8px 8px 8px 0;border-bottom:1px solid var(--line-soft);font-size:13px;vertical-align:top;}
+.tags{display:flex;flex-wrap:wrap;gap:4px;}
+.tag{font-family:'IBM Plex Mono',monospace;font-size:11px;background:var(--steel-dark);color:#fff;padding:2px 7px;border-radius:12px;}
+.tag.sva{background:var(--good);}
+.tag.nijedno{background:var(--danger);}
+.row-actions{display:flex;gap:6px;white-space:nowrap;}
+.empty{color:var(--ink-soft);font-size:13px;padding:16px 0;text-align:center;}
+.loading{color:var(--ink-soft);font-size:13px;padding:16px 0;text-align:center;}
+
+.info-msg{font-size:12px;color:var(--good);font-weight:600;background:rgba(63,107,74,0.08);border:1px solid rgba(63,107,74,0.25);border-radius:var(--radius);padding:9px 12px;margin-bottom:16px;display:none;}
+.info-msg.visible{display:block;}
+
+/* LOGIN OVERLAY */
+.login-overlay{position:fixed;inset:0;background:var(--paper);display:flex;align-items:center;justify-content:center;z-index:999;padding:20px;}
+.login-box{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:36px 40px 32px;width:100%;max-width:380px;}
+.login-title{font-family:'Space Grotesk',sans-serif;font-size:18px;font-weight:700;text-transform:uppercase;letter-spacing:0.04em;margin:0 0 4px;}
+.login-sub{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--ink-soft);letter-spacing:0.04em;margin-bottom:28px;}
+.login-divider{border:none;border-top:1px solid var(--line-soft);margin:0 0 22px;}
+.login-err{font-size:12px;color:var(--danger);font-weight:600;background:rgba(168,67,47,0.08);border:1px solid rgba(168,67,47,0.25);border-radius:var(--radius);padding:9px 12px;margin-bottom:16px;display:none;}
+.login-err.visible{display:block;}
+.login-box .btn-primary{width:100%;margin-top:6px;font-size:13.5px;padding:12px;}
+</style>
+</head>
+<body>
+
+<!-- LOGIN OVERLAY -->
+<div class="login-overlay" id="loginOverlay">
+  <div class="login-box">
+    <div class="login-title">Izveštaji o ponudama</div>
+    <div class="login-sub">Zahtev za nabavku — administracija i overa/odobrenje</div>
+    <hr class="login-divider">
+    <div class="login-err" id="loginErr">Pogrešno korisničko ime ili lozinka.</div>
+    <div class="field">
+      <label for="loginUser">Korisničko ime</label>
+      <input type="text" id="loginUser" autocomplete="username" autofocus>
+    </div>
+    <div class="field">
+      <label for="loginPass">Lozinka</label>
+      <input type="password" id="loginPass" autocomplete="current-password">
+    </div>
+    <button type="button" class="btn btn-primary" id="loginBtn">Prijavi se</button>
+  </div>
+</div>
+
+<div class="login-overlay" id="pwOverlay" style="display:none;">
+  <div class="login-box">
+    <div class="login-title">Potrebna je nova lozinka</div>
+    <div class="login-sub">Iz bezbednosnih razloga, postavi novu lozinku pre nastavka rada</div>
+    <hr class="login-divider">
+    <div class="login-err" id="pwErr"></div>
+    <div class="field">
+      <label for="pwNova1">Nova lozinka</label>
+      <input type="password" id="pwNova1" autocomplete="new-password" placeholder="najmanje 8 znakova">
+    </div>
+    <div class="field">
+      <label for="pwNova2">Ponovi novu lozinku</label>
+      <input type="password" id="pwNova2" autocomplete="new-password">
+    </div>
+    <button type="button" class="btn btn-primary" id="pwSaveBtn">Sačuvaj novu lozinku</button>
+  </div>
+</div>
+
+<!-- GLAVNI SADRŽAJ -->
+<div class="app" id="app" style="display:none;">
+  <div class="masthead">
+    <div>
+      <h1>Izveštaji o ponudama</h1>
+      <div class="sub">Poređenje ponuda dobavljača i izbor — Zahtev za nabavku</div>
+    </div>
+    <div class="masthead-right">
+      <span class="current-user-badge" id="currentUserBadge">▸ …</span>
+      <a class="back-link" href="index.html">← Nazad na glavnu stranicu</a>
+      <a class="back-link admin-only-inline" href="admin.html">Administracija</a>
+      <button type="button" class="btn-logout" id="logoutBtn">Odjavi se</button>
+    </div>
+  </div>
+
+  <!-- NEMA PRISTUPA (za neadmin korisnike bez validnog linka) -->
+  <div class="card" id="noAccessCard" style="display:none;">
+    <h2>Nemate pristup ovoj stranici</h2>
+    <p id="noAccessText">Ova stranica je namenjena administratorima, ili osobama koje su dobile link za overu konkretnog izveštaja o ponudama.</p>
+  </div>
+
+  <!-- PONUDE I IZBOR DOBAVLJAČA -->
+  <div class="card admin-only-card">
+    <h2>Novi izveštaj o ponudama</h2>
+    <p class="section-note">Izaberi postojeći zahtev za nabavku — pozicije će se automatski učitati, pa dodaješ ponude dobavljača za svaku. Broj izveštaja (IP) automatski se poklapa sa brojem zahteva (ZN) radi sledljivosti.</p>
+    <div class="field">
+      <label for="pZahtev">Zahtev za nabavku</label>
+      <select id="pZahtev"><option value="">— izaberi zahtev —</option></select>
+    </div>
+    <div class="err" id="pNoviErr"></div>
+    <button type="button" class="btn btn-primary" id="pKreirajBtn">Kreiraj izveštaj</button>
+  </div>
+
+  <div class="card admin-only-card">
+    <h2>Postojeći izveštaji o ponudama</h2>
+    <div id="ponudaListWrap"><div class="loading">Učitavanje…</div></div>
+  </div>
+
+  <!-- EDITOR IZVEŠTAJA O PONUDAMA -->
+  <div class="card" id="ponudaEditorCard" style="display:none;">
+    <h2 id="ponudaEditorTitle">Izveštaj o ponudama</h2>
+    <div style="margin-bottom:10px;" id="peStatusBadgeWrap"></div>
+    <div class="err" id="peReturnComment" style="display:none;margin-bottom:10px;"></div>
+    <div class="row3 editor-only-part">
+      <div class="field">
+        <label for="peVrstaRadova">Vrsta radova</label>
+        <input type="text" id="peVrstaRadova" placeholder="npr. Isporuka kablova">
+      </div>
+      <div class="field">
+        <label for="peAdresa">Adresa isporuke</label>
+        <select id="peAdresa"><option value="">— izaberi adresu —</option></select>
+      </div>
+      <div class="field">
+        <label for="peKurs">Kurs € (RSD)</label>
+        <div style="display:flex;gap:6px;">
+          <input type="number" id="peKurs" step="0.0001" style="flex:1;">
+          <button type="button" class="btn-ghost" id="peOsveziKursBtn" style="white-space:nowrap;">Osveži (NBS)</button>
+        </div>
+        <div class="hint" id="peKursHint"></div>
+      </div>
+    </div>
+
+    <div class="pozicija-block editor-only-part" id="peBulkBlock" style="background:#F3F4EE;">
+      <div class="pozicija-head">
+        <div class="naziv">Unos ponude dobavljača (sve pozicije odjednom)</div>
+        <div class="meta" id="bulkModeLabel"></div>
+      </div>
+      <div class="row3">
+        <div class="field"><label for="bulkDobavljac">Naziv dobavljača</label><input type="text" id="bulkDobavljac" placeholder="Naziv dobavljača"></div>
+        <div class="field"><label for="bulkAvans">Avans</label><input type="text" id="bulkAvans" placeholder="npr. 30%"></div>
+        <div class="field"><label for="bulkNacin">Način plaćanja</label><input type="text" id="bulkNacin" placeholder="npr. Virmanski 30 dana"></div>
+      </div>
+      <div class="field">
+        <label>Ponuda dobavljača (PDF) — jedan fajl, važi za sve pozicije</label>
+        <input type="file" id="bulkPdfInput" accept="application/pdf">
+        <div class="hint" id="bulkPdfHint"></div>
+      </div>
+      <div id="bulkStavkeWrap"></div>
+      <div class="err" id="bulkErr"></div>
+      <div style="display:flex;gap:8px;margin-top:10px;">
+        <button type="button" class="btn btn-primary" id="bulkSaveBtn">Sačuvaj ponudu ovog dobavljača</button>
+        <button type="button" class="btn-ghost" id="bulkResetBtn" style="display:none;">Otkaži izmenu</button>
+      </div>
+    </div>
+
+    <div class="field" id="peDobavljaciField">
+      <label>Dobavljači uneti u ovaj izveštaj <span class="hint">(dugme "Otvori" otvara priloženu ponudu tog dobavljača)</span></label>
+      <div id="bulkDobavljaciWrap"><div class="hint">Još uvek nema unetih dobavljača.</div></div>
+    </div>
+
+    <div id="peStavkeWrap" class="editor-only-part"></div>
+
+    <div class="editor-only-part" style="display:flex;justify-content:flex-end;gap:24px;margin:16px 0;padding-top:12px;border-top:1px solid var(--line-soft);font-family:'IBM Plex Mono',monospace;">
+      <div>Ukupno bez PDV: <strong id="peUkupnoBezPdv">0</strong> RSD</div>
+      <div>Ukupno sa PDV (20%): <strong id="peUkupnoSaPdv">0</strong> RSD</div>
+      <div>Ukupno ugovoreno bez PDV: <strong id="peUkupnoUgovorenoBezPdv">0</strong> RSD</div>
+      <div>Ukupno ugovoreno sa PDV (20%): <strong id="peUkupnoUgovorenoSaPdv">0</strong> RSD</div>
+    </div>
+    <div class="hint editor-only-part">Napomena: PDV je pretpostavljen na 20% (standardna stopa u Srbiji) — javi ako treba drugačije.</div>
+
+    <div class="field" style="margin-top:20px;">
+      <label>Pregled izveštaja (za overu i odobrenje)</label>
+      <div id="pePregledWrap" style="overflow-x:auto;padding-bottom:18px;"></div>
+    </div>
+
+    <div class="err" id="peErr"></div>
+    <div class="info-msg" id="peInfo"></div>
+    <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;" id="peActionsWrap">
+      <button type="button" class="btn btn-primary editor-only-part" id="peSaveBtn">Sačuvaj izveštaj</button>
+      <button type="button" class="btn-ghost" id="peExportBtn">Izvezi PDF</button>
+      <button type="button" class="btn-ghost" id="pePosaljiNaOveruBtn" style="display:none;">Pošalji na overu</button>
+      <button type="button" class="btn-ghost" id="peCloseBtn">Zatvori</button>
+    </div>
+
+    <div id="peOveraActionsWrap" style="display:none;margin-top:14px;padding-top:14px;border-top:1px solid var(--line-soft);">
+      <div class="field">
+        <label for="peOveraKomentar">Napomena (opciono uz overu, obavezno ako vraćaš na doradu)</label>
+        <textarea id="peOveraKomentar" rows="2" style="width:100%;padding:8px;border:1px solid var(--line);border-radius:var(--radius);font-family:inherit;"></textarea>
+      </div>
+      <div style="display:flex;gap:8px;">
+        <button type="button" class="btn btn-primary" id="peOveriBtn">Overi i prosledi dalje</button>
+        <button type="button" class="btn-ghost" id="peVratiBtn">Vrati na doradu</button>
+      </div>
+      <div class="err" id="peOveraErr"></div>
+    </div>
+
+    <div style="margin-top:20px;">
+      <h3 style="font-size:14px;margin-bottom:8px;">Istorija</h3>
+      <div id="peLogWrap"><div class="hint">Još uvek nema istorije.</div></div>
+    </div>
+  </div>
+
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="supabase-config.js"></script>
+<script src="supabase-backend.js"></script>
+<script>
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycby9zpoac93iRvD7gavKdgKel7XaT_lmDBTfTc42-M0iKo3LIj7MSuVxXN36sTUDpBcU/exec";
+
+/* ============================================================
+   ADMIN PRISTUP
+   Prijava ide preko Supabase Auth-a; pravo pristupa ovoj stranici
+   ima samo korisnik sa role = 'admin' u tabeli profiles (RLS).
+   ============================================================ */
+const LOGO_DATA_URI = "data:image/jpeg;base64,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";
+const SESSION_KEY = 'zn_ponude_session';
+const PONUDA_LINK_ID = new URLSearchParams(location.search).get('ponuda');
+let IS_ADMIN_PONUDE = false;
+let trenutniMozeUredovati = false; // admin ili kreator TRENUTNO otvorenog izveštaja
+
+const $ = id => document.getElementById(id);
+function escapeHtml(s){ return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+function isLoggedIn(){ return sessionStorage.getItem(SESSION_KEY) === '1'; }
+
+function showApp(){
+  $('loginOverlay').style.display = 'none';
+  $('app').style.display = 'block';
+}
+function showLogin(){
+  $('loginOverlay').style.display = 'flex';
+  $('app').style.display = 'none';
+  $('loginUser').value = '';
+  $('loginPass').value = '';
+  $('loginErr').classList.remove('visible');
+  setTimeout(()=> $('loginUser').focus(), 50);
+}
+
+async function doLogin(){
+  const user = $('loginUser').value.trim();
+  const pass = $('loginPass').value;
+  if(!user || !pass){ $('loginErr').textContent='Unesite korisničko ime i lozinku.'; $('loginErr').classList.add('visible'); return; }
+  $('loginBtn').disabled = true;
+  $('loginErr').classList.remove('visible');
+  try{
+    const res = await fetch(SCRIPT_URL, { method:'POST', body: JSON.stringify({ action:'checkLogin', username:user, password:pass }) });
+    const result = await res.json();
+    if(result && result.ok){
+      await handlePostAuth();
+    }else{
+      $('loginErr').textContent = 'Pogrešno korisničko ime ili lozinka.';
+      $('loginErr').classList.add('visible');
+      $('loginPass').value = '';
+      $('loginPass').focus();
+    }
+  }catch(e){
+    $('loginErr').textContent = 'Greška pri povezivanju.';
+    $('loginErr').classList.add('visible');
+  }
+  $('loginBtn').disabled = false;
+}
+
+let MOZE_KREIRATI_PONUDE = false;
+
+async function proveriIPrikaziPromenuLozinke_(){
+  if(await ZN.mustChangePassword()){
+    $('pwOverlay').style.display = 'flex';
+    $('pwNova1').focus();
+    return true;
+  }
+  return false;
+}
+$('pwSaveBtn').addEventListener('click', async ()=>{
+  const p1 = $('pwNova1').value, p2 = $('pwNova2').value;
+  $('pwErr').textContent=''; $('pwErr').classList.remove('visible');
+  if(p1.length < 8){ $('pwErr').textContent='Lozinka mora imati bar 8 znakova.'; $('pwErr').classList.add('visible'); return; }
+  if(p1 !== p2){ $('pwErr').textContent='Lozinke se ne poklapaju.'; $('pwErr').classList.add('visible'); return; }
+  $('pwSaveBtn').disabled = true;
+  const r = await ZN.promeniLozinku(p1);
+  $('pwSaveBtn').disabled = false;
+  if(r && r.error){ $('pwErr').textContent = r.error; $('pwErr').classList.add('visible'); return; }
+  $('pwOverlay').style.display = 'none';
+  await handlePostAuth();
+});
+
+async function handlePostAuth(){
+  if(await proveriIPrikaziPromenuLozinke_()) return;
+  IS_ADMIN_PONUDE = await ZN.isAdmin();
+  CURRENT_USER_ID = await ZN.currentUserId();
+  sessionStorage.setItem(SESSION_KEY, '1');
+
+  const trenutnoIme = await ZN.currentUsername();
+  $('currentUserBadge').textContent = `▸ ${trenutnoIme||'?'}${IS_ADMIN_PONUDE?' (admin)':''}`;
+
+  await loadApprovalRoles();
+  const jeRukovodilacNabavke = !!(CURRENT_USER_ID && APPROVAL_ROLES.some(r=>r.step===4 && r.userId===CURRENT_USER_ID));
+  MOZE_KREIRATI_PONUDE = IS_ADMIN_PONUDE || jeRukovodilacNabavke;
+
+  document.querySelectorAll('.admin-only-card').forEach(el=>{ el.style.display = MOZE_KREIRATI_PONUDE ? '' : 'none'; });
+  document.querySelectorAll('.admin-only-inline').forEach(el=>{ if(!IS_ADMIN_PONUDE) el.style.display='none'; });
+  $('app').classList.toggle('wide-mode', !IS_ADMIN_PONUDE);
+
+  if(!MOZE_KREIRATI_PONUDE && !PONUDA_LINK_ID){
+    $('noAccessCard').style.display='block';
+    showApp();
+    return;
+  }
+
+  showApp();
+  await loadRefData();
+  await loadPonudeSection();
+
+  if(PONUDA_LINK_ID){
+    const p = PONUDE.find(x=>x.id===PONUDA_LINK_ID);
+    if(!p){
+      $('noAccessCard').style.display='block';
+      $('noAccessText').textContent='Nemate pristup ovom izveštaju o ponudama, ili on ne postoji (ili je već prošao vaš korak u lancu odobravanja).';
+    }else{
+      openPonudaEditor(PONUDA_LINK_ID);
+    }
+  }
+}
+
+$('loginBtn').addEventListener('click', doLogin);
+$('loginPass').addEventListener('keydown', e => { if(e.key==='Enter') doLogin(); });
+$('loginUser').addEventListener('keydown', e => { if(e.key==='Enter') $('loginPass').focus(); });
+$('logoutBtn').addEventListener('click', async ()=>{ await ZN.signOut(); sessionStorage.removeItem(SESSION_KEY); showLogin(); });
+
+/* ============================================================
+   API HELPERS
+   ============================================================ */
+async function apiGet(action, params){
+  const qs = new URLSearchParams({ action, ...(params||{}) });
+  const res = await fetch(`${SCRIPT_URL}?${qs.toString()}`);
+  if(!res.ok) throw new Error('Greška pri učitavanju.');
+  return res.json();
+}
+async function apiPost(action, payload){
+  const res = await fetch(SCRIPT_URL, { method:'POST', body: JSON.stringify({ action, ...payload }) });
+  if(!res.ok) throw new Error('Greška pri čuvanju.');
+  return res.json();
+}
+
+/* ============================================================
+   REFERENTNI PODACI (gradilišta + nalozi) — potrebni samo za
+   prikaz naziva/opisa u izveštajima o ponudama (bez CRUD ekrana,
+   za to i dalje služi admin.html).
+   ============================================================ */
+// Poseban, laki Supabase klijent samo za Storage (upload/otvaranje PDF-a).
+// Deli istu prijavljenu sesiju (čuva se u localStorage), pošto gađa isti
+// projekat/ključ kao i klijent unutar supabase-backend.js. Pravi se TEK pri
+// prvoj upotrebi (ne odmah pri učitavanju stranice), da izbegnemo bilo kakav
+// problem sa redosledom učitavanja <script> tagova.
+let _sbStorage = null;
+function getSbStorage_(){
+  if(!_sbStorage){
+    if(typeof SUPABASE_CONFIG === 'undefined'){
+      throw new Error('SUPABASE_CONFIG nije učitan (supabase-config.js).');
+    }
+    _sbStorage = window.supabase.createClient(SUPABASE_CONFIG.url, SUPABASE_CONFIG.anonKey);
+  }
+  return _sbStorage;
+}
+const PONUDA_PDF_BUCKET = 'ponude-pdf';
+
+async function uploadPonudaPdf_(posIdx, offIdx, file){
+  const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g,'_');
+  const path = `${currentPonuda.id}/${posIdx}_${offIdx}_${Date.now()}_${safeName}`;
+  const { error } = await getSbStorage_().storage.from(PONUDA_PDF_BUCKET).upload(path, file, { contentType:'application/pdf', upsert:false });
+  if(error){ alert('Otpremanje PDF-a nije uspelo: '+error.message); return; }
+  const o = currentPonuda.stavke[posIdx].ponude[offIdx];
+  o.pdfPath = path; o.pdfName = file.name;
+  renderPeStavke();
+}
+
+async function openPonudaPdf_(path){
+  const { data, error } = await getSbStorage_().storage.from(PONUDA_PDF_BUCKET).createSignedUrl(path, 120);
+  if(error || !data){ alert('Nije moguće otvoriti fajl.'); return; }
+  window.open(data.signedUrl, '_blank');
+}
+
+async function removePonudaPdf_(posIdx, offIdx){
+  const o = currentPonuda.stavke[posIdx].ponude[offIdx];
+  if(!confirm('Ukloniti priloženi PDF ponude?')) return;
+  if(o.pdfPath){
+    try{ await getSbStorage_().storage.from(PONUDA_PDF_BUCKET).remove([o.pdfPath]); }catch(e){}
+  }
+  delete o.pdfPath; delete o.pdfName;
+  renderPeStavke();
+}
+
+/* ============================================================
+   UNOS PONUDE DOBAVLJAČA (sve pozicije odjednom)
+   ============================================================ */
+let bulkPdfFile = null;   // izabran, još neotpremljen fajl
+let bulkPdfExisting = null; // {path, filename} ako se uređuje postojeći dobavljač koji već ima prilog
+let editingBulkDobavljac = null; // ime dobavljača koji se trenutno uređuje (ili null = novi)
+
+function renderBulkStavkeTable(){
+  const wrap = $('bulkStavkeWrap');
+  if(!currentPonuda.stavke.length){ wrap.innerHTML='<div class="empty">Ovaj zahtev nema pozicija.</div>'; return; }
+  wrap.innerHTML = `<table class="ponude-mini-table"><thead><tr>
+      <th>Rb.</th><th>Opis</th><th>JM</th><th>Za nabavku</th>
+      <th>Bruto cena</th><th>Rabat %</th><th>Valuta</th><th>Rok isporuke</th>
+    </tr></thead><tbody>
+    ${currentPonuda.stavke.map((s,idx)=>`
+      <tr>
+        <td>${idx+1}</td>
+        <td>${escapeHtml(s.opis)}</td>
+        <td>${escapeHtml(s.jm)}</td>
+        <td class="num">${fmtBroj_(s.zaNabavku)}</td>
+        <td><input type="number" step="0.01" data-bulk-bruto="${idx}" style="width:90px;"></td>
+        <td><input type="number" step="0.01" data-bulk-rabat="${idx}" value="0" style="width:70px;"></td>
+        <td><select data-bulk-valuta="${idx}"><option value="RSD">RSD</option><option value="EUR">EUR</option></select></td>
+        <td><input type="text" data-bulk-rok="${idx}" style="width:100px;" placeholder="npr. 15 dana"></td>
+      </tr>`).join('')}
+    </tbody></table>`;
+}
+
+function popuniBulkZaDobavljaca_(dobavljac){
+  currentPonuda.stavke.forEach((s,idx)=>{
+    const o = s.ponude.find(x=>x.dobavljac===dobavljac);
+    const brutoInp=$('bulkStavkeWrap').querySelector(`[data-bulk-bruto="${idx}"]`);
+    const rabatInp=$('bulkStavkeWrap').querySelector(`[data-bulk-rabat="${idx}"]`);
+    const valutaInp=$('bulkStavkeWrap').querySelector(`[data-bulk-valuta="${idx}"]`);
+    const rokInp=$('bulkStavkeWrap').querySelector(`[data-bulk-rok="${idx}"]`);
+    if(o){
+      brutoInp.value=o.bruto; rabatInp.value=o.rabat; valutaInp.value=o.valuta||'RSD'; rokInp.value=o.rok||'';
+    }else{
+      brutoInp.value=''; rabatInp.value='0'; valutaInp.value='RSD'; rokInp.value='';
+    }
+  });
+}
+
+function otvoriUrediDobavljaca_(dobavljac){
+  editingBulkDobavljac = dobavljac;
+  bulkPdfFile = null;
+  const prviOffer = currentPonuda.stavke.map(s=>s.ponude.find(o=>o.dobavljac===dobavljac)).find(Boolean);
+  $('bulkDobavljac').value = dobavljac; $('bulkDobavljac').disabled = true;
+  $('bulkAvans').value = prviOffer?(prviOffer.avans||''):'';
+  $('bulkNacin').value = prviOffer?(prviOffer.nacinPlacanja||''):'';
+  bulkPdfExisting = prviOffer && prviOffer.pdfPath ? { path:prviOffer.pdfPath, filename:prviOffer.pdfName } : null;
+  $('bulkPdfInput').value = '';
+  $('bulkPdfHint').textContent = bulkPdfExisting ? `Trenutni prilog: ${bulkPdfExisting.filename} (otpremi novi da ga zameniš)` : '';
+  $('bulkModeLabel').textContent = `Izmena dobavljača: ${dobavljac}`;
+  $('bulkSaveBtn').textContent = 'Sačuvaj izmene ovog dobavljača';
+  $('bulkResetBtn').style.display = 'inline-block';
+  renderBulkStavkeTable();
+  popuniBulkZaDobavljaca_(dobavljac);
+  $('bulkDobavljac').closest('.pozicija-block').scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+function resetBulkForm(){
+  editingBulkDobavljac = null; bulkPdfFile = null; bulkPdfExisting = null;
+  $('bulkDobavljac').value=''; $('bulkDobavljac').disabled=false;
+  $('bulkAvans').value=''; $('bulkNacin').value='';
+  $('bulkPdfInput').value=''; $('bulkPdfHint').textContent='';
+  $('bulkModeLabel').textContent='';
+  $('bulkSaveBtn').textContent='Sačuvaj ponudu ovog dobavljača';
+  $('bulkResetBtn').style.display='none';
+  $('bulkErr').textContent='';
+  renderBulkStavkeTable();
+}
+$('bulkResetBtn').addEventListener('click', resetBulkForm);
+$('bulkPdfInput').addEventListener('change', e=>{
+  bulkPdfFile = e.currentTarget.files[0] || null;
+});
+
+function renderBulkDobavljaci(){
+  const wrap = $('bulkDobavljaciWrap');
+  const imena = [];
+  currentPonuda.stavke.forEach(s=>s.ponude.forEach(o=>{ if(!imena.includes(o.dobavljac)) imena.push(o.dobavljac); }));
+  if(!imena.length){ wrap.innerHTML='<div class="hint">Još uvek nema unetih dobavljača.</div>'; return; }
+  wrap.innerHTML = imena.map(name=>{
+    const brojPozicija = currentPonuda.stavke.filter(s=>s.ponude.some(o=>o.dobavljac===name)).length;
+    const prviOffer = currentPonuda.stavke.map(s=>s.ponude.find(o=>o.dobavljac===name)).find(Boolean);
+    const imaPrilog = prviOffer && prviOffer.pdfPath;
+    return `<div class="prilog-item">
+      <span class="naziv">🏢 ${escapeHtml(name)} <span class="hint">(ponuda za ${brojPozicija} od ${currentPonuda.stavke.length} pozicija)</span></span>
+      <div>
+        ${imaPrilog?`<button type="button" class="btn-ghost" data-otvori-prilog-dob="${escapeHtml(name)}" style="padding:3px 8px;font-size:11px;" title="${escapeHtml(prviOffer.pdfName||'')}">📄 Otvori</button>`:''}
+        ${trenutniMozeUredovati?`<button type="button" class="btn-ghost" data-uredi-dob="${escapeHtml(name)}" style="padding:3px 8px;font-size:11px;">Uredi</button>
+        <button type="button" class="btn-danger-ghost" data-ukloni-dob="${escapeHtml(name)}" style="padding:3px 8px;font-size:11px;">Ukloni</button>`:''}
+      </div>
+    </div>`;
+  }).join('');
+  wrap.querySelectorAll('[data-otvori-prilog-dob]').forEach(b=>b.addEventListener('click',e=>{
+    const name = e.currentTarget.dataset.otvoriPrilogDob;
+    const o = currentPonuda.stavke.map(s=>s.ponude.find(x=>x.dobavljac===name)).find(Boolean);
+    if(o && o.pdfPath) openPonudaPdf_(o.pdfPath);
+  }));
+  wrap.querySelectorAll('[data-uredi-dob]').forEach(b=>b.addEventListener('click',e=>otvoriUrediDobavljaca_(e.currentTarget.dataset.urediDob)));
+  wrap.querySelectorAll('[data-ukloni-dob]').forEach(b=>b.addEventListener('click',async e=>{
+    const name = e.currentTarget.dataset.ukloniDob;
+    if(!confirm(`Ukloniti dobavljača "${name}" iz SVIH pozicija u ovom izveštaju?`)) return;
+    for(const s of currentPonuda.stavke){
+      const idx = s.ponude.findIndex(o=>o.dobavljac===name);
+      if(idx!==-1){
+        const o = s.ponude[idx];
+        if(o.pdfPath){ try{ await getSbStorage_().storage.from(PONUDA_PDF_BUCKET).remove([o.pdfPath]); }catch(err){} }
+        s.ponude.splice(idx,1);
+        if(s.predlogRukovodioca===name) s.predlogRukovodioca='';
+      }
+    }
+    if(editingBulkDobavljac===name) resetBulkForm();
+    renderPeStavke();
+  }));
+}
+
+function renderPePregled(){
+  const wrap = $('pePregledWrap');
+  if(!currentPonuda.stavke.length){ wrap.innerHTML='<div class="empty">Nema pozicija za pregled.</div>'; return; }
+
+  const SUPPLIERS = [];
+  currentPonuda.stavke.forEach(s => s.ponude.forEach(o => { if(!SUPPLIERS.includes(o.dobavljac)) SUPPLIERS.push(o.dobavljac); }));
+
+  if(!SUPPLIERS.length){ wrap.innerHTML='<div class="empty">Još uvek nema unetih ponuda ni za jednu poziciju.</div>'; return; }
+
+  let ukupnoBezPdv = 0, ukupnoUgovoreno = 0;
+
+  const headRow1 = `<tr>
+    <th rowspan="2">Rb.</th><th rowspan="2">Naziv</th>
+    ${SUPPLIERS.map(name=>`<th colspan="2">${escapeHtml(name)}</th>`).join('')}
+    <th rowspan="2">JM</th><th rowspan="2">Količina</th>
+    <th rowspan="2">Ugovorena cena<br>(bez PDV)</th><th rowspan="2">Predlog<br>rukovodioca</th>
+  </tr>`;
+  const headRow2 = `<tr>${SUPPLIERS.map(()=>'<th>Jed.cena</th><th>Rok isporuke</th>').join('')}</tr>`;
+
+  const bodyRows = currentPonuda.stavke.map((s,idx)=>{
+    const izabrana = izabranaPonuda_(s);
+    const nabavna = izabrana ? ukupnoRSD_(izabrana, s.zaNabavku) : null;
+    if(nabavna!=null) ukupnoBezPdv += nabavna;
+    const ugovorenoUkupno = ukupnoUgovorenoZaPoziciju_(s);
+    if(ugovorenoUkupno!=null) ukupnoUgovoreno += ugovorenoUkupno;
+
+    const supplierCells = SUPPLIERS.map(name=>{
+      const o = s.ponude.find(x=>x.dobavljac===name);
+      const izabranaCela = izabrana && o===izabrana;
+      const cls = izabranaCela ? ' class="izabrano"' : '';
+      if(!o) return `<td class="num"${cls}>—</td><td class="center"${cls}>—</td>`;
+      return `<td class="num"${cls}>${fmtCena_(jedCena_(o))}</td><td class="center"${cls}>${escapeHtml(o.rok||'—')}</td>`;
+    }).join('');
+
+    return `<tr>
+      <td class="center">${idx+1}</td><td>${escapeHtml(s.opis)}</td>
+      ${supplierCells}
+      <td class="center">${escapeHtml(s.jm)}</td><td class="num">${fmtBroj_(s.kolicina)}</td>
+      <td class="num">${s.ugovorenaCena!=null?fmtCena_(s.ugovorenaCena):'—'}</td>
+      <td class="center">${escapeHtml(s.predlogRukovodioca||'—')}</td>
+    </tr>`;
+  }).join('');
+
+  const supplierTerms = {};
+  currentPonuda.stavke.forEach(s => s.ponude.forEach(o => {
+    if(!supplierTerms[o.dobavljac]) supplierTerms[o.dobavljac] = { avans:o.avans||'—', nacin:o.nacinPlacanja||'—' };
+  }));
+  const tailCols = 4;
+  const footAvans = `<tr><td colspan="2">Avans</td>${SUPPLIERS.map(name=>`<td colspan="2" class="center">${escapeHtml(supplierTerms[name].avans)}</td>`).join('')}${'<td></td>'.repeat(tailCols)}</tr>`;
+  const footNacin = `<tr><td colspan="2">Način plaćanja</td>${SUPPLIERS.map(name=>`<td colspan="2" class="center">${escapeHtml(supplierTerms[name].nacin)}</td>`).join('')}${'<td></td>'.repeat(tailCols)}</tr>`;
+
+  const colgroup = `<colgroup>
+    <col style="width:40px;">
+    <col style="width:420px;">
+    ${SUPPLIERS.map(()=>'<col style="width:95px;"><col style="width:95px;">').join('')}
+    <col style="width:55px;"><col style="width:80px;">
+    <col style="width:110px;"><col style="width:140px;">
+  </colgroup>`;
+
+  const razlika = ukupnoUgovoreno - ukupnoBezPdv;
+  const razlikaPct = ukupnoBezPdv ? (razlika/ukupnoBezPdv*100) : 0;
+  wrap.innerHTML = `<table class="pregled-table">
+    ${colgroup}
+    <thead>${headRow1}${headRow2}</thead>
+    <tbody>${bodyRows}</tbody>
+    <tfoot>${footAvans}${footNacin}</tfoot>
+  </table>
+  <div class="pregled-summary">
+    <div>Ukupno (bez PDV): <strong>${fmtCena_(ukupnoBezPdv)}</strong> RSD</div>
+    <div>Ukupno ugovoreno (bez PDV): <strong>${fmtCena_(ukupnoUgovoreno)}</strong> RSD</div>
+    <div class="razlika">Razlika: <strong>${fmtCena_(razlika)}</strong> RSD</div>
+    <div>Razlika: <strong>${fmtCena_(razlikaPct)}%</strong></div>
+  </div>`;
+}
+
+$('bulkSaveBtn').addEventListener('click', async ()=>{
+  $('bulkErr').textContent='';
+  const dobavljac = $('bulkDobavljac').value.trim();
+  if(!dobavljac){ $('bulkErr').textContent='Unesi naziv dobavljača.'; return; }
+  const avans = $('bulkAvans').value.trim();
+  const nacinPlacanja = $('bulkNacin').value.trim();
+
+  const redovi = currentPonuda.stavke.map((s,idx)=>{
+    const bruto = Number($('bulkStavkeWrap').querySelector(`[data-bulk-bruto="${idx}"]`).value);
+    const rabat = Number($('bulkStavkeWrap').querySelector(`[data-bulk-rabat="${idx}"]`).value)||0;
+    const valuta = $('bulkStavkeWrap').querySelector(`[data-bulk-valuta="${idx}"]`).value;
+    const rok = $('bulkStavkeWrap').querySelector(`[data-bulk-rok="${idx}"]`).value.trim();
+    return { idx, bruto, rabat, valuta, rok };
+  });
+  if(!redovi.some(r=>r.bruto>0)){ $('bulkErr').textContent='Unesi bar jednu bruto cenu (za bar jednu poziciju).'; return; }
+
+  $('bulkSaveBtn').disabled=true; $('bulkSaveBtn').textContent='Čuvanje…';
+  let pdfMeta = bulkPdfExisting;
+  if(bulkPdfFile){
+    try{
+      const safeName = bulkPdfFile.name.replace(/[^a-zA-Z0-9._-]/g,'_');
+      const path = `${currentPonuda.id}/dob_${dobavljac.replace(/[^a-zA-Z0-9._-]/g,'_')}_${Date.now()}_${safeName}`;
+      const { error } = await getSbStorage_().storage.from(PONUDA_PDF_BUCKET).upload(path, bulkPdfFile, { contentType:'application/pdf', upsert:false });
+      if(error){ alert('Otpremanje PDF-a nije uspelo: '+error.message); }
+      else pdfMeta = { path, filename: bulkPdfFile.name };
+    }catch(e){ alert('Otpremanje PDF-a nije uspelo.'); }
+  }
+
+  redovi.forEach(row=>{
+    const s = currentPonuda.stavke[row.idx];
+    const postojeciIdx = s.ponude.findIndex(o=>o.dobavljac===dobavljac);
+    if(row.bruto>0){
+      const offer = {
+        dobavljac, bruto:row.bruto, rabat:row.rabat, valuta:row.valuta, rok:row.rok,
+        avans, nacinPlacanja,
+        pdfPath: pdfMeta?pdfMeta.path:undefined, pdfName: pdfMeta?pdfMeta.filename:undefined
+      };
+      if(postojeciIdx!==-1) s.ponude[postojeciIdx] = offer;
+      else s.ponude.push(offer);
+    }else if(postojeciIdx!==-1){
+      s.ponude.splice(postojeciIdx,1);
+      if(s.predlogRukovodioca===dobavljac) s.predlogRukovodioca='';
+    }
+  });
+
+  $('bulkSaveBtn').disabled=false;
+  resetBulkForm();
+  renderPeStavke();
+});
+
+let GRADILISTA=[], NALOZI=[];
+
+let ADRESE=[];
+
+async function loadRefData(){
+  try{
+    const [gData,nData,aData] = await Promise.all([apiGet('listGradilista'),apiGet('listNalozi'),apiGet('listAdrese')]);
+    GRADILISTA = (gData.gradilista||[]).map(g=>({kod:String(g.kod),naziv:g.naziv}));
+    NALOZI = (nData.nalozi||[]).map(n=>({kod:n.kod,opis:n.opis,gradiliste:n.gradiliste}));
+    ADRESE = (aData.adrese||[]).map(a=>({naziv:a.naziv,adresa:a.adresa}));
+    populateAdresaSelect();
+  }catch(e){
+    console.error('Greška pri učitavanju gradilišta/naloga/adresa:', e);
+  }
+}
+
+function populateAdresaSelect(){
+  const sel=$('peAdresa');
+  const current=sel.value;
+  sel.innerHTML='<option value="">— izaberi adresu —</option>';
+  [...ADRESE].sort((a,b)=>a.naziv.localeCompare(b.naziv)).forEach(a=>{
+    const opt=document.createElement('option');
+    opt.value=a.adresa; opt.textContent=a.adresa?`${a.naziv} — ${a.adresa}`:a.naziv;
+    sel.appendChild(opt);
+  });
+  if(current) sel.value=current;
+}
+
+/* ============================================================
+   PONUDE I IZBOR DOBAVLJAČA (samo admin)
+   ============================================================ */
+let ZAHTEVI=[], PONUDE=[], currentPonuda=null;
+let APPROVAL_ROLES=[], CURRENT_USER_ID=null;
+
+function imeUloge(step){
+  const r = APPROVAL_ROLES.find(x=>x.step===step);
+  return r ? `${step}. ${r.nazivUloge}` : `Korak ${step}`;
+}
+function imeOsobe(step){
+  const r = APPROVAL_ROLES.find(x=>x.step===step);
+  return r ? r.username : null;
+}
+function emailZaKorak(step){
+  const r = APPROVAL_ROLES.find(x=>x.step===step);
+  if(!r || !r.username) return null;
+  return r.email || `${r.username}@te-enel.rs`;
+}
+function jeTrenutniPonudaOveravalac(p){
+  if(!CURRENT_USER_ID || p.status!=='na_overi') return false;
+  const uloga = APPROVAL_ROLES.find(x=>x.step===p.approvalStep);
+  return !!(uloga && uloga.userId===CURRENT_USER_ID);
+}
+function ponudaStatusBadgeHtml(p){
+  const st = p.status || 'u_izradi';
+  let tekst;
+  if(st==='u_izradi') tekst = 'U izradi';
+  else if(st==='vracen_na_doradu') tekst = 'Vraćeno na doradu';
+  else if(st==='na_overi'){
+    const ime = imeOsobe(p.approvalStep);
+    tekst = `Na overi kod ${imeUloge(p.approvalStep)}${ime?' ('+ime+')':''}`;
+  }
+  else if(st==='odobren') tekst = 'Odobreno';
+  else tekst = st;
+  return `<span class="status-badge status-${st}">${escapeHtml(tekst)}</span>`;
+}
+
+async function loadApprovalRoles(){
+  try{
+    const data = await apiGet('listApprovalRoles');
+    APPROVAL_ROLES = (data.roles||[]);
+  }catch(e){ console.error('Greška pri učitavanju uloga:', e); }
+}
+
+async function loadPonudeSection(){
+  try{
+    const [zData, pData] = await Promise.all([apiGet('list'), apiGet('listPonude'), loadApprovalRoles()]);
+    ZAHTEVI = (zData.requests||[]);
+    PONUDE = (pData.ponude||[]);
+    populateZahtevSelect();
+    renderPonudaList();
+  }catch(e){
+    $('ponudaListWrap').innerHTML='<div class="empty">Greška pri učitavanju izveštaja o ponudama.</div>';
+  }
+}
+
+function populateZahtevSelect(){
+  const sel=$('pZahtev');
+  sel.innerHTML='<option value="">— izaberi zahtev —</option>';
+  [...ZAHTEVI].sort((a,b)=>b.createdAt-a.createdAt).forEach(z=>{
+    const opt=document.createElement('option');
+    opt.value=z.id; opt.textContent=`${z.redniBroj} — nalog ${z.nalog}`;
+    sel.appendChild(opt);
+  });
+}
+
+function renderPonudaList(){
+  const wrap=$('ponudaListWrap');
+  if(!PONUDE.length){ wrap.innerHTML='<div class="empty">Još uvek nema izveštaja o ponudama.</div>'; return; }
+  wrap.innerHTML=`<table><thead><tr><th>Broj izveštaja</th><th>Zahtev</th><th>Gradilište</th><th>Status</th><th style="width:180px;"></th></tr></thead><tbody>
+    ${PONUDE.map(p=>{
+      const z = ZAHTEVI.find(x=>x.id===p.requestId);
+      const gNaziv = z ? (GRADILISTA.find(g=>g.kod===z.gradiliste)||{}).naziv||'' : '';
+      return `<tr>
+        <td style="font-family:'IBM Plex Mono',monospace;">${escapeHtml(p.brojIzvestaja)}</td>
+        <td>${z ? escapeHtml(z.redniBroj)+' — nalog '+escapeHtml(z.nalog) : '<span class="hint">zahtev obrisan</span>'}</td>
+        <td>${z ? escapeHtml(z.gradiliste)+(gNaziv?' — '+escapeHtml(gNaziv):'') : '—'}</td>
+        <td>${ponudaStatusBadgeHtml(p)}</td>
+        <td class="row-actions">
+          <button class="btn-ghost" data-open-p="${p.id}">Otvori</button>
+          ${IS_ADMIN_PONUDE?`<button class="btn-danger-ghost" data-del-p="${p.id}" data-broj="${escapeHtml(p.brojIzvestaja)}">Obriši</button>`:''}
+        </td>
+      </tr>`;
+    }).join('')}
+  </tbody></table>`;
+  wrap.querySelectorAll('[data-open-p]').forEach(b=>b.addEventListener('click',e=>openPonudaEditor(e.currentTarget.dataset.openP)));
+  wrap.querySelectorAll('[data-del-p]').forEach(b=>b.addEventListener('click',async e=>{
+    const id=e.currentTarget.dataset.delP, broj=e.currentTarget.dataset.broj;
+    if(!confirm(`Obrisati izveštaj ${broj}? Ova radnja je trajna.`)) return;
+    const r=await apiPost('deletePonuda',{id});
+    if(r&&r.error) alert(r.error); else { if(currentPonuda&&currentPonuda.id===id) closePonudaEditor(); await loadPonudeSection(); }
+  }));
+}
+
+$('pKreirajBtn').addEventListener('click', async ()=>{
+  $('pNoviErr').textContent='';
+  const requestId=$('pZahtev').value;
+  if(!requestId){ $('pNoviErr').textContent='Izaberi zahtev za nabavku.'; return; }
+  const zahtev = ZAHTEVI.find(z=>z.id===requestId);
+  if(!zahtev){ $('pNoviErr').textContent='Zahtev nije pronađen.'; return; }
+  const stavke = (zahtev.stavke||[]).map(s=>({
+    sifra:s.sifra||'', opis:s.opis||'', jm:s.jm||'',
+    kolicina:s.kolicina, zaNabavku: s.zaNabavku!==undefined?s.zaNabavku:s.kolicina,
+    rok:s.rok||'', atest:s.atest||'',
+    ponude:[],
+    ugovorenaCena:null,
+    rokIsporuke:'', predlogRukovodioca:''
+  }));
+  $('pKreirajBtn').disabled=true;
+  const r=await apiPost('addPonuda',{ requestId, stavke });
+  $('pKreirajBtn').disabled=false;
+  if(r&&r.error){ $('pNoviErr').textContent=r.error; return; }
+  await loadPonudeSection();
+  openPonudaEditor(r.ponuda.id);
+});
+
+function openPonudaEditor(id){
+  const p=PONUDE.find(x=>x.id===id); if(!p) return;
+  currentPonuda = JSON.parse(JSON.stringify(p)); // radna kopija
+  const z = ZAHTEVI.find(x=>x.id===p.requestId);
+  const gradilisteNazivZaNaslov = z ? (GRADILISTA.find(g=>g.kod===z.gradiliste)||{}).naziv||'' : '';
+  const gradilisteDeoNaslova = z ? ` — ${z.gradiliste}${gradilisteNazivZaNaslov?' ('+gradilisteNazivZaNaslov+')':''}` : '';
+  $('ponudaEditorTitle').textContent = `Izveštaj o ponudama — ${p.brojIzvestaja}${z?' (zahtev '+z.redniBroj+')':''}${gradilisteDeoNaslova}`;
+  $('peVrstaRadova').value = p.vrstaRadova||'';
+  const sel=$('peAdresa');
+  const adresaVal = p.adresaIsporuke||'';
+  const hasOption = [...sel.options].some(o=>o.value===adresaVal);
+  if(adresaVal && !hasOption){
+    const opt=document.createElement('option');
+    opt.value=adresaVal; opt.textContent=`(trenutna) ${adresaVal}`;
+    sel.appendChild(opt);
+  }
+  sel.value = adresaVal;
+  $('peKurs').value = p.kursEur||'';
+  $('peKursHint').textContent='';
+  $('peErr').textContent=''; $('peInfo').classList.remove('visible');
+
+  $('peStatusBadgeWrap').innerHTML = ponudaStatusBadgeHtml(p);
+  if(p.lastReturnComment){
+    $('peReturnComment').style.display='block';
+    $('peReturnComment').textContent = `Poslednji komentar (vraćeno na doradu): ${p.lastReturnComment}`;
+  }else{
+    $('peReturnComment').style.display='none';
+  }
+
+  // Pun uređivač (unos po dobavljaču, izmena pozicija) vidi admin ili onaj
+  // ko je kreirao ovaj konkretan izveštaj (npr. Rukovodilac nabavke).
+  // Tehnički/Generalni direktor (overavaoci) vide samo pregled.
+  trenutniMozeUredovati = IS_ADMIN_PONUDE || (p.createdBy && p.createdBy===CURRENT_USER_ID);
+  document.querySelectorAll('.editor-only-part').forEach(el=>{ el.style.display = trenutniMozeUredovati ? '' : 'none'; });
+
+  const mozeNaOveru = trenutniMozeUredovati && (p.status==='u_izradi' || p.status==='vracen_na_doradu');
+  $('pePosaljiNaOveruBtn').style.display = mozeNaOveru ? 'inline-block' : 'none';
+
+  const mogucaOvera = jeTrenutniPonudaOveravalac(p);
+  $('peOveraActionsWrap').style.display = mogucaOvera ? 'block' : 'none';
+  $('peOveraKomentar').value = '';
+  $('peOveraErr').textContent = '';
+
+  renderPeStavke();
+  resetBulkForm();
+  renderBulkStavkeTable();
+  renderBulkDobavljaci();
+  renderPePregled();
+  loadPonudaLog_(id);
+  $('ponudaEditorCard').style.display='block';
+  $('ponudaEditorCard').scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+async function loadPonudaLog_(id){
+  const wrap = $('peLogWrap');
+  try{
+    const data = await apiGet('listPonudaLog', { ponudaId:id });
+    const log = data.log||[];
+    const akcijaTekst = { poslato:'Poslato na overu', overeno:'Overeno i prosleđeno dalje', vraceno:'Vraćeno na doradu', konacno_odobreno:'Konačno odobreno' };
+    wrap.innerHTML = log.length ? `<table class="log-table"><thead><tr><th>Korak</th><th>Akcija</th><th>Ko</th><th>Kada</th><th>Komentar</th></tr></thead><tbody>
+      ${log.map((l,i)=>`<tr><td>${i+1}</td><td>${escapeHtml(akcijaTekst[l.action]||l.action)}</td><td>${escapeHtml(l.actorUsername||'—')}</td><td>${new Date(l.createdAt).toLocaleString('sr-RS')}</td><td>${escapeHtml(l.komentar||'—')}</td></tr>`).join('')}
+    </tbody></table>` : '<div class="hint">Još uvek nema istorije.</div>';
+  }catch(e){
+    wrap.innerHTML = '<div class="hint">Istorija nije mogla da se učita.</div>';
+  }
+}
+
+function closePonudaEditor(){
+  currentPonuda=null;
+  $('ponudaEditorCard').style.display='none';
+}
+$('peCloseBtn').addEventListener('click', closePonudaEditor);
+
+function jedCena_(o){ return (Number(o.bruto)||0) * (1 - (Number(o.rabat)||0)/100); }
+// Predložena ponuda za poziciju = ona čiji dobavljač je izabran u "Predlog
+// rukovodioca" (formalno "Izabran" čekiranje ostaje za kasnije, za direktora).
+function izabranaPonuda_(s){
+  if(!s.predlogRukovodioca) return null;
+  return s.ponude.find(o=>o.dobavljac===s.predlogRukovodioca) || null;
+}
+function ukupnoRSD_(o, kolicina){
+  const kurs = Number($('peKurs').value)||0;
+  const jc = jedCena_(o);
+  const faktor = (o.valuta==='EUR') ? kurs : 1;
+  return jc * (Number(kolicina)||0) * faktor;
+}
+function fmtBroj_(n){ return (Number(n)||0).toLocaleString('sr-RS',{maximumFractionDigits:2}); }
+// Za CENE uvek tačno 2 decimale (za razliku od količina, koje ostaju "prirodne")
+function fmtCena_(n){ return (Number(n)||0).toLocaleString('sr-RS',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+
+let editingOffer=null; // {pos, off} ili null
+
+function renderPeStavke(){
+  const wrap=$('peStavkeWrap');
+  if(!currentPonuda.stavke.length){ wrap.innerHTML='<div class="empty">Ovaj zahtev nema pozicija.</div>'; renderPeTotals(); return; }
+  wrap.innerHTML = currentPonuda.stavke.map((s,posIdx)=>{
+    const izabrana = izabranaPonuda_(s);
+    return `
+    <div class="pozicija-block">
+      <div class="pozicija-head">
+        <div class="naziv">${posIdx+1}. ${escapeHtml(s.opis)}</div>
+        <div class="meta">${escapeHtml(s.jm)} · za nabavku: ${escapeHtml(s.zaNabavku)}</div>
+      </div>
+      ${s.ponude.length?'':'<div class="hint" style="margin-bottom:10px;">Još uvek nema unetih ponuda za ovu poziciju (unesi ih gore, kroz unos po dobavljaču).</div>'}
+      <div class="pozicija-extra" style="grid-template-columns:1fr 1fr;">
+        <div class="field"><label>Predlog rukovodioca</label>
+          <select data-predlog="${posIdx}">
+            <option value="">— izaberi dobavljača —</option>
+            ${[...new Set(s.ponude.map(o=>o.dobavljac))].map(name=>`<option value="${escapeHtml(name)}" ${s.predlogRukovodioca===name?'selected':''}>${escapeHtml(name)}</option>`).join('')}
+          </select>
+        </div>
+        <div class="field"><label>Rok isporuke (predloženog)</label><div style="padding:9px 0;font-size:13px;">${izabrana?escapeHtml(izabrana.rok||'—'):'<span class="hint">— nema predloga —</span>'}</div></div>
+      </div>
+      <div class="pozicija-extra" style="margin-top:8px;">
+        <div class="field">
+          <label>Ugovorena cena po jedinici (RSD)</label>
+          <input type="number" step="0.01" data-ugovorena-cena="${posIdx}" value="${s.ugovorenaCena!=null?s.ugovorenaCena:''}" placeholder="jedinična cena prema investitoru">
+        </div>
+        <div class="field" style="grid-column:span 3;display:flex;align-items:end;">
+          <div class="hint" id="marza-${posIdx}" style="margin:0;"></div>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+
+  wrap.querySelectorAll('[data-predlog]').forEach(i=>i.addEventListener('change',e=>{
+    const posIdx=Number(e.currentTarget.dataset.predlog);
+    currentPonuda.stavke[posIdx].predlogRukovodioca=e.currentTarget.value;
+    renderPeStavke();
+  }));
+  wrap.querySelectorAll('[data-ugovorena-cena]').forEach(i=>i.addEventListener('input',e=>{
+    const posIdx=Number(e.currentTarget.dataset.ugovorenaCena);
+    const v=e.currentTarget.value;
+    currentPonuda.stavke[posIdx].ugovorenaCena = v===''?null:Number(v);
+    updateMarzaLine_(posIdx);
+    renderPeTotals();
+    renderPePregled();
+  }));
+
+  currentPonuda.stavke.forEach((s,posIdx)=>updateMarzaLine_(posIdx));
+  renderPeTotals();
+  renderBulkDobavljaci();
+  renderPePregled();
+}
+
+// SUMPRODUCT: ukupna vrednost pozicije = jedinična cena × količina (za nabavku)
+function ukupnoUgovorenoZaPoziciju_(s){
+  return s.ugovorenaCena!=null ? s.ugovorenaCena * (Number(s.zaNabavku)||0) : null;
+}
+
+function updateMarzaLine_(posIdx){
+  const s=currentPonuda.stavke[posIdx];
+  const el=$('marza-'+posIdx); if(!el) return;
+  const predlozena = izabranaPonuda_(s);
+  if(s.ugovorenaCena==null || !predlozena){
+    el.textContent=''; return;
+  }
+  const nabavna = ukupnoRSD_(predlozena, s.zaNabavku);
+  const ugovorenoUkupno = ukupnoUgovorenoZaPoziciju_(s);
+  const marza = ugovorenoUkupno - nabavna;
+  const pct = nabavna ? (marza/nabavna*100) : 0;
+  el.textContent = `Nabavna vrednost (predloženi dobavljač): ${fmtBroj_(nabavna)} RSD  ·  Ugovorena vrednost: ${fmtBroj_(ugovorenoUkupno)} RSD  ·  Marža: ${fmtBroj_(marza)} RSD (${fmtBroj_(pct)}%)`;
+  el.style.color = marza>=0 ? 'var(--good)' : 'var(--danger)';
+}
+
+function renderPeTotals(){
+  let bezPdv=0;
+  let ugovorenoBezPdv=0;
+  currentPonuda.stavke.forEach(s=>{
+    const predlozena = izabranaPonuda_(s);
+    if(predlozena){
+      bezPdv += ukupnoRSD_(predlozena, s.zaNabavku);
+    }
+    const ugovoreno = ukupnoUgovorenoZaPoziciju_(s);
+    if(ugovoreno!=null) ugovorenoBezPdv += ugovoreno;
+  });
+  $('peUkupnoBezPdv').textContent = fmtBroj_(bezPdv);
+  $('peUkupnoSaPdv').textContent = fmtBroj_(bezPdv*1.2);
+  $('peUkupnoUgovorenoBezPdv').textContent = fmtBroj_(ugovorenoBezPdv);
+  $('peUkupnoUgovorenoSaPdv').textContent = fmtBroj_(ugovorenoBezPdv*1.2);
+}
+
+$('peKurs').addEventListener('input', renderPeTotals);
+
+$('peOsveziKursBtn').addEventListener('click', async ()=>{
+  $('peKursHint').textContent='Preuzimanje kursa…';
+  try{
+    const res = await fetch('https://kurs.resenje.org/api/v1/rates/today');
+    const data = await res.json();
+    const eur = (data.rates||[]).find(r=>r.code==='EUR');
+    if(!eur){ $('peKursHint').textContent='Kurs nije pronađen u odgovoru servisa.'; return; }
+    $('peKurs').value = eur.exchange_middle;
+    $('peKursHint').textContent = `Srednji kurs NBS na dan ${eur.date}.`;
+    renderPeTotals();
+  }catch(e){
+    $('peKursHint').textContent='Preuzimanje nije uspelo — unesi kurs ručno.';
+  }
+});
+
+function arrayBufferToBase64_(buffer){
+  let binary=''; const bytes=new Uint8Array(buffer); const chunk=8192;
+  for(let i=0;i<bytes.length;i+=chunk){ binary+=String.fromCharCode.apply(null, bytes.subarray(i,i+chunk)); }
+  return btoa(binary);
+}
+function loadImageDims_(dataUri){
+  return new Promise((resolve)=>{
+    const img=new Image();
+    img.onload=()=>resolve({w:img.naturalWidth,h:img.naturalHeight});
+    img.onerror=()=>resolve({w:280,h:60});
+    img.src=dataUri;
+  });
+}
+// jsPDF-ov ugrađeni font (helvetica) nema č/ć/š/đ/ž — učitavamo IBM Plex Sans
+// (isti font koji sajt već koristi) sa punom podrškom za srpsku latinicu.
+async function ensurePdfFonts_(doc){
+  if(!ensurePdfFonts_.regularB64){
+    const [regBuf, boldBuf] = await Promise.all([
+      fetch('https://raw.githubusercontent.com/IBM/plex/master/packages/plex-sans/fonts/complete/ttf/IBMPlexSans-Regular.ttf').then(r=>r.arrayBuffer()),
+      fetch('https://raw.githubusercontent.com/IBM/plex/master/packages/plex-sans/fonts/complete/ttf/IBMPlexSans-Bold.ttf').then(r=>r.arrayBuffer())
+    ]);
+    ensurePdfFonts_.regularB64 = arrayBufferToBase64_(regBuf);
+    ensurePdfFonts_.boldB64 = arrayBufferToBase64_(boldBuf);
+  }
+  doc.addFileToVFS('IBMPlexSans-Regular.ttf', ensurePdfFonts_.regularB64);
+  doc.addFont('IBMPlexSans-Regular.ttf','IBMPlexSans','normal');
+  doc.addFileToVFS('IBMPlexSans-Bold.ttf', ensurePdfFonts_.boldB64);
+  doc.addFont('IBMPlexSans-Bold.ttf','IBMPlexSans','bold');
+}
+
+async function buildPonudaPdfBlob_(p, zahtev){
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ unit:'mm', format:'a4', orientation:'landscape' });
+  await ensurePdfFonts_(doc);
+  const marginX = 12, pageWidth = 297, contentWidth = pageWidth - marginX*2;
+  let y = 14;
+
+  const dims = await loadImageDims_(LOGO_DATA_URI);
+  const logoH = 9, logoW = logoH * (dims.w/dims.h);
+  try{ doc.addImage(LOGO_DATA_URI, 'JPEG', marginX, y, logoW, logoH); }catch(e){}
+
+  doc.setFont('IBMPlexSans','bold'); doc.setFontSize(13); doc.setTextColor(20,20,20);
+  doc.text('IZVEŠTAJ O PRISPELIM PONUDAMA SA NALOGOM ZA NABAVKU', marginX+logoW+8, y+4);
+  doc.setFont('IBMPlexSans','normal'); doc.setFontSize(8); doc.setTextColor(110,110,110);
+  doc.text(`Broj: ${p.brojIzvestaja}   ·   Dokument generisan ${new Date().toLocaleString('sr-RS')}`, marginX+logoW+8, y+8.5);
+  y += logoH + 5;
+
+  // --- Zaglavlje: 4 kolone informacija (kurs je namerno uzak — samo kratak broj) ---
+  const nalogNaziv = zahtev ? (NALOZI.find(n=>n.kod===zahtev.nalog)||{}).opis||'' : '';
+  const gradilisteNaziv = zahtev ? (GRADILISTA.find(g=>g.kod===zahtev.gradiliste)||{}).naziv||'' : '';
+  const kursW = 20;
+  const restW = (contentWidth - kursW) / 3;
+  const boxWidths = [restW, restW, restW, kursW];
+  const boxX = [0]; for(let i=1;i<boxWidths.length;i++){ boxX.push(boxX[i-1]+boxWidths[i-1]); }
+  const headInfo = [
+    ['ZAHTEV ZA NABAVKU', zahtev?String(zahtev.redniBroj):'—'],
+    ['NALOG ZA REALIZACIJU', zahtev?`${zahtev.nalog}${nalogNaziv?' — '+nalogNaziv:''}`:'—'],
+    ['GRADILIŠTE / OBJEKAT', zahtev?`${zahtev.gradiliste} — ${gradilisteNaziv} / TE Enel AD`:'—'],
+    ['KURS €', p.kursEur?fmtBroj_(p.kursEur):'—']
+  ];
+  doc.setDrawColor(20,20,20); doc.setLineWidth(0.3);
+  doc.rect(marginX, y, contentWidth, 14);
+  headInfo.forEach((h,i)=>{
+    const x = marginX + boxX[i];
+    if(i>0){ doc.line(x, y, x, y+14); }
+    doc.setFont('IBMPlexSans','normal'); doc.setFontSize(6.8); doc.setTextColor(120,120,120);
+    doc.text(h[0], x+2, y+4);
+    doc.setFont('IBMPlexSans','bold'); doc.setFontSize(9); doc.setTextColor(20,20,20);
+    const lines = doc.splitTextToSize(h[1], boxWidths[i]-4);
+    doc.text(lines.slice(0,2), x+2, y+8.5);
+  });
+  y += 14;
+
+  const colW2 = contentWidth/2;
+  const headInfo2 = [
+    ['VRSTA RADOVA', p.vrstaRadova||'—'],
+    ['ADRESA ISPORUKE', p.adresaIsporuke||'—']
+  ];
+  doc.rect(marginX, y, contentWidth, 12);
+  headInfo2.forEach((h,i)=>{
+    const x = marginX + i*colW2;
+    if(i>0){ doc.line(x, y, x, y+12); }
+    doc.setFont('IBMPlexSans','normal'); doc.setFontSize(6.8); doc.setTextColor(120,120,120);
+    doc.text(h[0], x+2, y+4);
+    doc.setFont('IBMPlexSans','bold'); doc.setFontSize(8.5); doc.setTextColor(20,20,20);
+    const lines = doc.splitTextToSize(h[1], colW2-4);
+    doc.text(lines.slice(0,1), x+2, y+9);
+  });
+  y += 12 + 5;
+
+  // --- Jedinstvena tabela: pozicije u redovima, dobavljači u kolonama ---
+  // (isti princip kao u Excel obrascu — svaki dobavljač dobija 3 pod-kolone:
+  // Bruto cena / Rabat / Jed. cena; ćelije pobedničkog dobavljača su istaknute)
+  const SUPPLIERS = [];
+  p.stavke.forEach(s => s.ponude.forEach(o => { if(!SUPPLIERS.includes(o.dobavljac)) SUPPLIERS.push(o.dobavljac); }));
+  const n = SUPPLIERS.length;
+
+  let ukupnoBezPdv = 0;
+  let ukupnoUgovoreno = 0;
+
+  const head = [
+    [
+      {content:'Rb.', rowSpan:2}, {content:'Naziv', rowSpan:2},
+      ...SUPPLIERS.map(name=>({content:name, colSpan:2, styles:{halign:'center'}})),
+      {content:'JM', rowSpan:2}, {content:'Količina', rowSpan:2},
+      {content:'Ugovorena cena (bez PDV)', rowSpan:2},
+      {content:'Predlog rukovodioca', rowSpan:2}
+    ],
+    [ ...SUPPLIERS.flatMap(()=>['Jed.cena','Rok isporuke']) ]
+  ];
+
+  const body = p.stavke.map((s, idx)=>{
+    const selectedOffer = izabranaPonuda_(s);
+
+    // SUMPRODUCT (za zbir na dnu): ukupna vrednost = jedinična cena × količina (za nabavku)
+    const nabavna = selectedOffer ? ukupnoRSD_(selectedOffer, s.zaNabavku) : null;
+    if(nabavna!=null) ukupnoBezPdv += nabavna;
+    const ugovorenoUkupno = s.ugovorenaCena!=null ? s.ugovorenaCena*(Number(s.zaNabavku)||0) : null;
+    if(ugovorenoUkupno!=null) ukupnoUgovoreno += ugovorenoUkupno;
+
+    const supplierCells = SUPPLIERS.flatMap(name=>{
+      const o = s.ponude.find(x=>x.dobavljac===name);
+      return o ? [fmtCena_(jedCena_(o)), o.rok||'—'] : ['—','—'];
+    });
+
+    return [
+      idx+1, s.opis,
+      ...supplierCells,
+      s.jm, fmtBroj_(s.kolicina),
+      s.ugovorenaCena!=null?fmtCena_(s.ugovorenaCena):'—',
+      s.predlogRukovodioca||'—'
+    ];
+  });
+
+  const columnStyles = { 0:{cellWidth:6,halign:'center'}, 1:{cellWidth:46} };
+  for(let i=0;i<n;i++){
+    columnStyles[2+i*2] = {halign:'right'};   // jed. cena
+    columnStyles[2+i*2+1] = {halign:'center'}; // rok isporuke
+  }
+  columnStyles[2+n*2] = {halign:'center'};              // JM
+  columnStyles[2+n*2+1] = {halign:'right', cellWidth:14};  // količina
+  columnStyles[2+n*2+2] = {halign:'right', cellWidth:20};  // ugovorena cena (bez PDV)
+  columnStyles[2+n*2+3] = {halign:'center', cellWidth:24}; // predlog rukovodioca
+
+  // Komercijalni uslovi PO DOBAVLJAČU (uzima se iz prve unete ponude tog
+  // dobavljača — uslovi važe za ceo izveštaj, ne po pojedinačnoj poziciji),
+  // prikazani kao dva reda na dnu GLAVNE tabele, vizuelno odvojena debljom
+  // linijom od pozicija iznad.
+  const supplierTerms = {};
+  p.stavke.forEach(s => s.ponude.forEach(o => {
+    if(!supplierTerms[o.dobavljac]) supplierTerms[o.dobavljac] = { avans:o.avans||'—', nacin:o.nacinPlacanja||'—' };
+  }));
+  const tailCols = 4; // JM, Količina, Ugovorena cena, Predlog rukovodioca
+  const thickTop = { lineWidth:{top:0.5,right:0.15,bottom:0.15,left:0.15}, lineColor:[140,140,132] };
+  const foot = n ? [
+    [
+      {content:'Avans', colSpan:2, styles:{fontStyle:'bold', halign:'left', ...thickTop}},
+      ...SUPPLIERS.map(name=>({content: supplierTerms[name]?supplierTerms[name].avans:'—', colSpan:2, styles:{halign:'center', ...thickTop}})),
+      ...Array.from({length:tailCols},()=>({content:'', styles:{...thickTop}}))
+    ],
+    [
+      {content:'Način plaćanja', colSpan:2, styles:{fontStyle:'bold', halign:'left'}},
+      ...SUPPLIERS.map(name=>({content: supplierTerms[name]?supplierTerms[name].nacin:'—', colSpan:2, styles:{halign:'center'}})),
+      ...Array.from({length:tailCols},()=>'')
+    ]
+  ] : undefined;
+
+  doc.autoTable({
+    head, body, foot, startY:y, margin:{left:marginX,right:marginX}, theme:'grid',
+    styles:{ font:'IBMPlexSans', fontSize:6.5, cellPadding:1.4, lineColor:[205,205,198], lineWidth:0.15, textColor:[30,30,30], valign:'middle' },
+    headStyles:{ fillColor:[36,61,76], textColor:[255,255,255], fontStyle:'bold', fontSize:6.3, lineColor:[90,115,130], lineWidth:0.35, halign:'center' },
+    footStyles:{ fillColor:[247,247,242], textColor:[30,30,30], fontSize:6.5, lineColor:[205,205,198], lineWidth:0.15 },
+    columnStyles
+  });
+  y = doc.lastAutoTable.finalY + 8;
+
+  if(y > 178){ doc.addPage(); y = 16; }
+  doc.setDrawColor(20,20,20); doc.setLineWidth(0.5);
+  doc.line(marginX, y, marginX+contentWidth, y);
+  y += 6;
+  const desnaIvica = marginX + contentWidth;
+  doc.setFont('IBMPlexSans','bold'); doc.setFontSize(10); doc.setTextColor(20,20,20);
+  doc.text(`Ukupno (bez PDV): ${fmtCena_(ukupnoBezPdv)} RSD`, desnaIvica, y, { align:'right' });
+  y += 6;
+  doc.text(`Ukupno ugovoreno (bez PDV): ${fmtCena_(ukupnoUgovoreno)} RSD`, desnaIvica, y, { align:'right' });
+  y += 7;
+  const razlika = ukupnoUgovoreno - ukupnoBezPdv;
+  const razlikaPct = ukupnoBezPdv ? (razlika/ukupnoBezPdv*100) : 0;
+  doc.setDrawColor(180,180,175); doc.setLineWidth(0.2);
+  doc.line(desnaIvica-70, y-3, desnaIvica, y-3);
+  doc.text(`Razlika: ${fmtCena_(razlika)} RSD`, desnaIvica, y, { align:'right' });
+  y += 6;
+  doc.text(`Razlika: ${fmtCena_(razlikaPct)}%`, desnaIvica, y, { align:'right' });
+  y += 8;
+
+  return doc.output('blob');
+}
+
+$('peExportBtn').addEventListener('click', async ()=>{
+  if(!currentPonuda) return;
+  const btn=$('peExportBtn');
+  btn.disabled=true; btn.textContent='Pravljenje PDF-a…';
+  try{
+    const p = {
+      ...currentPonuda,
+      vrstaRadova: $('peVrstaRadova').value.trim(),
+      adresaIsporuke: $('peAdresa').value.trim(),
+      kursEur: Number($('peKurs').value)||null
+    };
+    const zahtev = ZAHTEVI.find(z=>z.id===p.requestId);
+    const blob = await buildPonudaPdfBlob_(p, zahtev);
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = `Izvestaj-${String(p.brojIzvestaja).replace(/\//g,'-')}.pdf`;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url), 5000);
+  }catch(e){
+    console.error('Greška pri izvozu PDF-a:', e);
+    alert('Greška pri pravljenju PDF-a: ' + (e && e.message ? e.message : e));
+  }
+  btn.disabled=false; btn.textContent='Izvezi PDF';
+});
+
+$('peSaveBtn').addEventListener('click', async ()=>{
+  $('peErr').textContent=''; $('peInfo').classList.remove('visible');
+  const payload = {
+    id: currentPonuda.id,
+    vrstaRadova: $('peVrstaRadova').value.trim(),
+    adresaIsporuke: $('peAdresa').value.trim(),
+    kursEur: Number($('peKurs').value)||null,
+    stavke: currentPonuda.stavke
+  };
+  $('peSaveBtn').disabled=true;
+  const r=await apiPost('updatePonuda', payload);
+  $('peSaveBtn').disabled=false;
+  if(r&&r.error){ $('peErr').textContent=r.error; return; }
+  $('peInfo').textContent='Izveštaj je sačuvan.'; $('peInfo').classList.add('visible');
+  setTimeout(()=>$('peInfo').classList.remove('visible'),4000);
+  await loadPonudeSection();
+});
+
+function blobToBase64_(blob){
+  return new Promise((resolve,reject)=>{
+    const reader = new FileReader();
+    reader.onloadend = ()=>resolve(String(reader.result).split(',')[1]);
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
+}
+
+function ponudaMailSubject_(p, z){
+  const nalogOpis = z ? (NALOZI.find(n=>n.kod===z.nalog)||{}).opis||'' : '';
+  return `Izveštaj o ponudama ${p.brojIzvestaja}${z?' — nalog '+z.nalog:''}${nalogOpis?' — '+nalogOpis:''}`;
+}
+
+async function posaljiPonudaMail_(p, targetEmail, subjectSufiks, bodyText){
+  const z = ZAHTEVI.find(x=>x.id===p.requestId);
+  const blob = await buildPonudaPdfBlob_(p, z);
+  const pdfBase64 = await blobToBase64_(blob);
+  const pdfFilename = `Izvestaj-${String(p.brojIzvestaja).replace(/\//g,'-')}.pdf`;
+  const link = `${location.origin}${location.pathname}?ponuda=${p.id}`;
+  const cc = await ZN.myMailAddress();
+  const bodyHtmlParagraphs = escapeHtml(bodyText).split('\n').map(l=>l?`<p>${l}</p>`:'').join('');
+  const htmlBody = `<html><body>${bodyHtmlParagraphs}<p><a href="${escapeHtml(link)}">${escapeHtml(link)}</a></p></body></html>`;
+  const subject = `${ponudaMailSubject_(p, z)}${subjectSufiks?' - '+subjectSufiks:''}`;
+
+  const { data, error } = await ZN.invokeEdgeFunction('send-request-email', {
+    resourceType: 'ponuda',
+    ponudaId: p.id,
+    to: [targetEmail],
+    cc: cc || undefined,
+    subject, htmlBody, pdfBase64, filename: pdfFilename
+  });
+  if(error || (data && data.error)){
+    alert('Slanje mejla nije uspelo: ' + ((data&&data.error) || (error&&error.message) || 'nepoznata greška'));
+    return false;
+  }
+  return true;
+}
+
+$('pePosaljiNaOveruBtn').addEventListener('click', async ()=>{
+  if(!currentPonuda) return;
+  if(!confirm(`Poslati izveštaj ${currentPonuda.brojIzvestaja} na overu?`)) return;
+  const targetEmail = emailZaKorak(2);
+  if(!targetEmail){ alert(`Nije dodeljen korisnik za korak "${imeUloge(2)}". Obratite se administratoru (admin.html — Uloge u lancu odobravanja).`); return; }
+  $('pePosaljiNaOveruBtn').disabled=true;
+  try{
+    await apiPost('updatePonuda', {
+      id: currentPonuda.id,
+      vrstaRadova: $('peVrstaRadova').value.trim(),
+      adresaIsporuke: $('peAdresa').value.trim(),
+      kursEur: Number($('peKurs').value)||null,
+      stavke: currentPonuda.stavke
+    });
+    const r = await apiPost('posaljiPonuduNaOveru', { id: currentPonuda.id });
+    if(r && r.error){ alert(r.error); $('pePosaljiNaOveruBtn').disabled=false; return; }
+    await loadPonudeSection();
+    const azurirano = PONUDE.find(x=>x.id===currentPonuda.id) || currentPonuda;
+    const ok = await posaljiPonudaMail_(azurirano, targetEmail, `na overi (${imeUloge(2)})`, `Izveštaj o ponudama ${azurirano.brojIzvestaja} je poslat vama na overu.`);
+    if(ok) alert('Izveštaj je poslat na overu, mejl je automatski poslat.');
+    openPonudaEditor(currentPonuda.id);
+  }catch(e){
+    alert('Slanje na overu nije uspelo. Pokušaj ponovo.');
+  }
+  $('pePosaljiNaOveruBtn').disabled=false;
+});
+
+$('peOveriBtn').addEventListener('click', async ()=>{
+  $('peOveraErr').textContent='';
+  const komentar = $('peOveraKomentar').value.trim();
+  const p = PONUDE.find(x=>x.id===currentPonuda.id) || currentPonuda;
+  const vraceniStep = p.approvalStep;
+  $('peOveriBtn').disabled=true;
+  try{
+    const r = await apiPost('overiPonudu', { id: currentPonuda.id, stavke: currentPonuda.stavke, komentar });
+    if(r && r.error){ $('peOveraErr').textContent=r.error; $('peOveriBtn').disabled=false; return; }
+    await loadPonudeSection();
+    const azurirano = PONUDE.find(x=>x.id===currentPonuda.id) || p;
+    if(azurirano.status==='odobren'){
+      const rukovodilacNabavkeEmail = emailZaKorak(4);
+      if(rukovodilacNabavkeEmail){
+        const ok = await posaljiPonudaMail_(azurirano, rukovodilacNabavkeEmail, 'konačno odobren', `Izveštaj o ponudama ${azurirano.brojIzvestaja} je konačno odobren i spreman je za realizaciju nabavke.${komentar?'\n\nKomentar: '+komentar:''}`);
+        if(ok) alert('Izveštaj je konačno odobren, mejl je poslat.');
+      }else{
+        alert(`Nije dodeljen korisnik za korak "${imeUloge(4)}" (Rukovodilac nabavke). Obratite se administratoru.`);
+      }
+      // FYI podnosiocu (ako je različit od Rukovodioca nabavke) i Tehničkom direktoru
+      const podnosilacEmail = azurirano.createdByEmail || (azurirano.createdByUsername?`${azurirano.createdByUsername}@te-enel.rs`:null);
+      if(podnosilacEmail && podnosilacEmail!==rukovodilacNabavkeEmail){
+        await posaljiPonudaMail_(azurirano, podnosilacEmail, 'konačno odobren (obaveštenje)', `Izveštaj o ponudama ${azurirano.brojIzvestaja} je konačno odobren.${komentar?'\n\nKomentar: '+komentar:''}`);
+      }
+      const prethodniEmail = emailZaKorak(2);
+      if(prethodniEmail && prethodniEmail!==rukovodilacNabavkeEmail){
+        await posaljiPonudaMail_(azurirano, prethodniEmail, 'konačno odobren (obaveštenje)', `Izveštaj o ponudama ${azurirano.brojIzvestaja} je konačno odobren.${komentar?'\n\nKomentar: '+komentar:''}`);
+      }
+    }else{
+      const sledeciEmail = emailZaKorak(azurirano.approvalStep);
+      if(sledeciEmail){
+        const ok = await posaljiPonudaMail_(azurirano, sledeciEmail, `na overi (${imeUloge(azurirano.approvalStep)})`, `Izveštaj o ponudama ${azurirano.brojIzvestaja} je overen i sada čeka vašu overu.${komentar?'\n\nKomentar: '+komentar:''}`);
+        if(ok) alert('Izveštaj je overen i prosleđen dalje, mejl je poslat.');
+      }else{
+        alert(`Nije dodeljen korisnik za sledeći korak (${imeUloge(azurirano.approvalStep)}). Obratite se administratoru.`);
+      }
+    }
+    openPonudaEditor(currentPonuda.id);
+  }catch(e){
+    $('peOveraErr').textContent='Overa nije uspela. Pokušaj ponovo.';
+    $('peOveriBtn').disabled=false;
+  }
+});
+
+$('peVratiBtn').addEventListener('click', async ()=>{
+  $('peOveraErr').textContent='';
+  const komentar = $('peOveraKomentar').value.trim();
+  if(!komentar){ $('peOveraErr').textContent='Komentar je obavezan kada vraćaš izveštaj na doradu.'; return; }
+  const p = PONUDE.find(x=>x.id===currentPonuda.id) || currentPonuda;
+  const vraceniStep = p.approvalStep;
+  $('peVratiBtn').disabled=true;
+  try{
+    const r = await apiPost('vratiPonuduNaDoradu', { id: currentPonuda.id, komentar, stavke: currentPonuda.stavke });
+    if(r && r.error){ $('peOveraErr').textContent=r.error; $('peVratiBtn').disabled=false; return; }
+    await loadPonudeSection();
+    const azurirano = PONUDE.find(x=>x.id===currentPonuda.id) || p;
+    const idePrethodnom = azurirano.status==='na_overi';
+    const kome = idePrethodnom ? imeUloge(azurirano.approvalStep) : 'osobi koja je kreirala izveštaj';
+    const odKoga = imeUloge(vraceniStep);
+    const primaryEmail = idePrethodnom ? emailZaKorak(azurirano.approvalStep) : (p.createdByEmail || (p.createdByUsername?`${p.createdByUsername}@te-enel.rs`:null));
+    if(primaryEmail){
+      const ok = await posaljiPonudaMail_(azurirano, primaryEmail, 'vraćen na doradu', `Izveštaj o ponudama ${azurirano.brojIzvestaja} je vratio/la ${odKoga} na doradu, ide ${kome}.\nKomentar: ${komentar}`);
+      if(ok) alert('Izveštaj je vraćen na doradu, mejl je poslat.');
+    }
+    openPonudaEditor(currentPonuda.id);
+  }catch(e){
+    $('peOveraErr').textContent='Vraćanje na doradu nije uspelo. Pokušaj ponovo.';
+    $('peVratiBtn').disabled=false;
+  }
+});
+
+/* INICIJALIZACIJA */
+(async function initPonude(){
+  const uid = await ZN.currentUserId();
+  if(uid){
+    await handlePostAuth();
+  }
+})();
+</script>
+</body>
+</html>
