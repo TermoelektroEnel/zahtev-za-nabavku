@@ -395,6 +395,7 @@ async function doLogin(){
       }
       showApp();
       await Promise.all([loadRefData(), loadData()]);
+      resetForm();
       const zahtevId = new URLSearchParams(location.search).get('zahtev');
       if(zahtevId) openOveraView(zahtevId);
     }else{
