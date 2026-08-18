@@ -567,6 +567,10 @@
       const { data, error } = await sbClient.rpc('is_admin');
       return !error && !!data;
     },
+    async isMagacioner() {
+      const { data, error } = await sbClient.rpc('is_magacioner');
+      return !error && !!data;
+    },
     // Da li trenutni korisnik mora da promeni lozinku pre nastavka rada.
     async mustChangePassword() {
       const { data: sessionData } = await sbClient.auth.getSession();

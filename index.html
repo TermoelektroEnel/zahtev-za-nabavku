@@ -214,7 +214,7 @@ input[type=password]:focus{outline:2px solid var(--steel);outline-offset:1px;}
 
   <div class="grid">
     <!-- FORM -->
-    <div class="card">
+    <div class="card magacioner-hide">
       <h2>Novi zahtev</h2>
       <div class="plate">
         <div class="seg"><span class="val" id="plateGradiliste">—</span><span class="lbl">Gradilište</span></div>
@@ -489,7 +489,7 @@ async function otvoriPrilog_(path){
 const $ = id => document.getElementById(id);
 const yy = new Date().getFullYear().toString().slice(-2);
 let GRADILISTA = [], NALOZI = [], MOJA_GRADILISTA = null; // null = sva
-let APPROVAL_ROLES = [], CURRENT_USER_ID = null, IS_ADMIN = false;
+let APPROVAL_ROLES = [], CURRENT_USER_ID = null, IS_ADMIN = false, IS_MAGACIONER = false;
 
 function nazivGradilista(code){ const g=GRADILISTA.find(x=>x.code===String(code)); return g?g.naziv:''; }
 function nazivNaloga(code){ const n=NALOZI.find(x=>x.code===String(code)); return n?n.opis:''; }
@@ -566,13 +566,15 @@ async function loadRefData(){
   $('gradiliste').innerHTML = '<option value="">Učitavanje…</option>';
   $('gradiliste').disabled = true;
   try{
-    const [gData, nData, moja, arData, myUid, admFlag] = await Promise.all([apiListGradilista(), apiListNalozi(), ZN.myGradilista(), apiListApprovalRoles(), ZN.currentUserId(), ZN.isAdmin()]);
+    const [gData, nData, moja, arData, myUid, admFlag, magFlag] = await Promise.all([apiListGradilista(), apiListNalozi(), ZN.myGradilista(), apiListApprovalRoles(), ZN.currentUserId(), ZN.isAdmin(), ZN.isMagacioner()]);
     GRADILISTA = (gData.gradilista||[]).map(g=>({ code:String(g.kod), naziv:g.naziv }));
     NALOZI = (nData.nalozi||[]).map(n=>({ code:n.kod, opis:n.opis, gradiliste:n.gradiliste }));
     MOJA_GRADILISTA = moja;
     APPROVAL_ROLES = (arData.roles||[]);
     CURRENT_USER_ID = myUid;
     IS_ADMIN = !!admFlag;
+    IS_MAGACIONER = !!magFlag;
+    document.querySelectorAll('.magacioner-hide').forEach(el=>{ el.style.display = IS_MAGACIONER ? 'none' : ''; });
     populateGradilisteSelect();
     populateNalogSelect(null);
     populateZbirniNalogSelect();
@@ -1074,9 +1076,9 @@ function renderList(){
     return `<div class="nalog-group-title">Nalog za realizaciju: ${escapeHtml(nalogKod)}${naziv?' — '+escapeHtml(naziv):''} <span class="hint">(${items.length})</span></div>`
       + items.map(r=>{
         const jaPodneo = r.createdBy === CURRENT_USER_ID;
-        const mozeNaOveru = jaPodneo && (r.status==='u_izradi' || r.status==='vracen_na_doradu');
-        const mozeIzmenu = (r.status||'u_izradi')==='u_izradi' || r.status==='vracen_na_doradu';
-        const mozeBrisanje = mozeIzmenu || IS_ADMIN;
+        const mozeNaOveru = !IS_MAGACIONER && jaPodneo && (r.status==='u_izradi' || r.status==='vracen_na_doradu');
+        const mozeIzmenu = !IS_MAGACIONER && ((r.status||'u_izradi')==='u_izradi' || r.status==='vracen_na_doradu');
+        const mozeBrisanje = !IS_MAGACIONER && (mozeIzmenu || IS_ADMIN);
         return `
       <div class="item">
         <div class="item-top">
