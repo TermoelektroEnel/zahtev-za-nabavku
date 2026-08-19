@@ -1591,21 +1591,6 @@ async function buildRequestPdfBlob_(r){
     headStyles:{ fillColor:[255,255,255], textColor:[68,68,68], fontStyle:'bold', fontSize:7.3, lineWidth:{bottom:0.4}, lineColor:[20,20,20] },
     columnStyles:{ 0:{cellWidth:8}, 4:{halign:'right'}, 5:{halign:'right'}, 6:{halign:'right',fontStyle:'bold'}, 8:{halign:'center'} }
   });
-  y = doc.lastAutoTable.finalY + 22;
-
-  if(y > 255){ doc.addPage(); y = 24; }
-  const signColW = contentWidth/2 - 10;
-  const signLabels=['IZRADIO: Rukovodilac OC / datum','OBRADIO: Ruk. realizacije / datum','OVERIO: Zamenik gen.dir. / datum','ODOBRIO: Generalni direktor / datum'];
-  signLabels.forEach((txt,i)=>{
-    const col=i%2, row=Math.floor(i/2);
-    const x=marginX+col*(signColW+20);
-    const ySig=y+row*20;
-    doc.setDrawColor(20,20,20); doc.setLineWidth(0.3);
-    doc.line(x, ySig, x+signColW, ySig);
-    doc.setFont('IBMPlexSans','normal'); doc.setFontSize(8); doc.setTextColor(85,85,85);
-    doc.text(txt, x, ySig+4);
-  });
-
   return doc.output('blob');
 }
 
