@@ -67,7 +67,7 @@ table.spec th{text-align:left;font-size:10.5px;text-transform:uppercase;letter-s
 table.spec td{padding:4px 6px 4px 0;vertical-align:top;}
 table.spec td input{padding:7px 8px;font-size:13px;}
 .col-rb{width:34px;color:var(--ink-soft);font-family:'IBM Plex Mono',monospace;font-size:12.5px;text-align:center;padding-top:11px;}
-.col-sifra{width:64px;}.col-opis{width:auto;}.col-jm{width:80px;}.col-kol{width:80px;}
+.col-sifra{width:110px;}.col-opis{width:auto;}.col-jm{width:80px;}.col-kol{width:80px;}
 .col-od{width:90px;}.col-zan{width:90px;}.col-rok{width:150px;}.col-atest{width:85px;}.col-del{width:34px;}
 .zan-val{display:block;padding:7px 8px;font-family:'IBM Plex Mono',monospace;font-size:13px;font-weight:600;color:var(--steel-dark);background:#EEF0E9;border-radius:var(--radius);text-align:right;}
 .status-nije td{background:#F1948A;color:#1a1a1a;}
@@ -538,7 +538,7 @@ function populateNalogSelect(gradilisteCode){
     : [];
   filtered.forEach(n => {
     const opt = document.createElement('option');
-    opt.value = n.code; opt.textContent = n.code;
+    opt.value = n.code; opt.textContent = n.opis ? `${n.code} — ${n.opis}` : n.code;
     sel.appendChild(opt);
   });
   sel.disabled = !gradilisteCode;
@@ -943,7 +943,7 @@ function renderSpecRows(){
     const tr = document.createElement('tr');
     tr.innerHTML = `
       <td class="col-rb">${idx+1}</td>
-      <td class="col-sifra"><input type="text" maxlength="3" data-id="${row.id}" data-field="sifra" value="${escapeHtml(row.sifra)}" placeholder="npr. A12" style="text-transform:uppercase;"></td>
+      <td class="col-sifra"><input type="text" maxlength="20" data-id="${row.id}" data-field="sifra" value="${escapeHtml(row.sifra)}" placeholder="npr. A12" style="text-transform:uppercase;"></td>
       <td class="col-opis"><textarea data-id="${row.id}" data-field="opis" rows="1" placeholder="npr. Kabl PP00 5X2,5mm" style="width:100%;resize:none;overflow:hidden;font-family:inherit;font-size:inherit;line-height:1.35;padding:9px 10px;border:1px solid var(--line);border-radius:var(--radius);">${escapeHtml(row.opis)}</textarea></td>
       <td class="col-jm"><input type="text" data-id="${row.id}" data-field="jm" value="${escapeHtml(row.jm)}" placeholder="kom / m / kg"></td>
       <td class="col-kol"><input type="number" min="0" step="any" data-id="${row.id}" data-field="kolicina" value="${escapeHtml(row.kolicina)}" placeholder="0"></td>
