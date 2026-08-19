@@ -943,7 +943,7 @@ function renderSpecRows(){
     const tr = document.createElement('tr');
     tr.innerHTML = `
       <td class="col-rb">${idx+1}</td>
-      <td class="col-sifra"><input type="text" maxlength="20" data-id="${row.id}" data-field="sifra" value="${escapeHtml(row.sifra)}" placeholder="npr. A12" style="text-transform:uppercase;"></td>
+      <td class="col-sifra"><input type="text" maxlength="50" data-id="${row.id}" data-field="sifra" value="${escapeHtml(row.sifra)}" placeholder="npr. A12" style="text-transform:uppercase;"></td>
       <td class="col-opis"><textarea data-id="${row.id}" data-field="opis" rows="1" placeholder="npr. Kabl PP00 5X2,5mm" style="width:100%;resize:none;overflow:hidden;font-family:inherit;font-size:inherit;line-height:1.35;padding:9px 10px;border:1px solid var(--line);border-radius:var(--radius);">${escapeHtml(row.opis)}</textarea></td>
       <td class="col-jm"><input type="text" data-id="${row.id}" data-field="jm" value="${escapeHtml(row.jm)}" placeholder="kom / m / kg"></td>
       <td class="col-kol"><input type="number" min="0" step="any" data-id="${row.id}" data-field="kolicina" value="${escapeHtml(row.kolicina)}" placeholder="0"></td>
@@ -1213,6 +1213,11 @@ function formatDatumSr(iso){
   const parts = String(iso).split('-'); if(parts.length!==3) return iso;
   return `${parts[2]}.${parts[1]}.${parts[0]}.`;
 }
+function formatDatumVremeSr(dOrMs){
+  const dt = (dOrMs instanceof Date) ? dOrMs : new Date(dOrMs);
+  const pad = n => String(n).padStart(2,'0');
+  return `${pad(dt.getDate())}.${pad(dt.getMonth()+1)}.${dt.getFullYear()}. ${pad(dt.getHours())}:${pad(dt.getMinutes())}:${pad(dt.getSeconds())}`;
+}
 
 function openDoc(id){
   const r=DATA.requests.find(x=>x.id===id); if(!r) return;
@@ -1237,7 +1242,7 @@ function openDoc(id){
         <div class="doc" id="docContent">
           <img src="${LOGO_DATA_URI}" alt="Termoelektro Enel AD" style="height:40px;width:auto;display:block;margin-bottom:12px;">
           <h2>Zahtev za nabavku</h2>
-          <div class="doc-sub">Dokument generisan ${new Date(r.createdAt).toLocaleString('sr-RS')}</div>
+          <div class="doc-sub">Dokument generisan ${formatDatumVremeSr(new Date(r.createdAt))}</div>
           <div class="doc-meta">
             <div><div class="k">Redni broj</div><div class="v">${escapeHtml(r.redniBroj)}</div></div>
             <div><div class="k">Nalog za realizaciju</div><div class="v">${escapeHtml(r.nalog)}${nazivNaloga(r.nalog)?'<br><span style="font-size:11px;font-weight:500;color:#555;">'+escapeHtml(nazivNaloga(r.nalog))+'</span>':''}</div></div>
@@ -1537,7 +1542,7 @@ async function buildRequestPdfBlob_(r){
   doc.text('ZAHTEV ZA NABAVKU', marginX, y);
   y += 5.5;
   doc.setFont('IBMPlexSans','normal'); doc.setFontSize(9); doc.setTextColor(110,110,110);
-  doc.text(`Dokument generisan ${new Date(r.createdAt).toLocaleString('sr-RS')}`, marginX, y);
+  doc.text(`Dokument generisan ${formatDatumVremeSr(new Date(r.createdAt))}`, marginX, y);
   y += 8;
 
   const col2X = marginX + contentWidth/2 + 8;
