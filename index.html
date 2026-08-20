@@ -1434,30 +1434,14 @@ async function openOveraView(id){
 
         // Primarni primalac — onaj ko sada treba da postupi (prethodni
         // overavalac, ili direktno podnosilac ako je vratio prvi u lancu).
+        // Šalje se SAMO njemu — ostali u lancu ne dobijaju mejl (mogu da
+        // provere status u aplikaciji ako ih zanima).
         const primaryEmail = idePrethodnomOveravaocu ? emailZaKorak(azurirano.approvalStep) : podnosilacEmail;
         let primaryOk = false;
         if(primaryEmail){
           primaryOk = await posaljiApprovalMail_({ ...r, stavke:noveStavke }, primaryEmail,
             `Zahtev za nabavku ${r.redniBroj} - vraćen na doradu`,
             `Zahtev za nabavku ${r.redniBroj} je vratio/la ${odKoga} na doradu, ide ${kome}.\nKomentar: ${komentar}`);
-        }
-
-        // Obaveštenje (FYI) ostalim učesnicima koji su već ranije učestvovali
-        // u ovom zahtevu — da znaju ko je vratio i kome, iako oni sada ne
-        // moraju ništa da preduzmu.
-        const fyiEmails = new Set();
-        if(idePrethodnomOveravaocu){
-          for(let s=1; s<azurirano.approvalStep; s++){
-            const e = emailZaKorak(s);
-            if(e) fyiEmails.add(e);
-          }
-          if(podnosilacEmail) fyiEmails.add(podnosilacEmail);
-        }
-        fyiEmails.delete(primaryEmail);
-        for(const e of fyiEmails){
-          await posaljiApprovalMail_({ ...r, stavke:noveStavke }, e,
-            `Zahtev za nabavku ${r.redniBroj} - vraćen na doradu (obaveštenje)`,
-            `Obaveštenje: zahtev za nabavku ${r.redniBroj} je vratio/la ${odKoga} na doradu, ide ${kome}.\nKomentar: ${komentar}`);
         }
 
         if(primaryOk) alert('Zahtev je vraćen na doradu, mejlovi su automatski poslati.');
