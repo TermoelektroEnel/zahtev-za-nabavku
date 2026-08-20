@@ -804,7 +804,7 @@ async function loadPonudeSection(){
 function populateZahtevSelect(){
   const sel=$('pZahtev');
   sel.innerHTML='<option value="">— izaberi zahtev —</option>';
-  [...ZAHTEVI].sort((a,b)=>b.createdAt-a.createdAt).forEach(z=>{
+  [...ZAHTEVI].filter(z=>z.status==='odobren').sort((a,b)=>b.createdAt-a.createdAt).forEach(z=>{
     const opt=document.createElement('option');
     opt.value=z.id; opt.textContent=`${z.redniBroj} — nalog ${z.nalog}`;
     sel.appendChild(opt);
