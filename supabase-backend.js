@@ -587,7 +587,12 @@
     // "mora da promeni lozinku".
     async promeniLozinku(novaLozinka) {
       const { error } = await sbClient.auth.updateUser({ password: novaLozinka });
-      if (error) return { error: error.message };
+      if (error) {
+        const poruka = /session/i.test(error.message || '')
+          ? 'Sesija nije aktivna (često se dešava u privatnom/inkognito režimu browsera, koji blokira čuvanje prijave). Zatvorite privatni prozor, otvorite stranicu u običnom prozoru, prijavite se ponovo i probajte opet.'
+          : error.message;
+        return { error: poruka };
+      }
       const { error: err2 } = await sbClient.rpc('mark_password_changed');
       if (err2) return { error: err2.message };
       return { ok: true };
