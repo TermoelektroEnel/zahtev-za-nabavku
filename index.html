@@ -1387,7 +1387,14 @@ async function openOveraView(id){
       try{
         await apiOveriZahtev(r.id, noveStavke, komentar);
         await loadData();
-        const azurirano = DATA.requests.find(x=>x.id===r.id) || { ...r, stavke:noveStavke };
+        // Overavalac odmah gubi RLS vidljivost posle sopstvene overe ako
+        // nema pristup gradilištu — ručno računamo tačno novo stanje (isto
+        // pravilo kao u RPC-u overi_zahtev) umesto zastarelog "r".
+        const azurirano = DATA.requests.find(x=>x.id===r.id) || (
+          r.approvalStep < 3
+            ? { ...r, stavke:noveStavke, status:'na_overi', approvalStep:r.approvalStep+1 }
+            : { ...r, stavke:noveStavke, status:'odobren' }
+        );
         $('modalRoot').innerHTML='';
         if(azurirano.status==='odobren'){
           const radosavEmail = emailZaKorak(4);

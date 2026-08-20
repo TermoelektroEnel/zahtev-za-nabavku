@@ -1377,7 +1377,14 @@ $('peOveriBtn').addEventListener('click', async ()=>{
     const r = await apiPost('overiPonudu', { id: currentPonuda.id, stavke: currentPonuda.stavke, komentar });
     if(r && r.error){ $('peOveraErr').textContent=r.error; $('peOveriBtn').disabled=false; return; }
     await loadPonudeSection();
-    const azurirano = PONUDE.find(x=>x.id===currentPonuda.id) || p;
+    // Isti razlog kao kod vraćanja na doradu — overavalac odmah gubi RLS
+    // vidljivost posle sopstvene akcije, pa ručno računamo tačno novo
+    // stanje (isto pravilo kao u RPC-u overi_ponudu) umesto zastarelog "p".
+    const azurirano = PONUDE.find(x=>x.id===currentPonuda.id) || (
+      vraceniStep===2
+        ? { ...p, status:'na_overi', approvalStep:3 }
+        : { ...p, status:'odobren', approvalStep:3 }
+    );
     if(azurirano.status==='odobren'){
       const rukovodilacNabavkeEmail = emailZaKorak(4);
       if(rukovodilacNabavkeEmail){
@@ -1422,7 +1429,16 @@ $('peVratiBtn').addEventListener('click', async ()=>{
     const r = await apiPost('vratiPonuduNaDoradu', { id: currentPonuda.id, komentar, stavke: currentPonuda.stavke });
     if(r && r.error){ $('peOveraErr').textContent=r.error; $('peVratiBtn').disabled=false; return; }
     await loadPonudeSection();
-    const azurirano = PONUDE.find(x=>x.id===currentPonuda.id) || p;
+    // Onaj ko je upravo vratio izveštaj MOŽE odmah izgubiti RLS vidljivost
+    // tog izveštaja (više nije "trenutni overavalac") — ako ga ne nađemo u
+    // osveženoj listi, ručno izračunaj tačno novo stanje (isto pravilo kao
+    // u RPC-u vrati_ponudu_na_doradu), umesto da padnemo nazad na zastareo
+    // "p" (koji bi doveo do pogrešnog primaoca mejla).
+    const azurirano = PONUDE.find(x=>x.id===currentPonuda.id) || (
+      vraceniStep===3
+        ? { ...p, status:'na_overi', approvalStep:2 }
+        : { ...p, status:'vracen_na_doradu', approvalStep:0 }
+    );
     const idePrethodnom = azurirano.status==='na_overi';
     const kome = idePrethodnom ? imeUloge(azurirano.approvalStep) : 'osobi koja je kreirala izveštaj';
     const odKoga = imeUloge(vraceniStep);
