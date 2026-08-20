@@ -1075,8 +1075,7 @@ function renderList(){
     const naziv = nazivNaloga(nalogKod);
     return `<div class="nalog-group-title">Nalog za realizaciju: ${escapeHtml(nalogKod)}${naziv?' — '+escapeHtml(naziv):''} <span class="hint">(${items.length})</span></div>`
       + items.map(r=>{
-        const jaPodneo = r.createdBy === CURRENT_USER_ID;
-        const mozeNaOveru = !IS_MAGACIONER && jaPodneo && (r.status==='u_izradi' || r.status==='vracen_na_doradu');
+        const mozeNaOveru = !IS_MAGACIONER && (r.status==='u_izradi' || r.status==='vracen_na_doradu');
         const mozeIzmenu = !IS_MAGACIONER && ((r.status||'u_izradi')==='u_izradi' || r.status==='vracen_na_doradu');
         const mozeBrisanje = !IS_MAGACIONER && (mozeIzmenu || IS_ADMIN);
         return `
