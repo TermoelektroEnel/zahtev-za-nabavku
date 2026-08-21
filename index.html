@@ -135,6 +135,8 @@ table.spec td input{padding:7px 8px;font-size:13px;}
   .overlay{position:static;inset:auto;padding:0;margin:0;background:none;display:block;}
   .doc-outer{display:block;width:100%;}
   .doc-toolbar{display:none;}
+  .overa-actions{display:none;}
+  .komentar-polje{display:none;}
   .mail-panel{display:none !important;}
   .doc{box-shadow:none;width:100%;max-width:none;min-height:0;margin:0;padding:0;}
   .prilog-item button{display:none;}
@@ -366,7 +368,7 @@ $i('pwSaveBtn').addEventListener('click', async ()=>{
   await Promise.all([loadRefData(), loadData()]);
   resetForm();
   const zahtevId = new URLSearchParams(location.search).get('zahtev');
-  if(zahtevId) openOveraView(zahtevId);
+  if(zahtevId) openZahtevView(zahtevId);
 });
 
 async function doLogin(){
@@ -397,7 +399,7 @@ async function doLogin(){
       await Promise.all([loadRefData(), loadData()]);
       resetForm();
       const zahtevId = new URLSearchParams(location.search).get('zahtev');
-      if(zahtevId) openOveraView(zahtevId);
+      if(zahtevId) openZahtevView(zahtevId);
     }else{
       const raw = (result && result.error) ? String(result.error) : '';
       const msg = raw && !raw.toLowerCase().includes('nepoznata')
@@ -1087,16 +1089,14 @@ function renderList(){
         <div class="item-nalog">Gradilište: ${escapeHtml(nazivGradilista(r.gradiliste)||r.gradiliste)} · ${r.stavke.length} stavk${r.stavke.length===1?'a':(r.stavke.length<5?'e':'i')}</div>
         <div style="margin:4px 0;">${statusBadgeHtml(r)}</div>
         <div class="item-actions">
-          <button class="btn-ghost" data-view="${r.id}">Prikaži / štampaj</button>
-          <button class="btn-ghost" data-detalji="${r.id}">Status i istorija</button>
+          <button class="btn-ghost" data-detalji="${r.id}">Prikaži i štampaj</button>
           ${mozeIzmenu?`<button class="btn-ghost" data-edit="${r.id}">Izmeni</button>`:''}
           ${mozeBrisanje?`<button class="btn-ghost" data-del="${r.id}">Obriši</button>`:''}
           ${mozeNaOveru?`<button class="btn btn-primary" style="width:auto;" data-posalji-overu="${r.id}">Pošalji na overu</button>`:''}
         </div>
       </div>`;}).join('');
   }).join('')}</div>`;
-  wrap.querySelectorAll('[data-view]').forEach(b=>b.addEventListener('click',e=>openDoc(e.target.dataset.view)));
-  wrap.querySelectorAll('[data-detalji]').forEach(b=>b.addEventListener('click',e=>openOveraView(e.target.dataset.detalji)));
+  wrap.querySelectorAll('[data-detalji]').forEach(b=>b.addEventListener('click',e=>openZahtevView(e.target.dataset.detalji)));
   wrap.querySelectorAll('[data-edit]').forEach(b=>b.addEventListener('click',e=>openEdit(e.target.dataset.edit)));
   wrap.querySelectorAll('[data-posalji-overu]').forEach(b=>b.addEventListener('click',e=>posaljiNaOveruClick(e.target.dataset.posaljiOveru)));
   wrap.querySelectorAll('[data-del]').forEach(b=>b.addEventListener('click',async e=>{
@@ -1133,18 +1133,20 @@ function jeTrenutniOveravalac(r){
   const uloga = APPROVAL_ROLES.find(x=>x.step===r.approvalStep);
   return !!(uloga && uloga.userId===CURRENT_USER_ID);
 }
+function statusTekst(r){
+  const st = r.status || 'u_izradi';
+  if(st==='u_izradi') return 'U izradi';
+  if(st==='vracen_na_doradu') return 'Vraćeno na doradu';
+  if(st==='na_overi'){
+    const ime = imeOsobe(r.approvalStep);
+    return `Na overi kod ${imeUloge(r.approvalStep)}${ime?' ('+ime+')':''}`;
+  }
+  if(st==='odobren') return 'Odobreno';
+  return st;
+}
 function statusBadgeHtml(r){
   const st = r.status || 'u_izradi';
-  let tekst;
-  if(st==='u_izradi') tekst = 'U izradi';
-  else if(st==='vracen_na_doradu') tekst = 'Vraćeno na doradu';
-  else if(st==='na_overi'){
-    const ime = imeOsobe(r.approvalStep);
-    tekst = `Na overi kod ${imeUloge(r.approvalStep)}${ime?' ('+ime+')':''}`;
-  }
-  else if(st==='odobren') tekst = 'Odobreno';
-  else tekst = st;
-  return `<span class="status-badge status-${st}">${escapeHtml(tekst)}</span>`;
+  return `<span class="status-badge status-${st}">${escapeHtml(statusTekst(r))}</span>`;
 }
 
 async function posaljiNaOveruClick(id){
@@ -1204,7 +1206,7 @@ function renderNaOveri(){
         <button class="btn btn-primary" style="width:auto;" data-otvori-overu="${r.id}">Pregled i overa</button>
       </div>
     </div>`).join('');
-  wrap.querySelectorAll('[data-otvori-overu]').forEach(b=>b.addEventListener('click',e=>openOveraView(e.currentTarget.dataset.otvoriOveru)));
+  wrap.querySelectorAll('[data-otvori-overu]').forEach(b=>b.addEventListener('click',e=>openZahtevView(e.currentTarget.dataset.otvoriOveru)));
 }
 
 function formatDatumSr(iso){
@@ -1218,66 +1220,7 @@ function formatDatumVremeSr(dOrMs){
   return `${pad(dt.getDate())}.${pad(dt.getMonth()+1)}.${dt.getFullYear()}. ${pad(dt.getHours())}:${pad(dt.getMinutes())}:${pad(dt.getSeconds())}`;
 }
 
-function openDoc(id){
-  const r=DATA.requests.find(x=>x.id===id); if(!r) return;
-  const totalRow=r.stavke.map((s,idx)=>`
-    <tr>
-      <td style="width:26px;color:#777;">${idx+1}</td>
-      <td>${escapeHtml(s.sifra||'—')}</td><td>${escapeHtml(s.opis)}</td>
-      <td>${escapeHtml(s.jm)}</td>
-      <td class="num">${escapeHtml(s.kolicina)}</td>
-      <td class="num">${escapeHtml(s.odPostojeceg||'0')}</td>
-      <td class="num" style="font-weight:600;">${escapeHtml(s.zaNabavku!==undefined?s.zaNabavku:'')}</td>
-      <td>${escapeHtml(formatDatumSr(s.rok))}</td>
-      <td style="text-align:center;">${escapeHtml(s.atest||'—')}</td>
-    </tr>`).join('');
-  $('modalRoot').innerHTML=`
-    <div class="overlay" id="overlay">
-      <div class="doc-outer">
-        <div class="doc-toolbar">
-          <button class="btn-ghost" id="closeDoc">Zatvori</button>
-          <button class="btn btn-primary" style="width:auto;" id="printDoc">Štampaj / sačuvaj PDF</button>
-        </div>
-        <div class="doc" id="docContent">
-          <img src="${LOGO_DATA_URI}" alt="Termoelektro Enel AD" style="height:40px;width:auto;display:block;margin-bottom:12px;">
-          <h2>Zahtev za nabavku</h2>
-          <div class="doc-sub">Dokument generisan ${formatDatumVremeSr(new Date(r.createdAt))}</div>
-          <div class="doc-meta">
-            <div><div class="k">Redni broj</div><div class="v">${escapeHtml(r.redniBroj)}</div></div>
-            <div><div class="k">Nalog za realizaciju</div><div class="v">${escapeHtml(r.nalog)}${nazivNaloga(r.nalog)?'<br><span style="font-size:11px;font-weight:500;color:#555;">'+escapeHtml(nazivNaloga(r.nalog))+'</span>':''}</div></div>
-            <div><div class="k">Oznaka gradilišta</div><div class="v">${escapeHtml(r.gradiliste)} — ${escapeHtml(nazivGradilista(r.gradiliste))}</div></div>
-          </div>
-          <table style="font-size:11.5px;">
-            <thead><tr>
-              <th style="width:26px;">Rb.</th><th>Broj poz. spec.</th><th>Opis</th>
-              <th>Jed. mere</th><th style="text-align:right;">Količina</th>
-              <th style="text-align:right;">Od postojećeg</th><th style="text-align:right;">Za nabavku</th>
-              <th>Rok isporuke</th><th style="text-align:center;">Atest</th>
-            </tr></thead>
-            <tbody>${totalRow}</tbody>
-          </table>
-          ${r.napomena?`<div style="margin-top:14px;"><div class="k" style="font-size:9.5px;text-transform:uppercase;letter-spacing:0.06em;color:#777;margin-bottom:4px;">Napomena</div><div style="white-space:pre-wrap;font-size:12.5px;">${escapeHtml(r.napomena)}</div></div>`:''}
-          ${(r.prilozi&&r.prilozi.length)?`<div style="margin-top:14px;"><div class="k" style="font-size:9.5px;text-transform:uppercase;letter-spacing:0.06em;color:#777;margin-bottom:4px;">Prilozi</div><div id="docPrilozi"></div></div>`:''}
-        </div>
-      </div>
-    </div>`;
-  $('closeDoc').addEventListener('click',()=>$('modalRoot').innerHTML='');
-  $('printDoc').addEventListener('click',()=>window.print());
-  $('overlay').addEventListener('click',e=>{ if(e.target.id==='overlay') $('modalRoot').innerHTML=''; });
-  if(r.prilozi && r.prilozi.length){
-    const prilContainer = $('docPrilozi');
-    prilContainer.innerHTML = r.prilozi.map((p,idx)=>`
-      <div class="prilog-item">
-        <span class="naziv">📄 ${escapeHtml(p.filename)}</span>
-        <button type="button" class="btn-ghost" data-open-doc-prilog="${idx}" style="padding:3px 8px;font-size:11px;">Otvori</button>
-      </div>`).join('');
-    prilContainer.querySelectorAll('[data-open-doc-prilog]').forEach(b=>b.addEventListener('click',e=>{
-      otvoriPrilog_(r.prilozi[Number(e.currentTarget.dataset.openDocPrilog)].path);
-    }));
-  }
-}
-
-async function openOveraView(id){
+async function openZahtevView(id){
   let r = DATA.requests.find(x=>x.id===id);
   if(!r){
     // Možda nije u trenutno učitanoj listi (npr. otvoreno preko linka iz mejla) — probaj sveže učitavanje.
@@ -1292,22 +1235,28 @@ async function openOveraView(id){
   const rows = r.stavke.map((s,idx)=>`
     <tr>
       <td style="width:26px;color:#777;">${idx+1}</td>
+      <td>${escapeHtml(s.sifra||'—')}</td>
       <td>${escapeHtml(s.opis)}</td>
       <td>${escapeHtml(s.jm)}</td>
       <td class="num">${mogucaOvera?`<input type="number" min="0" step="any" data-overa-kolicina="${idx}" value="${escapeHtml(s.kolicina)}" style="width:80px;">`:escapeHtml(s.kolicina)}</td>
       <td class="num">${mogucaOvera?`<input type="number" min="0" step="any" data-overa-od="${idx}" value="${escapeHtml(s.odPostojeceg||'0')}" style="width:80px;">`:escapeHtml(s.odPostojeceg||'0')}</td>
       <td class="num" style="font-weight:600;" data-overa-zan="${idx}">${escapeHtml(s.zaNabavku!==undefined?s.zaNabavku:'')}</td>
+      <td>${escapeHtml(formatDatumSr(s.rok))}</td>
+      <td style="text-align:center;">${escapeHtml(s.atest||'—')}</td>
     </tr>`).join('');
 
   $('modalRoot').innerHTML = `
     <div class="overlay" id="overaOverlay">
       <div class="doc-outer">
         <div class="doc-toolbar">
-          <button class="btn-ghost" id="closeOvera">Zatvori</button>
+          <button class="btn-ghost" id="closeOvera">Izađi</button>
+          <button class="btn btn-primary" style="width:auto;" id="printOvera">Štampaj / sačuvaj PDF</button>
         </div>
-        <div class="doc" style="max-width:760px;">
-          <h2 style="margin-top:0;">Zahtev ${escapeHtml(r.redniBroj)}</h2>
-          <div style="margin-bottom:10px;">${statusBadgeHtml(r)}</div>
+        <div class="doc" style="max-width:820px;">
+          <img src="${LOGO_DATA_URI}" alt="Termoelektro Enel AD" style="height:40px;width:auto;display:block;margin-bottom:12px;">
+          <h2 style="margin-top:0;">Zahtev za nabavku ${escapeHtml(r.redniBroj)}</h2>
+          <div class="doc-sub">Dokument generisan ${formatDatumVremeSr(new Date(r.createdAt))}</div>
+          <div style="margin:10px 0;">${statusBadgeHtml(r)}</div>
           <div class="doc-meta">
             <div><div class="k">Gradilište</div><div class="v">${escapeHtml(r.gradiliste)} — ${escapeHtml(nazivGradilista(r.gradiliste))}</div></div>
             <div><div class="k">Nalog za realizaciju</div><div class="v">${escapeHtml(r.nalog)}${naziv?'<br><span style="font-size:11px;font-weight:500;color:#555;">'+escapeHtml(naziv)+'</span>':''}</div></div>
@@ -1316,12 +1265,12 @@ async function openOveraView(id){
           ${r.lastReturnComment?`<div class="err" style="margin:10px 0;">Poslednji komentar (vraćeno na doradu): ${escapeHtml(r.lastReturnComment)}</div>`:''}
           ${r.napomena?`<div class="field"><label>Napomena</label><div style="white-space:pre-wrap;font-size:13px;">${escapeHtml(r.napomena)}</div></div>`:''}
           ${(r.prilozi&&r.prilozi.length)?`<div class="field"><label>Prilozi</label><div id="overaPrilozi"></div></div>`:''}
-          <table style="font-size:12.5px;margin-top:10px;">
-            <thead><tr><th>Rb.</th><th>Opis</th><th>JM</th><th>Količina${mogucaOvera?' (može se izmeniti)':''}</th><th>Od postojećeg${mogucaOvera?' (može se izmeniti)':''}</th><th>Za nabavku</th></tr></thead>
+          <table style="font-size:11.5px;margin-top:10px;">
+            <thead><tr><th>Rb.</th><th>Broj poz. spec.</th><th>Opis</th><th>JM</th><th>Količina${mogucaOvera?' (može se izmeniti)':''}</th><th>Od postojećeg${mogucaOvera?' (može se izmeniti)':''}</th><th>Za nabavku</th><th>Rok isporuke</th><th style="text-align:center;">Atest</th></tr></thead>
             <tbody>${rows}</tbody>
           </table>
           ${mogucaOvera?`
-          <div style="margin-top:16px;">
+          <div class="komentar-polje" style="margin-top:16px;">
             <label for="overaKomentar">Komentar (opciono uz overu, obavezno ako vraćaš na doradu)</label>
             <textarea id="overaKomentar" rows="2" style="width:100%;padding:8px;border:1px solid var(--line);border-radius:var(--radius);font-family:inherit;"></textarea>
           </div>
@@ -1337,8 +1286,16 @@ async function openOveraView(id){
       </div>
     </div>`;
 
-  $('closeOvera').addEventListener('click',()=>$('modalRoot').innerHTML='');
-  $('overaOverlay').addEventListener('click',e=>{ if(e.target.id==='overaOverlay') $('modalRoot').innerHTML=''; });
+  function zatvoriZahtevView(){
+    $('modalRoot').innerHTML='';
+    document.removeEventListener('keydown', escListener);
+  }
+  function escListener(e){ if(e.key==='Escape') zatvoriZahtevView(); }
+  document.addEventListener('keydown', escListener);
+
+  $('closeOvera').addEventListener('click', zatvoriZahtevView);
+  $('printOvera').addEventListener('click',()=>window.print());
+  $('overaOverlay').addEventListener('click',e=>{ if(e.target.id==='overaOverlay') zatvoriZahtevView(); });
 
   if(r.prilozi && r.prilozi.length){
     const prilContainer = $('overaPrilozi');
@@ -1394,7 +1351,7 @@ async function openOveraView(id){
             ? { ...r, stavke:noveStavke, status:'na_overi', approvalStep:r.approvalStep+1 }
             : { ...r, stavke:noveStavke, status:'odobren' }
         );
-        $('modalRoot').innerHTML='';
+        zatvoriZahtevView();
         if(azurirano.status==='odobren'){
           const radosavEmail = emailZaKorak(4);
           if(radosavEmail){
@@ -1429,7 +1386,7 @@ async function openOveraView(id){
       try{
         await apiVratiNaDoradu(r.id, komentar, noveStavke);
         await loadData();
-        $('modalRoot').innerHTML='';
+        zatvoriZahtevView();
 
         const podnosilacEmail = r.createdByEmail || (r.createdByUsername ? `${r.createdByUsername}@te-enel.rs` : null);
         const azurirano = DATA.requests.find(x=>x.id===r.id) ||
@@ -1533,7 +1490,10 @@ async function buildRequestPdfBlob_(r){
   y += 5.5;
   doc.setFont('IBMPlexSans','normal'); doc.setFontSize(9); doc.setTextColor(110,110,110);
   doc.text(`Dokument generisan ${formatDatumVremeSr(new Date(r.createdAt))}`, marginX, y);
-  y += 8;
+  y += 6;
+  doc.setFont('IBMPlexSans','bold'); doc.setFontSize(9.5); doc.setTextColor(50,50,50);
+  doc.text(`Status: ${statusTekst(r)}`, marginX, y);
+  y += 7;
 
   const col2X = marginX + contentWidth/2 + 8;
   const colW = contentWidth/2 - 8;
@@ -1581,6 +1541,43 @@ async function buildRequestPdfBlob_(r){
     headStyles:{ fillColor:[255,255,255], textColor:[68,68,68], fontStyle:'bold', fontSize:7.3, lineWidth:{bottom:0.4}, lineColor:[20,20,20] },
     columnStyles:{ 0:{cellWidth:8}, 4:{halign:'right'}, 5:{halign:'right'}, 6:{halign:'right',fontStyle:'bold'}, 8:{halign:'center'} }
   });
+
+  // Istorija (koraci overe/odobravanja i komentari) — isti podaci koji se
+  // vide i na ekranu u "Prikaži i štampaj", tako da je ovo UVEK isti
+  // dokument, samo se ova sekcija dopunjuje kako zahtev napreduje kroz lanac.
+  let yLog = doc.lastAutoTable.finalY + 10;
+  if(yLog > 260){ doc.addPage(); yLog = 20; }
+  doc.setFont('IBMPlexSans','bold'); doc.setFontSize(11); doc.setTextColor(20,20,20);
+  doc.text('Istorija', marginX, yLog);
+  yLog += 5;
+
+  let logRows = [];
+  try{
+    const logData = await apiListApprovalLog(r.id);
+    const akcijaTekst = { poslato:'Poslato na overu', overeno:'Overeno i prosleđeno dalje', vraceno:'Vraćeno na doradu', konacno_odobreno:'Konačno odobreno' };
+    logRows = (logData.log || []).map((l,i)=>[
+      String(i+1),
+      akcijaTekst[l.action] || l.action,
+      l.actorUsername || '—',
+      new Date(l.createdAt).toLocaleString('sr-RS'),
+      l.komentar || '—',
+    ]);
+  }catch(e){ /* ako istorija ne može da se učita, PDF se i dalje šalje bez te sekcije */ }
+
+  if(logRows.length){
+    doc.autoTable({
+      head:[['Korak','Akcija','Ko','Kada','Komentar']],
+      body: logRows, startY:yLog,
+      margin:{ left:marginX, right:marginX },
+      styles:{ font:'IBMPlexSans', fontSize:8, cellPadding:2.2, lineColor:[221,221,221], lineWidth:0.1, textColor:[26,26,26] },
+      headStyles:{ fillColor:[255,255,255], textColor:[68,68,68], fontStyle:'bold', fontSize:7.3, lineWidth:{bottom:0.4}, lineColor:[20,20,20] },
+      columnStyles:{ 0:{cellWidth:14} },
+    });
+  }else{
+    doc.setFont('IBMPlexSans','normal'); doc.setFontSize(9); doc.setTextColor(130,130,130);
+    doc.text('Još uvek nema istorije.', marginX, yLog);
+  }
+
   return doc.output('blob');
 }
 
@@ -1738,7 +1735,7 @@ ukloniBeluPozadinu_(LOGO_DATA_URI).then(rezultat=>{ $('mastheadLogo').src = rezu
     await Promise.all([loadRefData(), loadData()]);
     resetForm();
     const zahtevId = new URLSearchParams(location.search).get('zahtev');
-    if(zahtevId) openOveraView(zahtevId);
+    if(zahtevId) openZahtevView(zahtevId);
   }
 })();
 </script>
