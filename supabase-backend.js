@@ -574,8 +574,20 @@
         .maybeSingle();
       return (data && data.email) ? data.email : `${username}@te-enel.rs`;
     },
+    // Poziva Edge funkciju uz JEDAN automatski ponovni pokušaj ako je greška
+    // MREŽNA (npr. Edge funkcija se "budi" iz mirovanja, kratak mrežni hip)
+    // — ne ponavlja ako je funkcija stvarno odgovorila sa poslovnom greškom
+    // (npr. "Nemate pristup"), jer ponavljanje tu ne bi ništa promenilo.
     async invokeEdgeFunction(name, body) {
-      return sbClient.functions.invoke(name, { body });
+      const pokusaj = () => sbClient.functions.invoke(name, { body });
+      let rezultat = await pokusaj();
+      const mrezniProblem = rezultat.error && !rezultat.data &&
+        /Failed to (send|fetch)|NetworkError|Load failed/i.test(rezultat.error.message || '');
+      if (mrezniProblem) {
+        await new Promise(res => setTimeout(res, 1200));
+        rezultat = await pokusaj();
+      }
+      return rezultat;
     },
     async isAdmin() {
       const { data, error } = await sbClient.rpc('is_admin');
