@@ -26,7 +26,21 @@
     return;
   }
 
-  const sbClient = window.supabase.createClient(SUPABASE_CONFIG.url, SUPABASE_CONFIG.anonKey);
+  // Izričito zabranjuje keširanje svih zahteva ka bazi (i na nivou browsera
+  // i traži od mrežnih proksija da ne vraćaju uskladištenu/zastarelu verziju
+  // odgovora) — sprečava situaciju gde korisnik, posebno na sporijoj ili
+  // mrežno "agresivnoj" vezi, vidi stariju verziju podataka dok se stranica
+  // ne zatvori i ponovo otvori.
+  function noCacheFetch_(url, options = {}) {
+    const headers = new Headers(options.headers || {});
+    headers.set('Cache-Control', 'no-cache, no-store, must-revalidate');
+    headers.set('Pragma', 'no-cache');
+    return fetch(url, { ...options, cache: 'no-store', headers });
+  }
+
+  const sbClient = window.supabase.createClient(SUPABASE_CONFIG.url, SUPABASE_CONFIG.anonKey, {
+    global: { fetch: noCacheFetch_ },
+  });
   window.sbClient = sbClient;
 
   const GAS_MATCH = 'script.google.com/macros/';
