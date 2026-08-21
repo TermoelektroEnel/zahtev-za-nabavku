@@ -260,6 +260,7 @@ td{padding:8px 8px 8px 0;border-bottom:1px solid var(--line-soft);font-size:13px
       <button type="button" class="btn btn-primary editor-only-part" id="peSaveBtn">Sačuvaj izveštaj</button>
       <button type="button" class="btn-ghost" id="peExportBtn">Izvezi PDF</button>
       <button type="button" class="btn-ghost" id="pePosaljiNaOveruBtn" style="display:none;">Pošalji na overu</button>
+      <button type="button" class="btn-ghost" id="peResendBtn" style="display:none;">Pošalji mejl ponovo</button>
       <button type="button" class="btn-ghost" id="peCloseBtn">Zatvori</button>
     </div>
 
@@ -899,6 +900,13 @@ function openPonudaEditor(id){
   const mozeNaOveru = trenutniMozeUredovati && (p.status==='u_izradi' || p.status==='vracen_na_doradu');
   $('pePosaljiNaOveruBtn').style.display = mozeNaOveru ? 'inline-block' : 'none';
 
+  // Ako je izveštaj već "na overi" ali je iz nekog razloga (npr. mrežni
+  // problem) mejl propao da stigne, ovo dugme omogućava da se OBAVEŠTENJE
+  // pošalje ponovo trenutnom overavaocu — bez ponovnog pokretanja cele
+  // radnje (status se ne menja, samo se mejl šalje iznova).
+  const mozePonovoPoslatiMejl = (IS_ADMIN_PONUDE || trenutniMozeUredovati) && p.status==='na_overi';
+  $('peResendBtn').style.display = mozePonovoPoslatiMejl ? 'inline-block' : 'none';
+
   const mogucaOvera = jeTrenutniPonudaOveravalac(p);
   $('peOveraActionsWrap').style.display = mogucaOvera ? 'block' : 'none';
   $('peOveraKomentar').value = '';
@@ -1339,6 +1347,17 @@ async function posaljiPonudaMail_(p, targetEmail, subjectSufiks, bodyText){
   }
   return true;
 }
+
+$('peResendBtn').addEventListener('click', async ()=>{
+  if(!currentPonuda) return;
+  const targetEmail = emailZaKorak(currentPonuda.approvalStep);
+  if(!targetEmail){ alert(`Nije dodeljen korisnik za korak "${imeUloge(currentPonuda.approvalStep)}". Obratite se administratoru.`); return; }
+  if(!confirm(`Ponovo poslati mejl na overu (${imeUloge(currentPonuda.approvalStep)})?`)) return;
+  $('peResendBtn').disabled=true;
+  const ok = await posaljiPonudaMail_(currentPonuda, targetEmail, `na overi (${imeUloge(currentPonuda.approvalStep)}) - ponovo poslato`, `Podsetnik: izveštaj o ponudama ${currentPonuda.brojIzvestaja} čeka vašu overu.`);
+  $('peResendBtn').disabled=false;
+  if(ok) alert('Mejl je ponovo poslat.');
+});
 
 $('pePosaljiNaOveruBtn').addEventListener('click', async ()=>{
   if(!currentPonuda) return;

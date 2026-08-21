@@ -1231,6 +1231,7 @@ async function openZahtevView(id){
 
   const mogucaOvera = jeTrenutniOveravalac(r);
   const naziv = nazivNaloga(r.nalog);
+  const mozePonovoPoslatiMejl = r.status==='na_overi' && (IS_ADMIN || MOJA_GRADILISTA===null || (MOJA_GRADILISTA||[]).includes(String(r.gradiliste)));
 
   const rows = r.stavke.map((s,idx)=>`
     <tr>
@@ -1251,6 +1252,7 @@ async function openZahtevView(id){
         <div class="doc-toolbar">
           <button class="btn-ghost" id="closeOvera">Izađi</button>
           <button class="btn btn-primary" style="width:auto;" id="printOvera">Štampaj / sačuvaj PDF</button>
+          ${mozePonovoPoslatiMejl?`<button class="btn-ghost" id="resendOveraMail">Pošalji mejl ponovo</button>`:''}
         </div>
         <div class="doc" style="max-width:820px;">
           <img src="${LOGO_DATA_URI}" alt="Termoelektro Enel AD" style="height:40px;width:auto;display:block;margin-bottom:12px;">
@@ -1296,6 +1298,19 @@ async function openZahtevView(id){
   $('closeOvera').addEventListener('click', zatvoriZahtevView);
   $('printOvera').addEventListener('click',()=>window.print());
   $('overaOverlay').addEventListener('click',e=>{ if(e.target.id==='overaOverlay') zatvoriZahtevView(); });
+  if(mozePonovoPoslatiMejl){
+    $('resendOveraMail').addEventListener('click', async ()=>{
+      const targetEmail = emailZaKorak(r.approvalStep);
+      if(!targetEmail){ alert(`Nije dodeljen korisnik za korak "${imeUloge(r.approvalStep)}". Obratite se administratoru.`); return; }
+      if(!confirm(`Ponovo poslati mejl na overu (${imeUloge(r.approvalStep)})?`)) return;
+      $('resendOveraMail').disabled=true;
+      const ok = await posaljiApprovalMail_(r, targetEmail,
+        `Zahtev za nabavku ${r.redniBroj} - podsetnik`,
+        `Podsetnik: zahtev za nabavku ${r.redniBroj} čeka vašu overu.`);
+      $('resendOveraMail').disabled=false;
+      if(ok) alert('Mejl je ponovo poslat.');
+    });
+  }
 
   if(r.prilozi && r.prilozi.length){
     const prilContainer = $('overaPrilozi');
