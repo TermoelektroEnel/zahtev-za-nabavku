@@ -26,15 +26,28 @@
     return;
   }
 
-  // Izričito zabranjuje keširanje svih zahteva ka bazi (i na nivou browsera
+  // Izričito zabranjuje keširanje GET zahteva ka bazi (i na nivou browsera
   // i traži od mrežnih proksija da ne vraćaju uskladištenu/zastarelu verziju
   // odgovora) — sprečava situaciju gde korisnik, posebno na sporijoj ili
   // mrežno "agresivnoj" vezi, vidi stariju verziju podataka dok se stranica
   // ne zatvori i ponovo otvori.
+  //
+  // VAŽNO: dodatna Cache-Control/Pragma ZAGLAVLJA se dodaju SAMO za GET
+  // (čitanje podataka) — Edge funkcije (POST pozivi, npr. slanje mejlova)
+  // imaju sopstvenu, užu CORS listu dozvoljenih zaglavlja koja NE uključuje
+  // Cache-Control, pa bi dodavanje tog zaglavlja tamo blokiralo ceo poziv
+  // (CORS preflight odbijen pre nego što zahtev uopšte krene). POST pozivi
+  // se ionako ne keširaju od strane browsera, pa im ni ne trebaju ova
+  // zaglavlja — "cache:no-store" (fetch opcija, ne pravo HTTP zaglavlje,
+  // pa ne izaziva CORS proveru) se i dalje primenjuje na sve pozive.
   function noCacheFetch_(url, options = {}) {
-    const headers = new Headers(options.headers || {});
-    headers.set('Cache-Control', 'no-cache, no-store, must-revalidate');
-    headers.set('Pragma', 'no-cache');
+    const jeGet = !options.method || options.method.toUpperCase() === 'GET';
+    let headers = options.headers;
+    if (jeGet) {
+      headers = new Headers(options.headers || {});
+      headers.set('Cache-Control', 'no-cache, no-store, must-revalidate');
+      headers.set('Pragma', 'no-cache');
+    }
     return fetch(url, { ...options, cache: 'no-store', headers });
   }
 
