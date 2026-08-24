@@ -554,7 +554,10 @@
         return { ok: true, json: async () => result };
       } catch (err) {
         console.error('Supabase backend greška:', err);
-        return { ok: true, json: async () => ({ error: String(err.message || err) }) };
+        // ok:false — bitno da pozivaoci koji proveravaju "if(!res.ok)"
+        // stvarno primete grešku, umesto da je tiho protumače kao prazan
+        // uspešan odgovor (npr. "nema podataka" umesto prave greške).
+        return { ok: false, json: async () => ({ error: String(err.message || err) }) };
       }
     }
     return _origFetch(url, opts);
