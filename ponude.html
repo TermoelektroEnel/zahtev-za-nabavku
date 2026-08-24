@@ -1412,15 +1412,6 @@ $('peOveriBtn').addEventListener('click', async ()=>{
       }else{
         alert(`Nije dodeljen korisnik za korak "${imeUloge(4)}" (Rukovodilac nabavke). Obratite se administratoru.`);
       }
-      // FYI podnosiocu (ako je različit od Rukovodioca nabavke) i Tehničkom direktoru
-      const podnosilacEmail = azurirano.createdByEmail || (azurirano.createdByUsername?`${azurirano.createdByUsername}@te-enel.rs`:null);
-      if(podnosilacEmail && podnosilacEmail!==rukovodilacNabavkeEmail){
-        await posaljiPonudaMail_(azurirano, podnosilacEmail, 'konačno odobren (obaveštenje)', `Izveštaj o ponudama ${azurirano.brojIzvestaja} je konačno odobren.${komentar?'\n\nKomentar: '+komentar:''}`);
-      }
-      const prethodniEmail = emailZaKorak(2);
-      if(prethodniEmail && prethodniEmail!==rukovodilacNabavkeEmail){
-        await posaljiPonudaMail_(azurirano, prethodniEmail, 'konačno odobren (obaveštenje)', `Izveštaj o ponudama ${azurirano.brojIzvestaja} je konačno odobren.${komentar?'\n\nKomentar: '+komentar:''}`);
-      }
     }else{
       const sledeciEmail = emailZaKorak(azurirano.approvalStep);
       if(sledeciEmail){
