@@ -1274,7 +1274,7 @@ function izvezizabranePozicijeWord_(r, izabraniIdx){
 // naslovom i izabranim pozicijama u telu mejla — korisnik sam bira
 // primaoce, doda svoj tekst, i pošalje. Telo mejla mora biti čist tekst
 // (mailto: ne podržava HTML formatiranje).
-async function izvezizabranePozicijeMejl_(r, izabraniIdx){
+function izvezizabranePozicijeMejl_(r, izabraniIdx){
   const stavke = izabraniIdx.map(i=>r.stavke[i]);
   const linije = stavke.map((s,i)=>{
     const sifraDeo = s.sifra ? `[${s.sifra}] ` : '';
@@ -1284,19 +1284,6 @@ async function izvezizabranePozicijeMejl_(r, izabraniIdx){
   }).join('\n');
 
   const subject = `Zahtev za ponudu (ZN ${r.redniBroj})`;
-  const potpisTekst =
-`Radosav Đurić
-Rukovodilac nabavke / Procurement Manager
-
-Termoelektro Enel AD
-Bačvanska 21b, sprat 3
-11107 Beograd, Srbija
-tel. (+381 11) 27 72 379
-mob. (+381 63) 322 682
-fax. (+381 11) 27 57 890
-
-radosav.djuric@te-enel.rs
-www.te-enel.rs`;
   const body =
 `Poštovani,
 
@@ -1305,8 +1292,6 @@ Molimo Vas ponudu za sledeće pozicije:
 ${linije}
 
 Unapred hvala,
-
-${potpisTekst}
 `;
 
   const mailtoUrl = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
@@ -1314,42 +1299,7 @@ ${potpisTekst}
     alert('Izabrano je previše pozicija za direktno otvaranje mejla (tekst bi bio predug). Koristite "Izvezi izabrane pozicije (Word)" umesto toga za veći broj pozicija.');
     return;
   }
-
-  // Pokušaj da u clipboard kopiraš i FORMATIRANU (HTML) verziju potpisa sa
-  // logom — mailto: ne podržava sliku u telu, ali korisnik može ručno da
-  // obriše obični tekst potpisa u otvorenom mejlu i nalepi (Ctrl+V) ovu
-  // verziju preko njega, čime dobija i logo. Ako browser ne podržava ovu
-  // vrstu kopiranja (npr. Firefox), tiho se preskače — obični tekst potpisa
-  // je već u telu mejla kao osnovna, uvek dostupna varijanta.
-  let kopiranoSaLogom = false;
-  try{
-    const potpisHtml = `<div style="font-family:Calibri,Arial,sans-serif;font-size:11pt;color:#1a1a1a;">
-      <div style="font-weight:bold;">Radosav Đurić</div>
-      <div>Rukovodilac nabavke / Procurement Manager</div>
-      <br>
-      <img src="${LOGO_DATA_URI}" alt="Termoelektro Enel AD" style="height:28px;width:auto;display:block;margin:6px 0;">
-      <div>Bačvanska 21b, sprat 3</div>
-      <div>11107 Beograd, Srbija</div>
-      <div>tel. (+381 11) 27 72 379</div>
-      <div>mob. (+381 63) 322 682</div>
-      <div>fax. (+381 11) 27 57 890</div>
-      <br>
-      <div><a href="mailto:radosav.djuric@te-enel.rs">radosav.djuric@te-enel.rs</a></div>
-      <div><a href="https://www.te-enel.rs">www.te-enel.rs</a></div>
-    </div>`;
-    const item = new ClipboardItem({
-      'text/html': new Blob([potpisHtml], { type: 'text/html' }),
-      'text/plain': new Blob([potpisTekst], { type: 'text/plain' }),
-    });
-    await navigator.clipboard.write([item]);
-    kopiranoSaLogom = true;
-  }catch(e){ /* tiho preskoči — obični tekst potpisa je već u mejlu */ }
-
   window.location.href = mailtoUrl;
-
-  if(kopiranoSaLogom){
-    setTimeout(()=>alert('Mejl je otvoren sa tekstom potpisa. Potpis SA LOGOM je kopiran u clipboard — ako želiš logo u mejlu, obriši tekstualni potpis na dnu i nalepi (Ctrl+V) preko njega.'), 300);
-  }
 }
 
 async function openZahtevView(id){
