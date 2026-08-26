@@ -1220,6 +1220,88 @@ function formatDatumVremeSr(dOrMs){
   return `${pad(dt.getDate())}.${pad(dt.getMonth()+1)}.${dt.getFullYear()}. ${pad(dt.getHours())}:${pad(dt.getMinutes())}:${pad(dt.getSeconds())}`;
 }
 
+// Izvozi izabrane pozicije iz Zahteva za nabavku u Word dokument (samo za
+// Rukovodioca nabavke, na odobrenim zahtevima) — koristi se za formiranje
+// upita za ponude ka dobavljačima, pošto se pozicije iz istog zahteva često
+// šalju različitim dobavljačima po kategorijama. Fajl se čuva kao .doc, ali
+// je zapravo HTML — Word ga otvara kao potpuno uredljiv dokument.
+function izvezizabranePozicijeWord_(r, izabraniIdx){
+  const stavke = izabraniIdx.map(i=>r.stavke[i]);
+  const redovi = stavke.map((s,i)=>`
+    <tr>
+      <td style="border:1px solid #999;padding:6px;text-align:center;">${i+1}</td>
+      <td style="border:1px solid #999;padding:6px;">${escapeHtml(s.sifra||'')}</td>
+      <td style="border:1px solid #999;padding:6px;">${escapeHtml(s.opis)}</td>
+      <td style="border:1px solid #999;padding:6px;text-align:center;">${escapeHtml(s.jm)}</td>
+      <td style="border:1px solid #999;padding:6px;text-align:right;">${escapeHtml(s.zaNabavku!==undefined?s.zaNabavku:s.kolicina)}</td>
+      <td style="border:1px solid #999;padding:6px;">${escapeHtml(formatDatumSr(s.rok))}</td>
+      <td style="border:1px solid #999;padding:6px;"></td>
+    </tr>`).join('');
+
+  const html = `<!DOCTYPE html><html><head><meta charset="utf-8">
+    <style>
+      body{ font-family: Calibri, Arial, sans-serif; font-size: 12pt; }
+      h2{ margin-bottom:2px; }
+      .sub{ color:#555; font-size:10pt; margin-bottom:16px; }
+      table{ border-collapse:collapse; width:100%; }
+      th{ border:1px solid #999; padding:6px; background:#F2F1EA; text-align:left; font-size:10.5pt; }
+    </style></head>
+    <body>
+      <h2>Upit za ponude</h2>
+      <div class="sub">
+        Zahtev za nabavku: ${escapeHtml(r.redniBroj)}&nbsp;&nbsp;|&nbsp;&nbsp;
+        Gradilište: ${escapeHtml(r.gradiliste)} — ${escapeHtml(nazivGradilista(r.gradiliste))}&nbsp;&nbsp;|&nbsp;&nbsp;
+        Nalog: ${escapeHtml(r.nalog)}
+      </div>
+      <table>
+        <thead><tr>
+          <th>Rb.</th><th>Broj poz. spec.</th><th>Opis</th><th>JM</th><th>Količina</th><th>Rok isporuke</th><th>Napomena</th>
+        </tr></thead>
+        <tbody>${redovi}</tbody>
+      </table>
+    </body></html>`;
+
+  const blob = new Blob(['\ufeff', html], { type: 'application/msword' });
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = `Upit-${String(r.redniBroj).replace(/\//g,'-')}.doc`;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+}
+
+// Otvara podrazumevani mejl program (Outlook i sl.) sa već upisanim
+// naslovom i izabranim pozicijama u telu mejla — korisnik sam bira
+// primaoce, doda svoj tekst, i pošalje. Telo mejla mora biti čist tekst
+// (mailto: ne podržava HTML formatiranje).
+function izvezizabranePozicijeMejl_(r, izabraniIdx){
+  const stavke = izabraniIdx.map(i=>r.stavke[i]);
+  const linije = stavke.map((s,i)=>{
+    const sifraDeo = s.sifra ? `[${s.sifra}] ` : '';
+    const kolicina = s.zaNabavku!==undefined ? s.zaNabavku : s.kolicina;
+    const rokDeo = s.rok ? `, rok isporuke: ${formatDatumSr(s.rok)}` : '';
+    return `${i+1}. ${sifraDeo}${s.opis} — ${kolicina} ${s.jm}${rokDeo}`;
+  }).join('\n');
+
+  const subject = `Zahtev za nabavku ${r.redniBroj}`;
+  const body =
+`Poštovani,
+
+Molimo Vas ponudu za sledeće pozicije:
+
+${linije}
+
+Unapred hvala,
+`;
+
+  const mailtoUrl = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  if(mailtoUrl.length > 1900){
+    alert('Izabrano je previše pozicija za direktno otvaranje mejla (tekst bi bio predug). Koristite "Izvezi izabrane pozicije (Word)" umesto toga za veći broj pozicija.');
+    return;
+  }
+  window.location.href = mailtoUrl;
+}
+
 async function openZahtevView(id){
   let r = DATA.requests.find(x=>x.id===id);
   if(!r){
@@ -1232,9 +1314,12 @@ async function openZahtevView(id){
   const mogucaOvera = jeTrenutniOveravalac(r);
   const naziv = nazivNaloga(r.nalog);
   const mozePonovoPoslatiMejl = r.status==='na_overi' && (IS_ADMIN || MOJA_GRADILISTA===null || (MOJA_GRADILISTA||[]).includes(String(r.gradiliste)));
+  const jeRukovodilacNabavke = APPROVAL_ROLES.some(x=>x.step===4 && x.userId===CURRENT_USER_ID);
+  const mozeIzborZaUpit = jeRukovodilacNabavke && r.status==='odobren';
 
   const rows = r.stavke.map((s,idx)=>`
     <tr>
+      ${mozeIzborZaUpit?`<td style="width:22px;"><input type="checkbox" data-upit-check="${idx}"></td>`:''}
       <td style="width:26px;color:#777;">${idx+1}</td>
       <td>${escapeHtml(s.sifra||'—')}</td>
       <td>${escapeHtml(s.opis)}</td>
@@ -1268,9 +1353,16 @@ async function openZahtevView(id){
           ${r.napomena?`<div class="field"><label>Napomena</label><div style="white-space:pre-wrap;font-size:13px;">${escapeHtml(r.napomena)}</div></div>`:''}
           ${(r.prilozi&&r.prilozi.length)?`<div class="field"><label>Prilozi</label><div id="overaPrilozi"></div></div>`:''}
           <table style="font-size:11.5px;margin-top:10px;">
-            <thead><tr><th>Rb.</th><th>Broj poz. spec.</th><th>Opis</th><th>JM</th><th>Količina${mogucaOvera?' (može se izmeniti)':''}</th><th>Od postojećeg${mogucaOvera?' (može se izmeniti)':''}</th><th>Za nabavku</th><th>Rok isporuke</th><th style="text-align:center;">Atest</th></tr></thead>
+            <thead><tr>${mozeIzborZaUpit?'<th></th>':''}<th>Rb.</th><th>Broj poz. spec.</th><th>Opis</th><th>JM</th><th>Količina${mogucaOvera?' (može se izmeniti)':''}</th><th>Od postojećeg${mogucaOvera?' (može se izmeniti)':''}</th><th>Za nabavku</th><th>Rok isporuke</th><th style="text-align:center;">Atest</th></tr></thead>
             <tbody>${rows}</tbody>
           </table>
+          ${mozeIzborZaUpit?`
+          <div class="overa-actions" style="margin-top:10px;">
+            <button class="btn-ghost" id="izvezUpitMejlBtn">Otvori u mejlu</button>
+            <button class="btn-ghost" id="izvezUpitBtn">Izvezi izabrane pozicije (Word)</button>
+            <span class="hint">Označi pozicije u tabeli iznad (kvadratić levo) — koristi za formiranje upita ka dobavljačima kad pozicije idu različitim dobavljačima. "Otvori u mejlu" popunjava naslov i tekst u tvom mejl programu (biraš primaoce sam); "Word" je bolji za duže liste.</span>
+          </div>
+          `:''}
           ${mogucaOvera?`
           <div class="komentar-polje" style="margin-top:16px;">
             <label for="overaKomentar">Komentar (opciono uz overu, obavezno ako vraćaš na doradu)</label>
@@ -1309,6 +1401,19 @@ async function openZahtevView(id){
         `Podsetnik: zahtev za nabavku ${r.redniBroj} čeka vašu overu.`);
       $('resendOveraMail').disabled=false;
       if(ok) alert('Mejl je ponovo poslat.');
+    });
+  }
+  if(mozeIzborZaUpit){
+    const skupiIzabrane_ = () => [...document.querySelectorAll('[data-upit-check]:checked')].map(cb=>Number(cb.dataset.upitCheck));
+    $('izvezUpitBtn').addEventListener('click', ()=>{
+      const izabraniIdx = skupiIzabrane_();
+      if(!izabraniIdx.length){ alert('Označite bar jednu poziciju pre izvoza.'); return; }
+      izvezizabranePozicijeWord_(r, izabraniIdx);
+    });
+    $('izvezUpitMejlBtn').addEventListener('click', ()=>{
+      const izabraniIdx = skupiIzabrane_();
+      if(!izabraniIdx.length){ alert('Označite bar jednu poziciju pre izvoza.'); return; }
+      izvezizabranePozicijeMejl_(r, izabraniIdx);
     });
   }
 
