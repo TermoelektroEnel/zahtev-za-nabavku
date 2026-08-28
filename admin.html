@@ -168,11 +168,6 @@ td{padding:8px 8px 8px 0;border-bottom:1px solid var(--line-soft);font-size:13px
       <div class="hint">Ako se ostavi prazno, koristi se pretpostavka "korisničko_ime@te-enel.rs".</div>
     </div>
     <div class="field">
-      <label for="uPhone">Broj telefona (za SMS podsetnike)</label>
-      <input type="tel" id="uPhone" placeholder="npr. 064 123 4567 ili +381641234567">
-      <div class="hint">Opciono. Koristi se za SMS podsetnik ako zahtev/izveštaj predugo stoji na overi. Unosi se u bilo kom uobičajenom zapisu (sa ili bez +381) — sistem ga sam prepoznaje.</div>
-    </div>
-    <div class="field">
       <label for="uRole">Uloga</label>
       <select id="uRole">
         <option value="user">Korisnik (podnosi/overava zahteve)</option>
@@ -578,7 +573,7 @@ function renderUserList(){
   const wrap=$('userListWrap');
   if(!USERS.length){ wrap.innerHTML='<div class="empty">Još uvek nema korisnika.</div>'; return; }
   const sorted=[...USERS].sort((a,b)=>String(a.username).localeCompare(String(b.username)));
-  wrap.innerHTML=`<table><thead><tr><th>Korisničko ime</th><th style="width:100px;">Uloga</th><th>Email</th><th style="width:130px;">Telefon</th><th>Gradilišta</th><th style="width:420px;"></th></tr></thead><tbody>
+  wrap.innerHTML=`<table><thead><tr><th>Korisničko ime</th><th style="width:100px;">Uloga</th><th>Email</th><th>Gradilišta</th><th style="width:420px;"></th></tr></thead><tbody>
     ${sorted.map(u=>{
       const isAdmin=u.role==='admin';
       const isMagacioner=u.role==='magacioner';
@@ -587,12 +582,10 @@ function renderUserList(){
         <td style="font-family:'IBM Plex Mono',monospace;">${escapeHtml(u.username)}</td>
         <td>${ulogaLabel}</td>
         <td>${u.email?escapeHtml(u.email):'<span class="hint">'+escapeHtml(u.username)+'@te-enel.rs (podrazumevano)</span>'}</td>
-        <td>${u.phone?escapeHtml(u.phone):'<span class="hint">—</span>'}</td>
         <td>${isAdmin?'<span class="tag sva">SVA</span>':renderGradilistaTags(u.gradilista)}</td>
         <td class="row-actions">${isAdmin?'<span class="hint">upravljanje u Dashboard-u</span>':`
           <button class="btn-ghost" data-edit-ug="${escapeHtml(u.id)}">Izmeni gradilišta</button>
           <button class="btn-ghost" data-edit-email="${escapeHtml(u.id)}" data-uname="${escapeHtml(u.username)}" data-email="${escapeHtml(u.email||'')}">Izmeni email</button>
-          <button class="btn-ghost" data-edit-phone="${escapeHtml(u.id)}" data-uname="${escapeHtml(u.username)}" data-phone="${escapeHtml(u.phone||'')}">Izmeni telefon</button>
           <button class="btn-ghost" data-toggle-role="${escapeHtml(u.id)}" data-uname="${escapeHtml(u.username)}" data-role="${escapeHtml(u.role)}">${isMagacioner?'Učini korisnikom':'Učini magacionerom'}</button>
           <button class="btn-ghost" data-reset-u="${escapeHtml(u.id)}" data-uname="${escapeHtml(u.username)}">Nova lozinka</button>
           <button class="btn-danger-ghost" data-del-u="${escapeHtml(u.id)}" data-uname="${escapeHtml(u.username)}">Obriši</button>`}</td>
@@ -605,13 +598,6 @@ function renderUserList(){
     const nova=prompt(`Email adresa za "${uname}" (prazno = koristi ${uname}@te-enel.rs):`, trenutni);
     if(nova===null) return;
     const r=await usersApi('updateUserEmail',{ id, email:nova.trim() });
-    if(r.error) alert(r.error); else await loadUsers();
-  }));
-  wrap.querySelectorAll('[data-edit-phone]').forEach(b=>b.addEventListener('click',async e=>{
-    const btn=e.currentTarget, id=btn.dataset.editPhone, uname=btn.dataset.uname, trenutni=btn.dataset.phone;
-    const novi=prompt(`Broj telefona za "${uname}" (za SMS podsetnike; npr. 064 123 4567 ili +381641234567; prazno = ukloni):`, trenutni);
-    if(novi===null) return;
-    const r=await usersApi('updateUserPhone',{ id, phone:novi.trim() });
     if(r.error) alert(r.error); else await loadUsers();
   }));
   wrap.querySelectorAll('[data-toggle-role]').forEach(b=>b.addEventListener('click',async e=>{
@@ -647,7 +633,6 @@ function openEditUserGradilista(id){
   $('uPass').value=''; $('uPass').disabled=true; $('uPass').placeholder='(ostaje nepromenjena)';
   $('uPassHint').textContent='Lozinka se ne menja ovde — koristi dugme "Nova lozinka" u listi.';
   $('uEmail').value=u.email||''; $('uEmail').disabled=true;
-  $('uPhone').value=u.phone||''; $('uPhone').disabled=true;
   $('uRole').value=u.role==='magacioner'?'magacioner':'user'; $('uRole').disabled=true;
   const isSva=u.gradilista===null;
   $('uSva').checked=isSva;
@@ -663,7 +648,6 @@ function resetUserForm(){
   $('uPass').value=''; $('uPass').disabled=false; $('uPass').placeholder='najmanje 8 znakova';
   $('uPassHint').textContent='';
   $('uEmail').value=''; $('uEmail').disabled=false;
-  $('uPhone').value=''; $('uPhone').disabled=false;
   $('uRole').value='user'; $('uRole').disabled=false;
   $('uSva').checked=true; $('uGradilistaWrap').style.display='none';
   $('uGradilistaGrid').querySelectorAll('input[type=checkbox]').forEach(cb=>cb.checked=false);
@@ -697,7 +681,7 @@ $('uSaveBtn').addEventListener('click',async()=>{
   if(!/^[a-z0-9._-]{3,}$/.test(username)){ $('uErr').textContent='Korisničko ime: najmanje 3 znaka (mala slova, brojevi, . _ -).'; return; }
   if(password.length<8){ $('uErr').textContent='Lozinka mora imati bar 8 znakova.'; return; }
   $('uSaveBtn').disabled=true;
-  const r=await usersApi('createUser',{ username, password, gradiliste, email: $('uEmail').value.trim(), phone: $('uPhone').value.trim(), role: $('uRole').value });
+  const r=await usersApi('createUser',{ username, password, gradiliste, email: $('uEmail').value.trim(), role: $('uRole').value });
   if(r&&r.error){ $('uErr').textContent=r.error; }
   else{
     resetUserForm();
