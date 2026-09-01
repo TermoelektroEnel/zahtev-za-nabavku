@@ -1329,7 +1329,6 @@ async function posaljiPonudaMail_(p, targetEmail, subjectSufiks, bodyText){
   const pdfBase64 = await blobToBase64_(blob);
   const pdfFilename = `Izvestaj-${String(p.brojIzvestaja).replace(/\//g,'-')}.pdf`;
   const link = `${location.origin}${location.pathname}?ponuda=${p.id}`;
-  const cc = await ZN.myMailAddress();
   const bodyHtmlParagraphs = escapeHtml(bodyText).split('\n').map(l=>l?`<p>${l}</p>`:'').join('');
   const htmlBody = `<html><body>${bodyHtmlParagraphs}<p><a href="${escapeHtml(link)}">${escapeHtml(link)}</a></p></body></html>`;
   const subject = `${ponudaMailSubject_(p, z)}${subjectSufiks?' - '+subjectSufiks:''}`;
@@ -1338,7 +1337,6 @@ async function posaljiPonudaMail_(p, targetEmail, subjectSufiks, bodyText){
     resourceType: 'ponuda',
     ponudaId: p.id,
     to: [targetEmail],
-    cc: cc || undefined,
     subject, htmlBody, pdfBase64, filename: pdfFilename
   });
   if(error || (data && data.error)){
