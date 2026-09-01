@@ -298,7 +298,21 @@ input[type=password]:focus{outline:2px solid var(--steel);outline-offset:1px;}
 
     <!-- LIST -->
     <div class="card">
-      <h2>Prethodni zahtevi</h2>
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:4px;">
+        <h2 style="margin:0;">Prethodni zahtevi</h2>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <select id="filterNalog" style="min-width:170px;">
+            <option value="">Svi nalozi</option>
+          </select>
+          <select id="filterStatus" style="min-width:150px;">
+            <option value="">Svi statusi</option>
+            <option value="u_izradi">U izradi</option>
+            <option value="na_overi">Na overi</option>
+            <option value="vracen_na_doradu">Vraćeno na doradu</option>
+            <option value="odobren">Odobreno</option>
+          </select>
+        </div>
+      </div>
       <div id="listWrap"><div class="loading">Učitavanje…</div></div>
     </div>
   </div>
@@ -1075,9 +1089,28 @@ function renderList(){
   const wrap = $('listWrap');
   if(!DATA.requests.length){ wrap.innerHTML = '<div class="empty">Još uvek nema evidentiranih zahteva.</div>'; return; }
 
+  // Popuni padajući meni naloga na osnovu naloga koji se STVARNO pojavljuju
+  // u trenutno vidljivim zahtevima (ne celog šifarnika) — sačuvaj trenutni
+  // izbor ako i dalje postoji u listi.
+  const nalogSelect = $('filterNalog');
+  const trenutniIzborNaloga = nalogSelect.value;
+  const naloziPrisutni = [...new Set(DATA.requests.map(r=>r.nalog||'—'))].sort((a,b)=>a.localeCompare(b,'sr',{numeric:true}));
+  nalogSelect.innerHTML = '<option value="">Svi nalozi</option>' + naloziPrisutni.map(n=>`<option value="${escapeHtml(n)}">${escapeHtml(n)}${nazivNaloga(n)?' — '+escapeHtml(nazivNaloga(n)):''}</option>`).join('');
+  if(naloziPrisutni.includes(trenutniIzborNaloga)) nalogSelect.value = trenutniIzborNaloga;
+
+  const filterNalogVal = $('filterNalog').value;
+  const filterStatusVal = $('filterStatus').value;
+  const filtrirani = DATA.requests.filter(r=>{
+    if(filterNalogVal && (r.nalog||'—')!==filterNalogVal) return false;
+    if(filterStatusVal && (r.status||'u_izradi')!==filterStatusVal) return false;
+    return true;
+  });
+
+  if(!filtrirani.length){ wrap.innerHTML = '<div class="empty">Nema zahteva koji odgovaraju izabranom filteru.</div>'; return; }
+
   // Grupisanje po nalogu za realizaciju
   const groups = {};
-  DATA.requests.forEach(r=>{
+  filtrirani.forEach(r=>{
     const key = r.nalog || '—';
     (groups[key] = groups[key] || []).push(r);
   });
@@ -1129,6 +1162,8 @@ function renderList(){
   }));
   renderNaOveri();
 }
+$('filterNalog').addEventListener('change', renderList);
+$('filterStatus').addEventListener('change', renderList);
 
 function imeUloge(step){
   const r = APPROVAL_ROLES.find(x=>x.step===step);
