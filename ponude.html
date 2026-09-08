@@ -640,6 +640,16 @@ function renderPePregled(){
     if(!supplierTerms[o.dobavljac]) supplierTerms[o.dobavljac] = { avans:o.avans||'—', nacin:o.nacinPlacanja||'—' };
   }));
   const tailCols = 4;
+  const supplierTotals = {};
+  SUPPLIERS.forEach(name=>{
+    let total = 0;
+    currentPonuda.stavke.forEach(s=>{
+      const o = s.ponude.find(x=>x.dobavljac===name);
+      if(o) total += ukupnoRSD_(o, s.zaNabavku);
+    });
+    supplierTotals[name] = total;
+  });
+  const footUkupno = `<tr><td colspan="2" style="font-weight:600;">Ukupna cena (bez PDV)</td>${SUPPLIERS.map(name=>`<td colspan="2" class="num" style="font-weight:600;">${fmtCena_(supplierTotals[name])} RSD</td>`).join('')}${'<td></td>'.repeat(tailCols)}</tr>`;
   const footAvans = `<tr><td colspan="2">Avans</td>${SUPPLIERS.map(name=>`<td colspan="2" class="center">${escapeHtml(supplierTerms[name].avans)}</td>`).join('')}${'<td></td>'.repeat(tailCols)}</tr>`;
   const footNacin = `<tr><td colspan="2">Način plaćanja</td>${SUPPLIERS.map(name=>`<td colspan="2" class="center">${escapeHtml(supplierTerms[name].nacin)}</td>`).join('')}${'<td></td>'.repeat(tailCols)}</tr>`;
 
@@ -657,7 +667,7 @@ function renderPePregled(){
     ${colgroup}
     <thead>${headRow1}${headRow2}</thead>
     <tbody>${bodyRows}</tbody>
-    <tfoot>${footAvans}${footNacin}</tfoot>
+    <tfoot>${footUkupno}${footAvans}${footNacin}</tfoot>
   </table>
   <div class="pregled-summary">
     <div>Ukupno (bez PDV): <strong>${fmtCena_(ukupnoBezPdv)}</strong> RSD</div>
@@ -1223,11 +1233,25 @@ async function buildPonudaPdfBlob_(p, zahtev){
   }));
   const tailCols = 4; // JM, Količina, Ugovorena cena, Predlog rukovodioca
   const thickTop = { lineWidth:{top:0.5,right:0.15,bottom:0.15,left:0.15}, lineColor:[140,140,132] };
+  const supplierTotalsPdf = {};
+  SUPPLIERS.forEach(name=>{
+    let total = 0;
+    p.stavke.forEach(s=>{
+      const o = s.ponude.find(x=>x.dobavljac===name);
+      if(o) total += ukupnoRSD_(o, s.zaNabavku);
+    });
+    supplierTotalsPdf[name] = total;
+  });
   const foot = n ? [
     [
-      {content:'Avans', colSpan:2, styles:{fontStyle:'bold', halign:'left', ...thickTop}},
-      ...SUPPLIERS.map(name=>({content: supplierTerms[name]?supplierTerms[name].avans:'—', colSpan:2, styles:{halign:'center', ...thickTop}})),
+      {content:'Ukupna cena (bez PDV)', colSpan:2, styles:{fontStyle:'bold', halign:'left', ...thickTop}},
+      ...SUPPLIERS.map(name=>({content: fmtCena_(supplierTotalsPdf[name])+' RSD', colSpan:2, styles:{fontStyle:'bold', halign:'right', ...thickTop}})),
       ...Array.from({length:tailCols},()=>({content:'', styles:{...thickTop}}))
+    ],
+    [
+      {content:'Avans', colSpan:2, styles:{fontStyle:'bold', halign:'left'}},
+      ...SUPPLIERS.map(name=>({content: supplierTerms[name]?supplierTerms[name].avans:'—', colSpan:2, styles:{halign:'center'}})),
+      ...Array.from({length:tailCols},()=>'')
     ],
     [
       {content:'Način plaćanja', colSpan:2, styles:{fontStyle:'bold', halign:'left'}},
