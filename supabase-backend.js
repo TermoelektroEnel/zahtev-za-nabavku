@@ -113,6 +113,7 @@
       status: p.status,
       approvalStep: p.approval_step || 0,
       lastReturnComment: p.last_return_comment || null,
+      porucen: !!p.porucen,
       createdBy: p.created_by,
       createdAt: p.created_at ? new Date(p.created_at).getTime() : Date.now(),
       updatedAt: p.updated_at ? new Date(p.updated_at).getTime() : Date.now()
@@ -289,6 +290,7 @@
       case 'posaljiPonuduNaOveru': return posaljiPonuduNaOveru_(body);
       case 'overiPonudu': return overiPonudu_(body);
       case 'vratiPonuduNaDoradu': return vratiPonuduNaDoradu_(body);
+      case 'postaviPorucenoPonuda': return postaviPorucenoPonuda_(body);
       case 'addAdresa': return addAdresa_(body);
       case 'updateAdresa': return updateAdresa_(body);
       case 'deleteAdresa': return deleteAdresa_(body);
@@ -459,6 +461,14 @@
       p_ponuda_id: body.id,
       p_stavke: body.stavke || null,
       p_komentar: body.komentar || null
+    });
+    if (error) return { error: error.message };
+    return { ok: true };
+  }
+
+  async function postaviPorucenoPonuda_(body) {
+    const { error } = await sbClient.rpc('postavi_porucen_ponuda', {
+      p_ponuda_id: body.id, p_porucen: !!body.porucen
     });
     if (error) return { error: error.message };
     return { ok: true };

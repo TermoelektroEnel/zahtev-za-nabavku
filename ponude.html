@@ -183,7 +183,14 @@ td{padding:8px 8px 8px 0;border-bottom:1px solid var(--line-soft);font-size:13px
   </div>
 
   <div class="card admin-only-card">
-    <h2>Postojeći izveštaji o ponudama</h2>
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:4px;">
+      <h2 style="margin:0;">Postojeći izveštaji o ponudama</h2>
+      <select id="filterPonudaStatus" style="min-width:170px;">
+        <option value="">Svi (uključujući poručene)</option>
+        <option value="neporucen" selected>Sakrij poručene</option>
+        <option value="porucen">Samo poručene</option>
+      </select>
+    </div>
     <div id="ponudaListWrap"><div class="loading">Učitavanje…</div></div>
   </div>
 
@@ -826,23 +833,40 @@ function populateZahtevSelect(){
 function renderPonudaList(){
   const wrap=$('ponudaListWrap');
   if(!PONUDE.length){ wrap.innerHTML='<div class="empty">Još uvek nema izveštaja o ponudama.</div>'; return; }
+
+  const filterVal = $('filterPonudaStatus').value;
+  const filtrirano = PONUDE.filter(p=>{
+    if(filterVal==='neporucen') return !p.porucen;
+    if(filterVal==='porucen') return !!p.porucen;
+    return true;
+  });
+  if(!filtrirano.length){ wrap.innerHTML='<div class="empty">Nema izveštaja koji odgovaraju izabranom filteru.</div>'; return; }
+
   wrap.innerHTML=`<table><thead><tr><th>Broj izveštaja</th><th>Zahtev</th><th>Gradilište</th><th>Status</th><th style="width:180px;"></th></tr></thead><tbody>
-    ${PONUDE.map(p=>{
+    ${filtrirano.map(p=>{
       const z = ZAHTEVI.find(x=>x.id===p.requestId);
       const gNaziv = z ? (GRADILISTA.find(g=>g.kod===z.gradiliste)||{}).naziv||'' : '';
+      const mozeOznacitiPorucen = (IS_ADMIN_PONUDE || MOZE_KREIRATI_PONUDE) && p.status==='odobren';
+      const porucenoOznaka = p.porucen ? '<span class="tag" style="margin-left:6px;">Poručeno</span>' : '';
       return `<tr>
         <td style="font-family:'IBM Plex Mono',monospace;">${escapeHtml(p.brojIzvestaja)}</td>
         <td>${z ? escapeHtml(z.redniBroj)+' — nalog '+escapeHtml(z.nalog) : '<span class="hint">zahtev obrisan</span>'}</td>
         <td>${z ? escapeHtml(z.gradiliste)+(gNaziv?' — '+escapeHtml(gNaziv):'') : '—'}</td>
-        <td>${ponudaStatusBadgeHtml(p)}</td>
+        <td>${ponudaStatusBadgeHtml(p)}${porucenoOznaka}</td>
         <td class="row-actions">
           <button class="btn-ghost" data-open-p="${p.id}">Otvori</button>
+          ${mozeOznacitiPorucen?`<button class="btn-ghost" data-toggle-porucen="${p.id}" data-porucen="${p.porucen?'1':'0'}">${p.porucen?'Poništi poručeno':'Označi poručeno'}</button>`:''}
           ${IS_ADMIN_PONUDE?`<button class="btn-danger-ghost" data-del-p="${p.id}" data-broj="${escapeHtml(p.brojIzvestaja)}">Obriši</button>`:''}
         </td>
       </tr>`;
     }).join('')}
   </tbody></table>`;
   wrap.querySelectorAll('[data-open-p]').forEach(b=>b.addEventListener('click',e=>openPonudaEditor(e.currentTarget.dataset.openP)));
+  wrap.querySelectorAll('[data-toggle-porucen]').forEach(b=>b.addEventListener('click',async e=>{
+    const id=e.currentTarget.dataset.togglePorucen, trenutno=e.currentTarget.dataset.porucen==='1';
+    const r=await apiPost('postaviPorucenoPonuda',{ id, porucen: !trenutno });
+    if(r&&r.error) alert(r.error); else await loadPonudeSection();
+  }));
   wrap.querySelectorAll('[data-del-p]').forEach(b=>b.addEventListener('click',async e=>{
     const id=e.currentTarget.dataset.delP, broj=e.currentTarget.dataset.broj;
     if(!confirm(`Obrisati izveštaj ${broj}? Ova radnja je trajna.`)) return;
@@ -850,6 +874,7 @@ function renderPonudaList(){
     if(r&&r.error) alert(r.error); else { if(currentPonuda&&currentPonuda.id===id) closePonudaEditor(); await loadPonudeSection(); }
   }));
 }
+$('filterPonudaStatus').addEventListener('change', renderPonudaList);
 
 $('pKreirajBtn').addEventListener('click', async ()=>{
   $('pNoviErr').textContent='';
