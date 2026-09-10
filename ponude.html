@@ -218,6 +218,11 @@ td{padding:8px 8px 8px 0;border-bottom:1px solid var(--line-soft);font-size:13px
       </div>
     </div>
 
+    <div class="field editor-only-part">
+      <label for="peNapomena">Napomena</label>
+      <textarea id="peNapomena" rows="3" placeholder="Slobodan tekst — npr. dodatna objašnjenja, dogovori sa dobavljačima, itd." style="width:100%;padding:8px;border:1px solid var(--line);border-radius:var(--radius);font-family:inherit;"></textarea>
+    </div>
+
     <div class="pozicija-block editor-only-part" id="peBulkBlock" style="background:#F3F4EE;">
       <div class="pozicija-head">
         <div class="naziv">Unos ponude dobavljača (sve pozicije odjednom)</div>
@@ -255,6 +260,11 @@ td{padding:8px 8px 8px 0;border-bottom:1px solid var(--line-soft);font-size:13px
       <div>Ukupno ugovoreno sa PDV (20%): <strong id="peUkupnoUgovorenoSaPdv">0</strong> RSD</div>
     </div>
     <div class="hint editor-only-part">Napomena: PDV je pretpostavljen na 20% (standardna stopa u Srbiji) — javi ako treba drugačije.</div>
+
+    <div class="field" id="peNapomenaPregledWrap" style="display:none;">
+      <label>Napomena</label>
+      <div id="peNapomenaPregled" style="white-space:pre-wrap;font-size:13px;"></div>
+    </div>
 
     <div class="field" style="margin-top:20px;">
       <label>Pregled izveštaja (za overu i odobrenje)</label>
@@ -906,6 +916,9 @@ function openPonudaEditor(id){
   const gradilisteDeoNaslova = z ? ` — ${z.gradiliste}${gradilisteNazivZaNaslov?' ('+gradilisteNazivZaNaslov+')':''}` : '';
   $('ponudaEditorTitle').textContent = `Izveštaj o ponudama — ${p.brojIzvestaja}${z?' (zahtev '+z.redniBroj+')':''}${gradilisteDeoNaslova}`;
   $('peVrstaRadova').value = p.vrstaRadova||'';
+  $('peNapomena').value = p.napomena||'';
+  $('peNapomenaPregledWrap').style.display = p.napomena ? '' : 'none';
+  $('peNapomenaPregled').textContent = p.napomena||'';
   const sel=$('peAdresa');
   const adresaVal = p.adresaIsporuke||'';
   const hasOption = [...sel.options].some(o=>o.value===adresaVal);
@@ -1194,6 +1207,17 @@ async function buildPonudaPdfBlob_(p, zahtev){
   });
   y += 12 + 5;
 
+  // --- Napomena (samo ako postoji) ---
+  if(p.napomena && p.napomena.trim()){
+    doc.setFont('IBMPlexSans','bold'); doc.setFontSize(7.5); doc.setTextColor(20,20,20);
+    doc.text('NAPOMENA', marginX, y);
+    y += 4;
+    doc.setFont('IBMPlexSans','normal'); doc.setFontSize(8.5); doc.setTextColor(40,40,40);
+    const napLines = doc.splitTextToSize(p.napomena, contentWidth);
+    doc.text(napLines, marginX, y);
+    y += napLines.length * 4 + 4;
+  }
+
   // --- Jedinstvena tabela: pozicije u redovima, dobavljači u kolonama ---
   // (isti princip kao u Excel obrascu — svaki dobavljač dobija 3 pod-kolone:
   // Bruto cena / Rabat / Jed. cena; ćelije pobedničkog dobavljača su istaknute)
@@ -1348,6 +1372,7 @@ $('peSaveBtn').addEventListener('click', async ()=>{
     vrstaRadova: $('peVrstaRadova').value.trim(),
     adresaIsporuke: $('peAdresa').value.trim(),
     kursEur: Number($('peKurs').value)||null,
+    napomena: $('peNapomena').value.trim(),
     stavke: currentPonuda.stavke
   };
   $('peSaveBtn').disabled=true;
@@ -1419,6 +1444,7 @@ $('pePosaljiNaOveruBtn').addEventListener('click', async ()=>{
       vrstaRadova: $('peVrstaRadova').value.trim(),
       adresaIsporuke: $('peAdresa').value.trim(),
       kursEur: Number($('peKurs').value)||null,
+      napomena: $('peNapomena').value.trim(),
       stavke: currentPonuda.stavke
     });
     const r = await apiPost('posaljiPonuduNaOveru', { id: currentPonuda.id });

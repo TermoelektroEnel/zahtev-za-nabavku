@@ -109,6 +109,7 @@
       avans: p.avans,
       nacinPlacanja: p.nacin_placanja,
       garancijaZaPlacanje: p.garancija_za_placanje,
+      napomena: p.napomena || '',
       stavke: p.stavke,
       status: p.status,
       approvalStep: p.approval_step || 0,
@@ -419,7 +420,8 @@
       p_avans: body.avans || '',
       p_nacin_placanja: body.nacinPlacanja || '',
       p_garancija_za_placanje: body.garancijaZaPlacanje || '',
-      p_stavke: body.stavke || []
+      p_stavke: body.stavke || [],
+      p_napomena: body.napomena || ''
     });
     if (error) return { error: error.message };
     const row = Array.isArray(data) ? data[0] : data;
@@ -434,6 +436,7 @@
       avans: body.avans ?? '',
       nacin_placanja: body.nacinPlacanja ?? '',
       garancija_za_placanje: body.garancijaZaPlacanje ?? '',
+      napomena: body.napomena ?? '',
       stavke: body.stavke ?? [],
       updated_at: new Date().toISOString()
     };
