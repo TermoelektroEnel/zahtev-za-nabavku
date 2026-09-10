@@ -833,7 +833,8 @@ async function loadPonudeSection(){
 function populateZahtevSelect(){
   const sel=$('pZahtev');
   sel.innerHTML='<option value="">— izaberi zahtev —</option>';
-  [...ZAHTEVI].filter(z=>z.status==='odobren').sort((a,b)=>b.createdAt-a.createdAt).forEach(z=>{
+  const zahteviSaVecIzvestajem = new Set(PONUDE.map(p=>p.requestId));
+  [...ZAHTEVI].filter(z=>z.status==='odobren' && !zahteviSaVecIzvestajem.has(z.id)).sort((a,b)=>b.createdAt-a.createdAt).forEach(z=>{
     const opt=document.createElement('option');
     const nalogOpis = (NALOZI.find(n=>n.kod===z.nalog)||{}).opis||'';
     opt.value=z.id; opt.textContent=`${z.redniBroj} — nalog ${z.nalog}${nalogOpis?' — '+nalogOpis:''}`;
