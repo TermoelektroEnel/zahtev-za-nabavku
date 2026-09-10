@@ -511,12 +511,13 @@ function renderBulkStavkeTable(){
         <td>${escapeHtml(s.opis)}</td>
         <td>${escapeHtml(s.jm)}</td>
         <td class="num">${fmtBroj_(s.zaNabavku)}</td>
-        <td><input type="number" step="0.01" data-bulk-bruto="${idx}" style="width:90px;"></td>
+        <td><input type="text" inputmode="decimal" placeholder="0,00" data-bulk-bruto="${idx}" style="width:90px;"></td>
         <td><input type="number" step="0.01" data-bulk-rabat="${idx}" value="0" style="width:70px;"></td>
         <td><select data-bulk-valuta="${idx}"><option value="RSD">RSD</option><option value="EUR">EUR</option></select></td>
         <td><input type="text" data-bulk-rok="${idx}" style="width:100px;" placeholder="npr. 15 dana"></td>
       </tr>`).join('')}
     </tbody></table>`;
+  wrap.querySelectorAll('[data-bulk-bruto]').forEach(omoguciSrpskiUnosCene_);
 }
 
 function popuniBulkZaDobavljaca_(dobavljac){
@@ -527,7 +528,7 @@ function popuniBulkZaDobavljaca_(dobavljac){
     const valutaInp=$('bulkStavkeWrap').querySelector(`[data-bulk-valuta="${idx}"]`);
     const rokInp=$('bulkStavkeWrap').querySelector(`[data-bulk-rok="${idx}"]`);
     if(o){
-      brutoInp.value=o.bruto; rabatInp.value=o.rabat; valutaInp.value=o.valuta||'RSD'; rokInp.value=o.rok||'';
+      brutoInp.value=formatUnosSrpski_(String(o.bruto).replace('.',',')); rabatInp.value=o.rabat; valutaInp.value=o.valuta||'RSD'; rokInp.value=o.rok||'';
     }else{
       brutoInp.value=''; rabatInp.value='0'; valutaInp.value='RSD'; rokInp.value='';
     }
@@ -702,7 +703,7 @@ $('bulkSaveBtn').addEventListener('click', async ()=>{
   const nacinPlacanja = $('bulkNacin').value.trim();
 
   const redovi = currentPonuda.stavke.map((s,idx)=>{
-    const bruto = Number($('bulkStavkeWrap').querySelector(`[data-bulk-bruto="${idx}"]`).value);
+    const bruto = parsirajSrpski_($('bulkStavkeWrap').querySelector(`[data-bulk-bruto="${idx}"]`).value);
     const rabat = Number($('bulkStavkeWrap').querySelector(`[data-bulk-rabat="${idx}"]`).value)||0;
     const valuta = $('bulkStavkeWrap').querySelector(`[data-bulk-valuta="${idx}"]`).value;
     const rok = $('bulkStavkeWrap').querySelector(`[data-bulk-rok="${idx}"]`).value.trim();
@@ -1005,6 +1006,35 @@ function ukupnoRSD_(o, kolicina){
   return jc * (Number(kolicina)||0) * faktor;
 }
 function fmtBroj_(n){ return (Number(n)||0).toLocaleString('sr-RS',{maximumFractionDigits:2}); }
+
+// Formatira UNOS dok korisnik kuca: zarez je decimalni razdvajač, tačka
+// automatski razdvaja hiljade (srpski format, npr. "1.234.567,89").
+function formatUnosSrpski_(raw){
+  let cisto = String(raw||'').replace(/[^\d,]/g, '');
+  const prviZarez = cisto.indexOf(',');
+  let ceo, decimalni = null;
+  if(prviZarez !== -1){
+    ceo = cisto.slice(0, prviZarez).replace(/,/g, '');
+    decimalni = cisto.slice(prviZarez+1).replace(/,/g, '').slice(0, 2);
+  }else{
+    ceo = cisto;
+  }
+  ceo = ceo.replace(/^0+(?=\d)/, '');
+  ceo = ceo.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  return decimalni !== null ? `${ceo||'0'},${decimalni}` : ceo;
+}
+// Parsira srpski format ("1.234,56") nazad u pravi JS broj za računanje.
+function parsirajSrpski_(str){
+  if(!str) return 0;
+  const n = parseFloat(String(str).replace(/\./g, '').replace(',', '.'));
+  return isNaN(n) ? 0 : n;
+}
+// Kači "uživo formatiranje" na tekstualno polje za unos cene.
+function omoguciSrpskiUnosCene_(input){
+  input.addEventListener('input', ()=>{
+    input.value = formatUnosSrpski_(input.value);
+  });
+}
 // Za CENE uvek tačno 2 decimale (za razliku od količina, koje ostaju "prirodne")
 function fmtCena_(n){ return (Number(n)||0).toLocaleString('sr-RS',{minimumFractionDigits:2,maximumFractionDigits:2}); }
 
