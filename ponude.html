@@ -1064,7 +1064,7 @@ function renderPeStavke(){
       <div class="pozicija-extra" style="margin-top:8px;">
         <div class="field">
           <label>Ugovorena cena po jedinici (RSD)</label>
-          <input type="number" step="0.01" data-ugovorena-cena="${posIdx}" value="${s.ugovorenaCena!=null?s.ugovorenaCena:''}" placeholder="jedinična cena prema investitoru">
+          <input type="text" inputmode="decimal" data-ugovorena-cena="${posIdx}" value="${s.ugovorenaCena!=null?formatUnosSrpski_(String(s.ugovorenaCena).replace('.',',')):''}" placeholder="jedinična cena prema investitoru">
         </div>
         <div class="field" style="grid-column:span 3;display:flex;align-items:end;">
           <div class="hint" id="marza-${posIdx}" style="margin:0;"></div>
@@ -1079,9 +1079,10 @@ function renderPeStavke(){
     renderPeStavke();
   }));
   wrap.querySelectorAll('[data-ugovorena-cena]').forEach(i=>i.addEventListener('input',e=>{
+    e.currentTarget.value = formatUnosSrpski_(e.currentTarget.value);
     const posIdx=Number(e.currentTarget.dataset.ugovorenaCena);
     const v=e.currentTarget.value;
-    currentPonuda.stavke[posIdx].ugovorenaCena = v===''?null:Number(v);
+    currentPonuda.stavke[posIdx].ugovorenaCena = v===''?null:parsirajSrpski_(v);
     updateMarzaLine_(posIdx);
     renderPeTotals();
     renderPePregled();
