@@ -234,8 +234,8 @@ td{padding:8px 8px 8px 0;border-bottom:1px solid var(--line-soft);font-size:13px
         <div class="field"><label for="bulkNacin">Način plaćanja</label><input type="text" id="bulkNacin" placeholder="npr. Virmanski 30 dana"></div>
       </div>
       <div class="field">
-        <label>Ponuda dobavljača (PDF) — jedan fajl, važi za sve pozicije</label>
-        <input type="file" id="bulkPdfInput" accept="application/pdf">
+        <label>Ponuda dobavljača (PDF) — do 5 fajlova, važi za sve pozicije</label>
+        <input type="file" id="bulkPdfInput" accept="application/pdf" multiple>
         <div class="hint" id="bulkPdfHint"></div>
       </div>
       <div id="bulkStavkeWrap"></div>
@@ -494,8 +494,8 @@ async function removePonudaPdf_(posIdx, offIdx){
 /* ============================================================
    UNOS PONUDE DOBAVLJAČA (sve pozicije odjednom)
    ============================================================ */
-let bulkPdfFile = null;   // izabran, još neotpremljen fajl
-let bulkPdfExisting = null; // {path, filename} ako se uređuje postojeći dobavljač koji već ima prilog
+let bulkPdfFiles = [];    // izabrani, još neotpremljeni fajlovi (niz, do 5)
+let bulkPdfExisting = []; // niz {path, filename} za već otpremljene priloge
 let editingBulkDobavljac = null; // ime dobavljača koji se trenutno uređuje (ili null = novi)
 
 function renderBulkStavkeTable(){
@@ -537,14 +537,16 @@ function popuniBulkZaDobavljaca_(dobavljac){
 
 function otvoriUrediDobavljaca_(dobavljac){
   editingBulkDobavljac = dobavljac;
-  bulkPdfFile = null;
+  bulkPdfFiles = [];
   const prviOffer = currentPonuda.stavke.map(s=>s.ponude.find(o=>o.dobavljac===dobavljac)).find(Boolean);
   $('bulkDobavljac').value = dobavljac; $('bulkDobavljac').disabled = true;
   $('bulkAvans').value = prviOffer?(prviOffer.avans||''):'';
   $('bulkNacin').value = prviOffer?(prviOffer.nacinPlacanja||''):'';
-  bulkPdfExisting = prviOffer && prviOffer.pdfPath ? { path:prviOffer.pdfPath, filename:prviOffer.pdfName } : null;
+  bulkPdfExisting = (prviOffer && prviOffer.prilozi) ? prviOffer.prilozi : [];
   $('bulkPdfInput').value = '';
-  $('bulkPdfHint').textContent = bulkPdfExisting ? `Trenutni prilog: ${bulkPdfExisting.filename} (otpremi novi da ga zameniš)` : '';
+  $('bulkPdfHint').textContent = bulkPdfExisting.length
+    ? `Trenutni prilozi (${bulkPdfExisting.length}): ${bulkPdfExisting.map(p=>p.filename).join(', ')} (otpremi nove da ih zameniš)`
+    : '';
   $('bulkModeLabel').textContent = `Izmena dobavljača: ${dobavljac}`;
   $('bulkSaveBtn').textContent = 'Sačuvaj izmene ovog dobavljača';
   $('bulkResetBtn').style.display = 'inline-block';
@@ -554,7 +556,7 @@ function otvoriUrediDobavljaca_(dobavljac){
 }
 
 function resetBulkForm(){
-  editingBulkDobavljac = null; bulkPdfFile = null; bulkPdfExisting = null;
+  editingBulkDobavljac = null; bulkPdfFiles = []; bulkPdfExisting = [];
   $('bulkDobavljac').value=''; $('bulkDobavljac').disabled=false;
   $('bulkAvans').value=''; $('bulkNacin').value='';
   $('bulkPdfInput').value=''; $('bulkPdfHint').textContent='';
@@ -566,7 +568,14 @@ function resetBulkForm(){
 }
 $('bulkResetBtn').addEventListener('click', resetBulkForm);
 $('bulkPdfInput').addEventListener('change', e=>{
-  bulkPdfFile = e.currentTarget.files[0] || null;
+  const files = Array.from(e.currentTarget.files || []);
+  if(files.length > 5){
+    alert('Možete otpremiti najviše 5 fajlova odjednom.');
+    e.currentTarget.value = '';
+    bulkPdfFiles = [];
+    return;
+  }
+  bulkPdfFiles = files;
 });
 
 function renderBulkDobavljaci(){
@@ -577,11 +586,12 @@ function renderBulkDobavljaci(){
   wrap.innerHTML = imena.map(name=>{
     const brojPozicija = currentPonuda.stavke.filter(s=>s.ponude.some(o=>o.dobavljac===name)).length;
     const prviOffer = currentPonuda.stavke.map(s=>s.ponude.find(o=>o.dobavljac===name)).find(Boolean);
-    const imaPrilog = prviOffer && prviOffer.pdfPath;
+    const prilozi = (prviOffer && prviOffer.prilozi) || [];
+    const prilogDugmad = prilozi.map((pr,i)=>`<button type="button" class="btn-ghost" data-otvori-prilog-dob="${escapeHtml(name)}" data-prilog-idx="${i}" style="padding:3px 8px;font-size:11px;" title="${escapeHtml(pr.filename||'')}">📄 ${prilozi.length>1?(i+1)+'. ':''}Otvori</button>`).join('');
     return `<div class="prilog-item">
       <span class="naziv">🏢 ${escapeHtml(name)} <span class="hint">(ponuda za ${brojPozicija} od ${currentPonuda.stavke.length} pozicija)</span></span>
       <div>
-        ${imaPrilog?`<button type="button" class="btn-ghost" data-otvori-prilog-dob="${escapeHtml(name)}" style="padding:3px 8px;font-size:11px;" title="${escapeHtml(prviOffer.pdfName||'')}">📄 Otvori</button>`:''}
+        ${prilogDugmad}
         ${trenutniMozeUredovati?`<button type="button" class="btn-ghost" data-uredi-dob="${escapeHtml(name)}" style="padding:3px 8px;font-size:11px;">Uredi</button>
         <button type="button" class="btn-danger-ghost" data-ukloni-dob="${escapeHtml(name)}" style="padding:3px 8px;font-size:11px;">Ukloni</button>`:''}
       </div>
@@ -589,8 +599,9 @@ function renderBulkDobavljaci(){
   }).join('');
   wrap.querySelectorAll('[data-otvori-prilog-dob]').forEach(b=>b.addEventListener('click',e=>{
     const name = e.currentTarget.dataset.otvoriPrilogDob;
+    const idx = Number(e.currentTarget.dataset.prilogIdx);
     const o = currentPonuda.stavke.map(s=>s.ponude.find(x=>x.dobavljac===name)).find(Boolean);
-    if(o && o.pdfPath) openPonudaPdf_(o.pdfPath);
+    if(o && o.prilozi && o.prilozi[idx]) openPonudaPdf_(o.prilozi[idx].path);
   }));
   wrap.querySelectorAll('[data-uredi-dob]').forEach(b=>b.addEventListener('click',e=>otvoriUrediDobavljaca_(e.currentTarget.dataset.urediDob)));
   wrap.querySelectorAll('[data-ukloni-dob]').forEach(b=>b.addEventListener('click',async e=>{
@@ -600,7 +611,9 @@ function renderBulkDobavljaci(){
       const idx = s.ponude.findIndex(o=>o.dobavljac===name);
       if(idx!==-1){
         const o = s.ponude[idx];
-        if(o.pdfPath){ try{ await getSbStorage_().storage.from(PONUDA_PDF_BUCKET).remove([o.pdfPath]); }catch(err){} }
+        if(o.prilozi && o.prilozi.length){
+          try{ await getSbStorage_().storage.from(PONUDA_PDF_BUCKET).remove(o.prilozi.map(p=>p.path)); }catch(err){}
+        }
         s.ponude.splice(idx,1);
         if(s.predlogRukovodioca===name) s.predlogRukovodioca='';
       }
@@ -712,15 +725,19 @@ $('bulkSaveBtn').addEventListener('click', async ()=>{
   if(!redovi.some(r=>r.bruto>0)){ $('bulkErr').textContent='Unesi bar jednu bruto cenu (za bar jednu poziciju).'; return; }
 
   $('bulkSaveBtn').disabled=true; $('bulkSaveBtn').textContent='Čuvanje…';
-  let pdfMeta = bulkPdfExisting;
-  if(bulkPdfFile){
-    try{
-      const safeName = bulkPdfFile.name.replace(/[^a-zA-Z0-9._-]/g,'_');
-      const path = `${currentPonuda.id}/dob_${dobavljac.replace(/[^a-zA-Z0-9._-]/g,'_')}_${Date.now()}_${safeName}`;
-      const { error } = await getSbStorage_().storage.from(PONUDA_PDF_BUCKET).upload(path, bulkPdfFile, { contentType:'application/pdf', upsert:false });
-      if(error){ alert('Otpremanje PDF-a nije uspelo: '+error.message); }
-      else pdfMeta = { path, filename: bulkPdfFile.name };
-    }catch(e){ alert('Otpremanje PDF-a nije uspelo.'); }
+  let priloziMeta = bulkPdfExisting;
+  if(bulkPdfFiles.length){
+    const noviPrilozi = [];
+    for(const file of bulkPdfFiles){
+      try{
+        const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g,'_');
+        const path = `${currentPonuda.id}/dob_${dobavljac.replace(/[^a-zA-Z0-9._-]/g,'_')}_${Date.now()}_${safeName}`;
+        const { error } = await getSbStorage_().storage.from(PONUDA_PDF_BUCKET).upload(path, file, { contentType:'application/pdf', upsert:false });
+        if(error){ alert(`Otpremanje fajla "${file.name}" nije uspelo: ${error.message}`); continue; }
+        noviPrilozi.push({ path, filename: file.name });
+      }catch(e){ alert(`Otpremanje fajla "${file.name}" nije uspelo.`); }
+    }
+    if(noviPrilozi.length) priloziMeta = noviPrilozi;
   }
 
   redovi.forEach(row=>{
@@ -730,7 +747,7 @@ $('bulkSaveBtn').addEventListener('click', async ()=>{
       const offer = {
         dobavljac, bruto:row.bruto, rabat:row.rabat, valuta:row.valuta, rok:row.rok,
         avans, nacinPlacanja,
-        pdfPath: pdfMeta?pdfMeta.path:undefined, pdfName: pdfMeta?pdfMeta.filename:undefined
+        prilozi: priloziMeta && priloziMeta.length ? priloziMeta : undefined
       };
       if(postojeciIdx!==-1) s.ponude[postojeciIdx] = offer;
       else s.ponude.push(offer);
