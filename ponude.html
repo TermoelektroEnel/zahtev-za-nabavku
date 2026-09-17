@@ -1428,6 +1428,12 @@ $('peSaveBtn').addEventListener('click', async ()=>{
   const r=await apiPost('updatePonuda', payload);
   $('peSaveBtn').disabled=false;
   if(r&&r.error){ $('peErr').textContent=r.error; return; }
+  // Osveži lokalno stanje i prikaz napomene — server je uspešno sačuvao,
+  // ali dosad se prikaz na ekranu (i time PDF izvoz koji čita isti objekat)
+  // nije osvežavao dok se editor ne zatvori i ponovo otvori.
+  if(r && r.ponuda) currentPonuda = r.ponuda;
+  $('peNapomenaPregledWrap').style.display = currentPonuda.napomena ? '' : 'none';
+  $('peNapomenaPregled').textContent = currentPonuda.napomena||'';
   $('peInfo').textContent='Izveštaj je sačuvan.'; $('peInfo').classList.add('visible');
   setTimeout(()=>$('peInfo').classList.remove('visible'),4000);
   await loadPonudeSection();
