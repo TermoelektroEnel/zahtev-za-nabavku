@@ -37,6 +37,10 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--steel);outline-o
 .hint{font-size:11px;color:var(--ink-soft);margin-top:4px;}
 .err{font-size:11.5px;color:var(--danger);margin-top:4px;font-weight:500;}
 .napomena-istaknuta{background:#FBF1E4;border-left:4px solid var(--safety);border-radius:var(--radius);padding:10px 14px;font-size:14px;white-space:pre-wrap;line-height:1.5;}
+.field-istaknuto{background:#EDF1F3;border:1px solid var(--line);border-left:4px solid var(--steel);border-radius:var(--radius);padding:12px 14px;}
+.field-istaknuto label{font-size:12.5px;font-weight:700;color:var(--steel-dark);letter-spacing:0.02em;}
+.field-istaknuto select{font-size:15px;font-weight:500;margin-top:3px;}
+.naslov-istaknuto{background:#EDF1F3;border:1px solid var(--line);border-left:4px solid var(--steel);border-radius:var(--radius);padding:12px 14px;color:var(--steel-dark);}
 .napomena-istaknuta .napomena-label{display:block;font-weight:700;color:var(--safety);text-transform:uppercase;font-size:11px;letter-spacing:0.06em;margin-bottom:5px;}
 
 .checkbox-row{display:flex;align-items:center;gap:8px;margin-bottom:10px;}
@@ -176,7 +180,7 @@ td{padding:8px 8px 8px 0;border-bottom:1px solid var(--line-soft);font-size:13px
   <div class="card admin-only-card">
     <h2>Novi izveštaj o ponudama</h2>
     <p class="section-note">Izaberi postojeći zahtev za nabavku — pozicije će se automatski učitati, pa dodaješ ponude dobavljača za svaku. Broj izveštaja (IP) automatski se poklapa sa brojem zahteva (ZN) radi sledljivosti.</p>
-    <div class="field">
+    <div class="field field-istaknuto">
       <label for="pZahtev">Zahtev za nabavku</label>
       <select id="pZahtev"><option value="">— izaberi zahtev —</option></select>
     </div>
@@ -185,20 +189,23 @@ td{padding:8px 8px 8px 0;border-bottom:1px solid var(--line-soft);font-size:13px
   </div>
 
   <div class="card admin-only-card">
-    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:4px;">
+    <div style="display:flex;align-items:flex-end;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:4px;">
       <h2 style="margin:0;">Postojeći izveštaji o ponudama</h2>
-      <select id="filterPonudaStatus" style="min-width:170px;">
-        <option value="">Svi (uključujući poručene)</option>
-        <option value="neporucen" selected>Sakrij poručene</option>
-        <option value="porucen">Samo poručene</option>
-      </select>
+      <div class="field-istaknuto">
+        <label for="filterPonudaStatus" style="display:block;margin-bottom:3px;">Status poručivanja</label>
+        <select id="filterPonudaStatus" style="min-width:170px;">
+          <option value="">Svi (uključujući poručene)</option>
+          <option value="neporucen" selected>Sakrij poručene</option>
+          <option value="porucen">Samo poručene</option>
+        </select>
+      </div>
     </div>
     <div id="ponudaListWrap"><div class="loading">Učitavanje…</div></div>
   </div>
 
   <!-- EDITOR IZVEŠTAJA O PONUDAMA -->
   <div class="card" id="ponudaEditorCard" style="display:none;">
-    <h2 id="ponudaEditorTitle">Izveštaj o ponudama</h2>
+    <h2 id="ponudaEditorTitle" class="naslov-istaknuto">Izveštaj o ponudama</h2>
     <div style="margin-bottom:10px;" id="peStatusBadgeWrap"></div>
     <div class="err" id="peReturnComment" style="display:none;margin-bottom:10px;"></div>
     <div class="row3 editor-only-part">
