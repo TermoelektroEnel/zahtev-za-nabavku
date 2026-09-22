@@ -393,6 +393,7 @@ $i('pwSaveBtn').addEventListener('click', async ()=>{
   await Promise.all([loadRefData(), loadData()]);
   renderList(); // garantuje tačne nazive uloga (imeUloge/imeOsobe) čak i ako
                 // je loadData() završio pre loadRefData()
+  populateZbirniNalogSelect(); // isti razlog — DATA.requests mora biti spreman
   resetForm();
   const zahtevId = new URLSearchParams(location.search).get('zahtev');
   if(zahtevId) openZahtevView(zahtevId);
@@ -425,6 +426,7 @@ async function doLogin(){
       showApp();
       await Promise.all([loadRefData(), loadData()]);
       renderList();
+      populateZbirniNalogSelect();
       resetForm();
       const zahtevId = new URLSearchParams(location.search).get('zahtev');
       if(zahtevId) openZahtevView(zahtevId);
@@ -618,10 +620,12 @@ function populateZbirniNalogSelect(){
   const sel = $('zbirniNalog');
   const current = sel.value;
   sel.innerHTML = '<option value="">— izaberi nalog —</option>';
+  const naloziSaZahtevima = new Set(DATA.requests.map(r=>r.nalog));
   const dozvoljeni = NALOZI.filter(n =>
-    MOJA_GRADILISTA === null ||           // korisnik ima sva gradilišta
+    naloziSaZahtevima.has(n.code) &&      // postoji bar jedan zahtev za taj nalog
+    (MOJA_GRADILISTA === null ||           // korisnik ima sva gradilišta
     n.gradiliste === null ||              // nalog važi za sva gradilišta
-    (Array.isArray(n.gradiliste) && n.gradiliste.some(g => MOJA_GRADILISTA.includes(g)))
+    (Array.isArray(n.gradiliste) && n.gradiliste.some(g => MOJA_GRADILISTA.includes(g))))
   );
   [...dozvoljeni].sort((a,b)=>a.code.localeCompare(b.code)).forEach(n => {
     const opt = document.createElement('option');
@@ -1168,6 +1172,7 @@ function renderList(){
         DATA.requests=DATA.requests.filter(r=>r.id!==id);
         $('countTag').textContent=DATA.requests.length+' zahteva evidentirano';
         renderList();
+        populateZbirniNalogSelect();
       }catch(err){ alert('Brisanje nije uspelo. Proveri internet konekciju i pokušaj ponovo.'); }
     }
   }));
@@ -1931,6 +1936,7 @@ ukloniBeluPozadinu_(LOGO_DATA_URI).then(rezultat=>{ $('mastheadLogo').src = rezu
     showApp();
     await Promise.all([loadRefData(), loadData()]);
     renderList();
+    populateZbirniNalogSelect();
     resetForm();
     const zahtevId = new URLSearchParams(location.search).get('zahtev');
     if(zahtevId) openZahtevView(zahtevId);
