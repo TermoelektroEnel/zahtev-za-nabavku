@@ -49,6 +49,7 @@ input:disabled,select:disabled,textarea:disabled,button:disabled{background:#E7E
 .prilog-item .naziv{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .prilog-item button{flex-shrink:0;}
 .status-badge{display:inline-block;font-size:10.5px;font-weight:600;padding:2px 8px;border-radius:10px;text-transform:uppercase;letter-spacing:.02em;white-space:nowrap;}
+.tag{font-family:'IBM Plex Mono',monospace;font-size:11px;background:var(--steel-dark);color:#fff;padding:2px 7px;border-radius:12px;}
 .status-u_izradi{background:var(--line-soft);color:var(--ink-soft);}
 .status-na_overi{background:#FCE9C7;color:#8A5A00;}
 .status-vracen_na_doradu{background:#F8D3CC;color:var(--danger);}
@@ -320,6 +321,7 @@ input[type=password]:focus{outline:2px solid var(--steel);outline-offset:1px;}
               <option value="na_overi">Na overi</option>
               <option value="vracen_na_doradu">Vraćeno na doradu</option>
               <option value="odobren">Odobreno</option>
+              <option value="porucen">Poručeno</option>
             </select>
           </div>
         </div>
@@ -522,6 +524,7 @@ const $ = id => document.getElementById(id);
 const yy = new Date().getFullYear().toString().slice(-2);
 let GRADILISTA = [], NALOZI = [], MOJA_GRADILISTA = null; // null = sva
 let APPROVAL_ROLES = [], CURRENT_USER_ID = null, IS_ADMIN = false, IS_MAGACIONER = false;
+let PORUCENI_ZAHTEVI = new Set();
 
 function nazivGradilista(code){ const g=GRADILISTA.find(x=>x.code===String(code)); return g?g.naziv:''; }
 function nazivNaloga(code){ const n=NALOZI.find(x=>x.code===String(code)); return n?n.opis:''; }
@@ -539,6 +542,11 @@ async function apiListNalozi(){
 async function apiListApprovalRoles(){
   const res = await fetch(`${SCRIPT_URL}?action=listApprovalRoles`);
   if(!res.ok) throw new Error('Greška pri učitavanju uloga.');
+  return res.json();
+}
+async function apiListPorucenePonude(){
+  const res = await fetch(`${SCRIPT_URL}?action=listPorucenePonude`);
+  if(!res.ok) throw new Error('Greška pri učitavanju statusa poručivanja.');
   return res.json();
 }
 async function apiListApprovalLog(requestId){
@@ -598,7 +606,7 @@ async function loadRefData(){
   $('gradiliste').innerHTML = '<option value="">Učitavanje…</option>';
   $('gradiliste').disabled = true;
   try{
-    const [gData, nData, moja, arData, myUid, admFlag, magFlag] = await Promise.all([apiListGradilista(), apiListNalozi(), ZN.myGradilista(), apiListApprovalRoles(), ZN.currentUserId(), ZN.isAdmin(), ZN.isMagacioner()]);
+    const [gData, nData, moja, arData, myUid, admFlag, magFlag, pData] = await Promise.all([apiListGradilista(), apiListNalozi(), ZN.myGradilista(), apiListApprovalRoles(), ZN.currentUserId(), ZN.isAdmin(), ZN.isMagacioner(), apiListPorucenePonude()]);
     GRADILISTA = (gData.gradilista||[]).map(g=>({ code:String(g.kod), naziv:g.naziv }));
     NALOZI = (nData.nalozi||[]).map(n=>({ code:n.kod, opis:n.opis, gradiliste:n.gradiliste }));
     MOJA_GRADILISTA = moja;
@@ -606,6 +614,7 @@ async function loadRefData(){
     CURRENT_USER_ID = myUid;
     IS_ADMIN = !!admFlag;
     IS_MAGACIONER = !!magFlag;
+    PORUCENI_ZAHTEVI = new Set(pData.porucene||[]);
     document.querySelectorAll('.magacioner-hide').forEach(el=>{ el.style.display = IS_MAGACIONER ? 'none' : ''; });
     populateGradilisteSelect();
     populateNalogSelect(null);
@@ -1117,7 +1126,8 @@ function renderList(){
   const filterStatusVal = $('filterStatus').value;
   const filtrirani = DATA.requests.filter(r=>{
     if(filterNalogVal && (r.nalog||'—')!==filterNalogVal) return false;
-    if(filterStatusVal && (r.status||'u_izradi')!==filterStatusVal) return false;
+    if(filterStatusVal==='porucen'){ if(!PORUCENI_ZAHTEVI.has(r.id)) return false; }
+    else if(filterStatusVal && (r.status||'u_izradi')!==filterStatusVal) return false;
     return true;
   });
 
@@ -1152,7 +1162,7 @@ function renderList(){
           <span class="item-date">${new Date(r.createdAt).toLocaleDateString('sr-RS')}</span>
         </div>
         <div class="item-nalog">Gradilište: ${escapeHtml(nazivGradilista(r.gradiliste)||r.gradiliste)} · ${r.stavke.length} stavk${r.stavke.length===1?'a':(r.stavke.length<5?'e':'i')}</div>
-        <div style="margin:4px 0;">${statusBadgeHtml(r)}</div>
+        <div style="margin:4px 0;">${statusBadgeHtml(r)}${PORUCENI_ZAHTEVI.has(r.id)?' <span class="tag">Poručeno</span>':''}</div>
         <div class="item-actions">
           <button class="btn-ghost" data-detalji="${r.id}">Prikaži i štampaj</button>
           ${mozeIzmenu?`<button class="btn-ghost" data-edit="${r.id}">Izmeni</button>`:''}
@@ -1409,7 +1419,7 @@ async function openZahtevView(id){
           <img src="${LOGO_DATA_URI}" alt="Termoelektro Enel AD" style="height:40px;width:auto;display:block;margin-bottom:12px;">
           <h2 style="margin-top:0;">Zahtev za nabavku ${escapeHtml(r.redniBroj)}</h2>
           <div class="doc-sub">Dokument generisan ${formatDatumVremeSr(new Date(r.createdAt))}</div>
-          <div style="margin:10px 0;">${statusBadgeHtml(r)}</div>
+          <div style="margin:10px 0;">${statusBadgeHtml(r)}${PORUCENI_ZAHTEVI.has(r.id)?' <span class="tag">Poručeno</span>':''}</div>
           <div class="doc-meta">
             <div><div class="k">Gradilište</div><div class="v">${escapeHtml(r.gradiliste)} — ${escapeHtml(nazivGradilista(r.gradiliste))}</div></div>
             <div><div class="k">Nalog za realizaciju</div><div class="v">${escapeHtml(r.nalog)}${naziv?'<br><span style="font-size:11px;font-weight:500;color:#555;">'+escapeHtml(naziv)+'</span>':''}</div></div>

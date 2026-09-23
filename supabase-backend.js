@@ -222,6 +222,11 @@
       if (error) throw error;
       return { adrese: data.map(r => ({ naziv: r.naziv, adresa: r.adresa })) };
     }
+    if (action === 'listPorucenePonude') {
+      const { data, error } = await sbClient.rpc('get_porucene_ponude');
+      if (error) throw error;
+      return { porucene: (data || []).filter(x => x.porucen).map(x => x.request_id) };
+    }
     if (action === 'listApprovalRoles') {
       const { data, error } = await sbClient.from('approval_roles').select('*').order('step');
       if (error) throw error;
