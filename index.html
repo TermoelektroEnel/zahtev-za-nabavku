@@ -322,6 +322,7 @@ input[type=password]:focus{outline:2px solid var(--steel);outline-offset:1px;}
               <option value="vracen_na_doradu">Vraćeno na doradu</option>
               <option value="odobren">Odobreno</option>
               <option value="porucen">Poručeno</option>
+              <option value="nije_porucen">Nije poručeno</option>
             </select>
           </div>
         </div>
@@ -1127,6 +1128,7 @@ function renderList(){
   const filtrirani = DATA.requests.filter(r=>{
     if(filterNalogVal && (r.nalog||'—')!==filterNalogVal) return false;
     if(filterStatusVal==='porucen'){ if(!PORUCENI_ZAHTEVI.has(r.id)) return false; }
+    else if(filterStatusVal==='nije_porucen'){ if(PORUCENI_ZAHTEVI.has(r.id)) return false; }
     else if(filterStatusVal && (r.status||'u_izradi')!==filterStatusVal) return false;
     return true;
   });
