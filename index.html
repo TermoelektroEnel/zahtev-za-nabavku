@@ -1,403 +1,63 @@
-<!doctype html>
-<html lang="sr">
-<head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>BZR Portal — Termoelektro Enel</title>
-<link rel="stylesheet" href="style.css" />
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="vendor/docx-bundle.js"></script>
-</head>
-<body>
+Zahtev za nabavku
+Prijavite se da biste pristupili sistemu
+------------------------------------
+Korisničko ime  
+Lozinka  
+Prijavi se 
+Proveravanje…
+Potrebna je nova lozinka
+Iz bezbednosnih razloga, postavi novu lozinku pre nastavka rada
+------------------------------------
+Nova lozinka  
+Ponovi novu lozinku  
+Sačuvaj novu lozinku 
+[Termoelektro Enel AD] 
+Zahtev za nabavku
+Evidencija i izrada dokumenata za nabavku materijala
+— zahteva evidentirano
+Odjavi se 
+Novi zahtev
+—Gradilište
+—Godina
+—Redni broj
+Oznaka gradilišta — izaberi gradilište — 
+ 
+Redni broj  
+Automatski predložen sledeći broj — može se ručno promeniti (mora biti slobodan).
+Nalog za realizaciju — izaberi nalog — 
+ 
+Specifikacija 
+Prvo izaberi gradilište i nalog za realizaciju iznad.
+Rb.   Broj poz.
+spec.   Opis   Jed. mere   Količina   Od postojećeg   Za nabavku   Krajnji rok isporuke   Atest      
++ Dodaj stavku 
+Napomena  
+Prilozi  
+Može više fajlova — PDF, Word ili slika (JPG/PNG).
+Sačuvaj zahtev Otkaži 
+Zbirna specifikacija po nalogu
+Nalog za realizaciju — izaberi nalog — 
+Otvara zbirnu specifikaciju za izabrani nalog u novom tabu.
+Zahtevi na overi kod vas
+Prethodni zahtevi
+Nalog  Svi nalozi  
+Status  Svi statusi U izradi Na overi Vraćeno na doradu Odobreno Poručeno Nije poručeno  
+Učitavanje…
+[Termoelektro Enel AD]
 
-<header class="app-header">
-  <h1>BZR Portal — Termoelektro Enel</h1>
-  <button id="logout-btn" class="hidden">Odjava</button>
-</header>
+                              
+                              
+                              
+                    
+{}
+            
 
-<nav id="portal-nav" class="portal-nav hidden">
-  <button type="button" class="nav-tab active" data-modul="zaposleni">Zaposleni</button>
-  <button type="button" class="nav-tab" data-modul="oprema">Oprema za rad</button>
-  <button type="button" class="nav-tab" data-modul="povrede">Povrede na radu</button>
-</nav>
+            
+                  
+[Termoelektro Enel AD]
 
-<main>
 
-  <!-- LOGIN -->
-  <section id="login-view" class="panel">
-    <h2>Prijava</h2>
-    <label for="login-email">Email</label>
-    <input type="email" id="login-email" autocomplete="username" />
-    <label for="login-password">Lozinka</label>
-    <input type="password" id="login-password" autocomplete="current-password" />
-    <button class="primary" id="login-btn">Prijavi se</button>
-    <div class="error-msg hidden" id="login-error"></div>
-  </section>
-
-  <!-- MODUL: ZAPOSLENI -->
-  <div id="modul-zaposleni" class="hidden">
-
-    <!-- LISTA ZAPOSLENIH -->
-    <section id="zaposleni-view" class="panel hidden">
-      <div class="panel-header-row">
-        <h2>Zaposleni</h2>
-        <button type="button" class="secondary" id="obrazac1-btn">Generiši Obrazac 1 (.docx)</button>
-      </div>
-      <table id="zaposleni-table">
-        <thead>
-          <tr>
-            <th>Mat. br.</th>
-            <th>Ime i prezime</th>
-            <th>Radno mesto</th>
-            <th>Radna jedinica</th>
-            <th>Rizik</th>
-            <th>Semafor</th>
-            <th>Status</th>
-          </tr>
-          <tr class="filter-row">
-            <th><input type="text" id="filter-matbr" placeholder="filter..." /></th>
-            <th><input type="text" id="filter-ime" placeholder="filter..." /></th>
-            <th><input type="text" id="filter-radno-mesto" placeholder="filter..." /></th>
-            <th><input type="text" id="filter-radna-jedinica" placeholder="filter..." /></th>
-            <th>
-              <select id="filter-rizik">
-                <option value="">svi</option>
-                <option value="da">povećan rizik</option>
-                <option value="ne">nije povećan rizik</option>
-              </select>
-            </th>
-            <th>
-              <select id="filter-semafor">
-                <option value="">svi</option>
-                <option value="red">crveni (isteklo / nema pregled)</option>
-                <option value="orange">narandžasti (ističe uskoro)</option>
-                <option value="green">zeleni (važi)</option>
-                <option value="none">bez semafora (nije povećan rizik)</option>
-              </select>
-            </th>
-            <th>
-              <select id="filter-status">
-                <option value="">svi</option>
-                <option value="aktivan">aktivan</option>
-                <option value="neaktivan">neaktivan</option>
-              </select>
-            </th>
-          </tr>
-        </thead>
-        <tbody id="zaposleni-tbody"></tbody>
-      </table>
-      <p class="info-msg" id="zaposleni-info"></p>
-    </section>
-
-    <!-- DETALJI ZAPOSLENOG -->
-    <section id="detail-view" class="panel hidden">
-      <span class="back-link" id="back-to-list">&larr; Nazad na listu</span>
-      <h2 id="detail-ime"></h2>
-      <p class="info-msg" id="detail-meta"></p>
-
-      <h3>Status radnog mesta (povećan rizik)</h3>
-      <p class="info-msg" id="rizik-po-aktu-info"></p>
-      <label for="rizik-override-select">Stvarni status ovog zaposlenog</label>
-      <select id="rizik-override-select">
-        <option value="">Automatski (prema Aktu o proceni rizika)</option>
-        <option value="da">Da — radi na poslovima sa povećanim rizikom</option>
-        <option value="ne">Ne — izuzetak (trenutno ne radi na tim poslovima)</option>
-      </select>
-      <label for="rizik-napomena-input">Napomena / razlog izuzetka</label>
-      <textarea id="rizik-napomena-input" placeholder="npr. lekarska ocena nesposobnosti za rad na visini, privremeni raspored na drugo radno mesto i sl."></textarea>
-      <button type="button" class="primary" id="rizik-save-btn">Sačuvaj status rizika</button>
-      <div class="error-msg hidden" id="rizik-error"></div>
-      <div class="info-msg hidden" id="rizik-saved-msg">Sačuvano.</div>
-
-      <div id="obrazac6-section" class="hidden">
-        <h3>Obrazac 6 — evidencija o obučenosti za BZR i LZO</h3>
-        <label for="obrazac6-razlog-input">Slučaj, odnosno razlog obuke</label>
-        <input type="text" id="obrazac6-razlog-input" placeholder="npr. 09 - periodična obuka zaposlenih" />
-        <button type="button" class="secondary" id="obrazac6-generisi-btn">Generiši Obrazac 6 (.docx)</button>
-        <div class="error-msg hidden" id="obrazac6-gen-error"></div>
-        <p class="info-msg">Opis posla, opasnosti, mere i LZO se automatski popunjavaju iz kataloga radnih mesta sa povećanim rizikom (tabela radna_mesta_rizik). Ako za ovo radno mesto još nisu popunjeni, javiće grešku.</p>
-      </div>
-
-      <h3>Lekarski pregledi</h3>
-      <div id="pregledi-list"></div>
-
-      <h3>Novi lekarski pregled</h3>
-      <form id="novi-pregled-form">
-        <label for="vrsta-pregleda">Vrsta pregleda</label>
-        <select id="vrsta-pregleda" required>
-          <option value="prethodni">Prethodni</option>
-          <option value="periodicni">Periodični</option>
-          <option value="vanredni">Vanredni</option>
-        </select>
-
-        <label for="datum-pregleda">Datum pregleda</label>
-        <input type="date" id="datum-pregleda" required />
-
-        <label for="rezultat">Rezultat</label>
-        <select id="rezultat" required>
-          <option value="sposoban">Sposoban</option>
-          <option value="sposoban pod uslovima">Sposoban pod uslovima</option>
-          <option value="nesposoban">Nesposoban</option>
-        </select>
-
-        <label for="ustanova">Zdravstvena ustanova</label>
-        <input type="text" id="ustanova" />
-
-        <label for="broj-uverenja">Broj uverenja</label>
-        <input type="text" id="broj-uverenja" />
-
-        <label for="vazi-do">Važi do</label>
-        <input type="date" id="vazi-do" />
-
-        <label for="napomena">Napomena</label>
-        <textarea id="napomena"></textarea>
-
-        <label>Izveštaj o lekarskom pregledu (PDF) — čuva se bezbedno na Supabase-u</label>
-        <div class="file-picker-row">
-          <button type="button" class="secondary" id="izvestaj-browse-btn">Izaberi fajl...</button>
-          <input type="file" id="izvestaj-file" accept=".pdf" class="hidden" />
-          <span class="info-msg" id="izvestaj-filename">Nije izabran fajl</span>
-        </div>
-        <p class="info-msg">Fajl se otprema na Supabase tek kada klikneš "Sačuvaj pregled" ispod. Kad izveštaju istekne rok ("važi do"), na listi pregleda će se pojaviti podsetnik da ga preuzmeš na disk i arhiviraš.</p>
-
-        <label for="folder-obrazac6">Folder sa Obrascem br. 6 (podesi jednom)</label>
-        <input type="text" id="folder-obrazac6" placeholder="npr. C:\BZR\obrazac6" />
-        <label>Obrazac br. 6</label>
-        <div class="file-picker-row">
-          <button type="button" class="secondary" id="obrazac6-browse-btn">Izaberi fajl...</button>
-          <input type="file" id="obrazac6-file" class="hidden" />
-          <span class="info-msg" id="obrazac6-filename">Nije izabran fajl</span>
-          <a href="#" id="obrazac6-test-link" class="hidden" target="_blank" rel="noopener">Otvori</a>
-          <button type="button" class="secondary hidden" id="obrazac6-copy-btn">Kopiraj putanju</button>
-        </div>
-        <p class="info-msg">Napomena (Obrazac br. 6): iz bezbednosnih razloga browser ponekad neće sam da otvori fajl sa diska. Ako klik na "Otvori" ne uradi ništa, klikni "Kopiraj putanju" i nalepi (Ctrl+V) u Windows Explorer ili u prozor "Run" (Win+R).</p>
-
-        <button type="submit" class="primary">Sačuvaj pregled</button>
-        <div class="error-msg hidden" id="pregled-error"></div>
-      </form>
-    </section>
-
-  </div>
-
-  <!-- MODUL: OPREMA ZA RAD -->
-  <div id="modul-oprema" class="hidden">
-
-    <!-- LISTA OPREME -->
-    <section id="oprema-list-view" class="panel hidden">
-      <div class="panel-header-row">
-        <h2>Oprema za rad</h2>
-        <div>
-          <button type="button" class="secondary" id="oprema-novi-btn">+ Dodaj opremu</button>
-          <button type="button" class="secondary" id="obrazac8-btn">Generiši Obrazac 8 (.docx)</button>
-        </div>
-      </div>
-
-      <!-- FORMA ZA NOVU OPREMU (skrivena dok se ne klikne "+ Dodaj opremu") -->
-      <form id="oprema-novi-form" class="hidden" style="margin-bottom: 18px; border: 1px solid var(--border); border-radius: var(--radius); padding: 14px;">
-        <h3 style="margin-top:0;">Nova oprema</h3>
-        <label for="oprema-vrsta-input">Vrsta opreme</label>
-        <input type="text" id="oprema-vrsta-input" required placeholder="npr. Kran toranjski" />
-        <label for="oprema-fabricki-input">Fabrički broj</label>
-        <input type="text" id="oprema-fabricki-input" />
-        <label for="oprema-godina-input">Godina proizvodnje</label>
-        <input type="number" id="oprema-godina-input" min="1900" max="2100" />
-        <label for="oprema-lokacija-input">Lokacija</label>
-        <input type="text" id="oprema-lokacija-input" />
-        <label for="oprema-namena-input">Namena</label>
-        <input type="text" id="oprema-namena-input" />
-        <button type="submit" class="primary">Sačuvaj opremu</button>
-        <button type="button" class="secondary" id="oprema-novi-otkazi-btn">Otkaži</button>
-        <div class="error-msg hidden" id="oprema-novi-error"></div>
-      </form>
-
-      <table id="oprema-table">
-        <thead>
-          <tr>
-            <th>Vrsta</th>
-            <th>Fabrički broj</th>
-            <th>God. proizv.</th>
-            <th>Lokacija</th>
-            <th>Namena</th>
-            <th>Semafor</th>
-            <th>Status</th>
-          </tr>
-          <tr class="filter-row">
-            <th><input type="text" id="oprema-filter-vrsta" placeholder="filter..." /></th>
-            <th><input type="text" id="oprema-filter-fabricki" placeholder="filter..." /></th>
-            <th></th>
-            <th><input type="text" id="oprema-filter-lokacija" placeholder="filter..." /></th>
-            <th></th>
-            <th>
-              <select id="oprema-filter-semafor">
-                <option value="">svi</option>
-                <option value="red">crveni (isteklo / nema pregled)</option>
-                <option value="orange">narandžasti (ističe uskoro)</option>
-                <option value="green">zeleni (važi)</option>
-              </select>
-            </th>
-            <th>
-              <select id="oprema-filter-status">
-                <option value="">svi</option>
-                <option value="aktivna">aktivna</option>
-                <option value="neaktivna">neaktivna</option>
-              </select>
-            </th>
-          </tr>
-        </thead>
-        <tbody id="oprema-tbody"></tbody>
-      </table>
-      <p class="info-msg" id="oprema-info"></p>
-    </section>
-
-    <!-- DETALJI OPREME -->
-    <section id="oprema-detail-view" class="panel hidden">
-      <span class="back-link" id="oprema-back-to-list">&larr; Nazad na listu</span>
-      <h2 id="oprema-detail-naslov"></h2>
-
-      <h3>Podaci o opremi</h3>
-      <label for="oprema-edit-vrsta">Vrsta opreme</label>
-      <input type="text" id="oprema-edit-vrsta" required />
-      <label for="oprema-edit-fabricki">Fabrički broj</label>
-      <input type="text" id="oprema-edit-fabricki" />
-      <label for="oprema-edit-godina">Godina proizvodnje</label>
-      <input type="number" id="oprema-edit-godina" min="1900" max="2100" />
-      <label for="oprema-edit-lokacija">Lokacija</label>
-      <input type="text" id="oprema-edit-lokacija" />
-      <label for="oprema-edit-namena">Namena</label>
-      <input type="text" id="oprema-edit-namena" />
-      <label for="oprema-edit-aktivna">
-        <input type="checkbox" id="oprema-edit-aktivna" style="width:auto; display:inline-block; vertical-align:middle;" />
-        Oprema je aktivna (u upotrebi)
-      </label>
-      <button type="button" class="primary" id="oprema-sacuvaj-btn">Sačuvaj izmene</button>
-      <button type="button" class="danger-link" id="oprema-obrisi-btn">Obriši opremu</button>
-      <div class="error-msg hidden" id="oprema-edit-error"></div>
-
-      <h3>Istorija pregleda i provera</h3>
-      <div id="oprema-pregledi-list"></div>
-
-      <h3>Novi pregled / provera</h3>
-      <form id="oprema-novi-pregled-form">
-        <label for="oprema-pregled-broj">Broj stručnog nalaza</label>
-        <input type="text" id="oprema-pregled-broj" />
-
-        <label for="oprema-pregled-datum">Datum pregleda, odnosno provere</label>
-        <input type="date" id="oprema-pregled-datum" required />
-
-        <label for="oprema-pregled-sledeci">Datum sledećeg pregleda, odnosno provere</label>
-        <input type="date" id="oprema-pregled-sledeci" />
-
-        <label for="oprema-pregled-napomena">Napomena</label>
-        <textarea id="oprema-pregled-napomena"></textarea>
-
-        <label>Stručni nalaz (PDF) — čuva se bezbedno na Supabase-u</label>
-        <div class="file-picker-row">
-          <button type="button" class="secondary" id="oprema-pregled-browse-btn">Izaberi fajl...</button>
-          <input type="file" id="oprema-pregled-file" accept=".pdf" class="hidden" />
-          <span class="info-msg" id="oprema-pregled-filename">Nije izabran fajl</span>
-        </div>
-        <p class="info-msg">Fajl se otprema na Supabase tek kada klikneš "Sačuvaj pregled". Kad prođe datum sledećeg pregleda, na listi će se pojaviti podsetnik da nalaz preuzmeš na disk i arhiviraš.</p>
-
-        <button type="submit" class="primary">Sačuvaj pregled</button>
-        <div class="error-msg hidden" id="oprema-pregled-error"></div>
-      </form>
-    </section>
-
-  </div>
-
-  <!-- MODUL: POVREDE NA RADU -->
-  <section id="modul-povrede" class="panel hidden">
-    <div class="panel-header-row">
-      <h2>Povrede na radu</h2>
-      <div>
-        <button type="button" class="secondary" id="povreda-novi-btn">+ Dodaj povredu</button>
-        <button type="button" class="secondary" id="obrazac2-btn">Generiši Obrazac 2 (.docx)</button>
-      </div>
-    </div>
-
-    <!-- FORMA ZA NOVU/IZMENU POVREDE -->
-    <form id="povreda-form" class="hidden" style="margin-bottom: 18px; border: 1px solid var(--border); border-radius: var(--radius); padding: 14px;">
-      <h3 id="povreda-form-naslov" style="margin-top:0;">Nova povreda</h3>
-
-      <label for="povreda-zaposleni-select">Zaposleni (opciono — popuniće ime i radno mesto)</label>
-      <select id="povreda-zaposleni-select">
-        <option value="">-- unesi ručno --</option>
-      </select>
-
-      <label for="povreda-ime-input">Ime i prezime povređenog</label>
-      <input type="text" id="povreda-ime-input" required />
-
-      <label for="povreda-radno-mesto-input">Naziv radnog mesta na kome je radio kada se dogodila povreda</label>
-      <input type="text" id="povreda-radno-mesto-input" required />
-
-      <label for="povreda-datum-input">Datum povrede</label>
-      <input type="date" id="povreda-datum-input" required />
-
-      <label for="povreda-vreme-input">Čas (vreme nastanka)</label>
-      <input type="time" id="povreda-vreme-input" />
-
-      <label for="povreda-vrsta-select">Vrsta povrede</label>
-      <select id="povreda-vrsta-select" required>
-        <option value="pojedinačna">Pojedinačna</option>
-        <option value="kolektivna">Kolektivna</option>
-      </select>
-
-      <label for="povreda-ocena-select">Ocena težine povrede</label>
-      <select id="povreda-ocena-select" required>
-        <option value="laka">Laka</option>
-        <option value="teška">Teška</option>
-        <option value="smrtna">Smrtna</option>
-      </select>
-
-      <label for="povreda-opis-input">Napomena / opis događaja (interno, ne štampa se na Obrascu 2)</label>
-      <textarea id="povreda-opis-input"></textarea>
-
-      <button type="submit" class="primary">Sačuvaj</button>
-      <button type="button" class="secondary" id="povreda-otkazi-btn">Otkaži</button>
-      <button type="button" class="danger-link hidden" id="povreda-obrisi-btn">Obriši povredu</button>
-      <div class="error-msg hidden" id="povreda-form-error"></div>
-    </form>
-
-    <table id="povreda-table">
-      <thead>
-        <tr>
-          <th>Datum</th>
-          <th>Ime i prezime</th>
-          <th>Radno mesto</th>
-          <th>Vreme</th>
-          <th>Vrsta</th>
-          <th>Ocena težine</th>
-        </tr>
-        <tr class="filter-row">
-          <th></th>
-          <th><input type="text" id="povreda-filter-ime" placeholder="filter..." /></th>
-          <th><input type="text" id="povreda-filter-radno-mesto" placeholder="filter..." /></th>
-          <th></th>
-          <th>
-            <select id="povreda-filter-vrsta">
-              <option value="">sve</option>
-              <option value="pojedinačna">pojedinačna</option>
-              <option value="kolektivna">kolektivna</option>
-            </select>
-          </th>
-          <th>
-            <select id="povreda-filter-ocena">
-              <option value="">sve</option>
-              <option value="laka">laka</option>
-              <option value="teška">teška</option>
-              <option value="smrtna">smrtna</option>
-            </select>
-          </th>
-        </tr>
-      </thead>
-      <tbody id="povreda-tbody"></tbody>
-    </table>
-    <p class="info-msg" id="povreda-info"></p>
-  </section>
-
-</main>
-
-<script src="config.js"></script>
-<script src="app.js"></script>
-</body>
-</html>
+                  
+        
+        
+{}
