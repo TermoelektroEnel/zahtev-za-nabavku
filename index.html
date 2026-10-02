@@ -1,530 +1,561 @@
-<!doctype html>
-<html lang="sr">
-<head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>BZR Portal — Termoelektro Enel</title>
-<link rel="stylesheet" href="style.css" />
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="vendor/docx-bundle.js"></script>
-</head>
-<body>
 
-<header class="app-header">
-  <h1>BZR Portal — Termoelektro Enel</h1>
-  <button id="logout-btn" class="hidden">Odjava</button>
-</header>
+      ${mozeIzborZaUpit?`<td style="width:22px;"><input type="checkbox" data-upit-check="${idx}"></td>`:''}
+      <td style="width:26px;color:#777;">${idx+1}</td>
+      <td>${escapeHtml(s.sifra||'—')}</td>
+      <td>${escapeHtml(s.opis)}</td>
+      <td>${escapeHtml(s.jm)}</td>
+      <td class="num">${mogucaOvera?`<input type="number" min="0" step="any" data-overa-kolicina="${idx}" value="${escapeHtml(s.kolicina)}" style="width:80px;">`:escapeHtml(s.kolicina)}</td>
+      <td class="num">${mogucaOvera?`<input type="number" min="0" step="any" data-overa-od="${idx}" value="${escapeHtml(s.odPostojeceg||'0')}" style="width:80px;">`:escapeHtml(s.odPostojeceg||'0')}</td>
+      <td class="num" style="font-weight:600;" data-overa-zan="${idx}">${escapeHtml(s.zaNabavku!==undefined?s.zaNabavku:'')}</td>
+      <td>${escapeHtml(formatDatumSr(s.rok))}</td>
+      <td style="text-align:center;">${escapeHtml(s.atest||'—')}</td>
+    </tr>`).join('');
 
-<nav id="portal-nav" class="portal-nav hidden">
-  <button type="button" class="nav-tab active" data-modul="zaposleni">Zaposleni</button>
-  <button type="button" class="nav-tab" data-modul="oprema">Oprema za rad</button>
-  <button type="button" class="nav-tab" data-modul="povrede">Povrede na radu</button>
-  <button type="button" class="nav-tab" data-modul="katalog">Katalog radnih mesta</button>
-</nav>
-
-<main>
-
-  <!-- LOGIN -->
-  <section id="login-view" class="panel">
-    <h2>Prijava</h2>
-    <label for="login-email">Email</label>
-    <input type="email" id="login-email" autocomplete="username" />
-    <label for="login-password">Lozinka</label>
-    <input type="password" id="login-password" autocomplete="current-password" />
-    <button class="primary" id="login-btn">Prijavi se</button>
-    <div class="error-msg hidden" id="login-error"></div>
-  </section>
-
-  <!-- MODUL: ZAPOSLENI -->
-  <div id="modul-zaposleni" class="hidden">
-
-    <!-- LISTA ZAPOSLENIH -->
-    <section id="zaposleni-view" class="panel hidden">
-      <div class="panel-header-row">
-        <h2>Zaposleni</h2>
-        <div>
-          <button type="button" class="secondary" id="kadrovska-uvoz-btn">Uvoz JMBG / datuma rođenja / imena oca</button>
-          <button type="button" class="secondary" id="obrazac1-btn">Generiši Obrazac 1 (.docx)</button>
+  $('modalRoot').innerHTML = `
+    <div class="overlay" id="overaOverlay">
+      <div class="doc-outer">
+        <div class="doc-toolbar">
+          <button class="btn-ghost" id="closeOvera">Izađi</button>
+          <button class="btn btn-primary" style="width:auto;" id="printOvera">Štampaj / sačuvaj PDF</button>
+          ${mozePonovoPoslatiMejl?`<button class="btn-ghost" id="resendOveraMail">Pošalji mejl ponovo</button>`:''}
         </div>
-      </div>
-
-      <div id="kadrovska-uvoz-panel" class="hidden" style="margin-bottom: 18px; border: 1px solid var(--border); border-radius: var(--radius); padding: 14px;">
-        <h3 style="margin-top:0;">Uvoz iz kadrovske (Clipper)</h3>
-        <p class="info-msg">Čita SAMO matični broj, JMBG, datum rođenja i ime oca iz kadrovskih DBF fajlova — ništa drugo (ni adresu, ni broj lične karte, ni tekući račun, ni pol). Radi direktno u browseru (Chrome ili Edge) — fajlovi ne idu nigde osim ovde, dok sam ne potvrdiš upis. Izaberi nadređeni folder u kome se nalaze podfolderi DBF, PPN_dbf i PPP_dbf.</p>
-        <button type="button" class="secondary" id="kadrovska-izaberi-folder-btn">Izaberi folder sa kadrovskom...</button>
-        <div class="error-msg hidden" id="kadrovska-uvoz-error"></div>
-        <div id="kadrovska-uvoz-pregled" class="hidden">
-          <p class="info-msg" id="kadrovska-uvoz-info"></p>
-          <table id="kadrovska-uvoz-table">
-            <thead>
-              <tr>
-                <th><input type="checkbox" id="kadrovska-uvoz-sve" checked /></th>
-                <th>Mat. br.</th>
-                <th>Ime i prezime (iz BZR evidencije)</th>
-                <th>JMBG</th>
-                <th>Datum rođenja</th>
-                <th>Ime oca</th>
-                <th>Status</th>
-              </tr>
-            </thead>
-            <tbody id="kadrovska-uvoz-tbody"></tbody>
+        <div class="doc" style="max-width:820px;">
+          <img src="${LOGO_DATA_URI}" alt="Termoelektro Enel AD" style="height:40px;width:auto;display:block;margin-bottom:12px;">
+          <h2 style="margin-top:0;">Zahtev za nabavku ${escapeHtml(r.redniBroj)}</h2>
+          <div class="doc-sub">Dokument generisan ${formatDatumVremeSr(new Date(r.createdAt))}</div>
+          <div style="margin:10px 0;">${statusBadgeHtml(r)}${PORUCENI_ZAHTEVI.has(r.id)?' <span class="tag">Poručeno</span>':''}</div>
+          <div class="doc-meta">
+            <div><div class="k">Gradilište</div><div class="v">${escapeHtml(r.gradiliste)} — ${escapeHtml(nazivGradilista(r.gradiliste))}</div></div>
+            <div><div class="k">Nalog za realizaciju</div><div class="v">${escapeHtml(r.nalog)}${naziv?'<br><span style="font-size:11px;font-weight:500;color:#555;">'+escapeHtml(naziv)+'</span>':''}</div></div>
+            <div><div class="k">Podneo</div><div class="v">${escapeHtml(r.createdByUsername||'—')}</div></div>
+          </div>
+          ${r.lastReturnComment?`<div class="err" style="margin:10px 0;">Poslednji komentar (vraćeno na doradu): ${escapeHtml(r.lastReturnComment)}</div>`:''}
+          ${r.napomena?`<div class="field"><div class="napomena-istaknuta"><span class="napomena-label">📌 Napomena</span>${escapeHtml(r.napomena)}</div></div>`:''}
+          ${(r.prilozi&&r.prilozi.length)?`<div class="field"><label>Prilozi</label><div id="overaPrilozi"></div></div>`:''}
+          <table style="font-size:11.5px;margin-top:10px;">
+            <thead><tr>${mozeIzborZaUpit?'<th></th>':''}<th>Rb.</th><th>Broj poz. spec.</th><th>Opis</th><th>JM</th><th>Količina${mogucaOvera?' (može se izmeniti)':''}</th><th>Od postojećeg${mogucaOvera?' (može se izmeniti)':''}</th><th>Za nabavku</th><th>Rok isporuke</th><th style="text-align:center;">Atest</th></tr></thead>
+            <tbody>${rows}</tbody>
           </table>
-          <button type="button" class="primary" id="kadrovska-uvoz-upisi-btn">Upiši izabrano u BZR</button>
-          <button type="button" class="secondary" id="kadrovska-uvoz-otkazi-btn">Zatvori</button>
+          ${mozeIzborZaUpit?`
+          <div class="overa-actions" style="margin-top:10px;">
+            <button class="btn-ghost" id="izvezUpitMejlBtn">Otvori u mejlu</button>
+            <button class="btn-ghost" id="izvezUpitBtn">Izvezi izabrane pozicije (Word)</button>
+            <span class="hint">Označi pozicije u tabeli iznad (kvadratić levo) — koristi za formiranje upita ka dobavljačima kad pozicije idu različitim dobavljačima. "Otvori u mejlu" popunjava naslov i tekst u tvom mejl programu (biraš primaoce sam); "Word" je bolji za duže liste.</span>
+          </div>
+          `:''}
+          ${mogucaOvera?`
+          <div class="komentar-polje" style="margin-top:16px;">
+            <label for="overaKomentar">Komentar (opciono uz overu, obavezno ako vraćaš na doradu)</label>
+            <textarea id="overaKomentar" rows="2" style="width:100%;padding:8px;border:1px solid var(--line);border-radius:var(--radius);font-family:inherit;"></textarea>
+          </div>
+          <div class="overa-actions">
+            <button class="btn btn-primary" style="width:auto;" id="overiBtn">Overi i prosledi dalje</button>
+            <button class="btn-ghost" id="vratiBtn">Vrati na doradu</button>
+          </div>
+          <div class="err" id="overaErr"></div>
+          `:''}
+          <h3 style="margin-top:24px;font-size:14px;">Istorija</h3>
+          <div id="overaLog"><div class="loading">Učitavanje…</div></div>
         </div>
       </div>
-
-      <table id="zaposleni-table">
-        <thead>
-          <tr>
-            <th>Mat. br.</th>
-            <th>Ime i prezime</th>
-            <th>Radno mesto</th>
-            <th>Radna jedinica</th>
-            <th>Rizik</th>
-            <th>Semafor</th>
-            <th>Status</th>
-          </tr>
-          <tr class="filter-row">
-            <th><input type="text" id="filter-matbr" placeholder="filter..." /></th>
-            <th><input type="text" id="filter-ime" placeholder="filter..." /></th>
-            <th><input type="text" id="filter-radno-mesto" placeholder="filter..." /></th>
-            <th><input type="text" id="filter-radna-jedinica" placeholder="filter..." /></th>
-            <th>
-              <select id="filter-rizik">
-                <option value="">svi</option>
-                <option value="da">povećan rizik</option>
-                <option value="ne">nije povećan rizik</option>
-              </select>
-            </th>
-            <th>
-              <select id="filter-semafor">
-                <option value="">svi</option>
-                <option value="red">crveni (isteklo / nema pregled)</option>
-                <option value="orange">narandžasti (ističe uskoro)</option>
-                <option value="green">zeleni (važi)</option>
-                <option value="none">bez semafora (nije povećan rizik)</option>
-              </select>
-            </th>
-            <th>
-              <select id="filter-status">
-                <option value="">svi</option>
-                <option value="aktivan">aktivan</option>
-                <option value="neaktivan">neaktivan</option>
-              </select>
-            </th>
-          </tr>
-        </thead>
-        <tbody id="zaposleni-tbody"></tbody>
-      </table>
-      <p class="info-msg" id="zaposleni-info"></p>
-    </section>
-
-    <!-- DETALJI ZAPOSLENOG -->
-    <section id="detail-view" class="panel hidden">
-      <span class="back-link" id="back-to-list">&larr; Nazad na listu</span>
-      <h2 id="detail-ime"></h2>
-      <p class="info-msg" id="detail-meta"></p>
-
-      <h3>Status radnog mesta (povećan rizik)</h3>
-      <div class="rizik-po-aktu-box" id="rizik-po-aktu-info"></div>
-      <label for="rizik-override-select">Stvarni status ovog zaposlenog</label>
-      <select id="rizik-override-select">
-        <option value="">Automatski (prema Aktu o proceni rizika)</option>
-        <option value="da">Da — radi na poslovima sa povećanim rizikom</option>
-        <option value="ne">Ne — izuzetak (trenutno ne radi na tim poslovima)</option>
-      </select>
-      <label for="rizik-napomena-input">Napomena / razlog izuzetka</label>
-      <textarea id="rizik-napomena-input" placeholder="npr. lekarska ocena nesposobnosti za rad na visini, privremeni raspored na drugo radno mesto i sl."></textarea>
-      <button type="button" class="primary" id="rizik-save-btn">Sačuvaj status rizika</button>
-      <div class="error-msg hidden" id="rizik-error"></div>
-      <div class="info-msg hidden" id="rizik-saved-msg">Sačuvano.</div>
-
-      <div id="obrazac6-section" class="hidden">
-        <h3>Obrazac 6 — evidencija o obučenosti za BZR i LZO</h3>
-        <label for="obrazac6-razlog-input">Slučaj, odnosno razlog obuke</label>
-        <input type="text" id="obrazac6-razlog-input" value="09 - periodična obuka zaposlenih" />
-        <button type="button" class="secondary" id="obrazac6-generisi-btn">Generiši Obrazac 6 (.docx)</button>
-        <div class="error-msg hidden" id="obrazac6-gen-error"></div>
-        <p class="info-msg">Opis posla, opasnosti, mere i LZO se automatski popunjavaju iz kataloga radnih mesta sa povećanim rizikom (tabela radna_mesta_rizik). Ako za ovo radno mesto još nisu popunjeni, javiće grešku.</p>
-      </div>
-
-      <div id="uput-lekarski-section" class="hidden">
-        <h3>Uput za periodični lekarski pregled</h3>
-        <p class="info-msg">Ovi lični podaci se ne čuvaju u bazi zaposlenih — unesi ih ovde jednom po zaposlenom, aplikacija ih pamti i sama predlaže sledeći put.</p>
-        <label for="uput-ime-ocevo-prezime-input">Ime, očevo ime i prezime</label>
-        <input type="text" id="uput-ime-ocevo-prezime-input" placeholder="npr. Petar Nikolin Petrović" />
-
-        <label for="uput-jmbg-input">JMBG</label>
-        <input type="text" id="uput-jmbg-input" maxlength="13" placeholder="13 cifara" />
-
-        <label for="uput-datum-rodjenja-input">Datum rođenja</label>
-        <input type="date" id="uput-datum-rodjenja-input" />
-
-        <label for="uput-mesto-rodjenja-input">Mesto rođenja i opština</label>
-        <input type="text" id="uput-mesto-rodjenja-input" placeholder="npr. Beograd, Zvezdara" />
-
-        <label for="uput-zanimanje-input">Zanimanje (naziv zanimanja — nije isto što i radno mesto)</label>
-        <input type="text" id="uput-zanimanje-input" />
-
-        <button type="button" class="secondary" id="uput-sacuvaj-btn">Sačuvaj</button>
-        <div class="error-msg hidden" id="uput-sacuvaj-error"></div>
-        <div class="info-msg hidden" id="uput-sacuvaj-ok">Sačuvano.</div>
-
-        <button type="button" class="secondary" id="uput-generisi-btn">Generiši uput za lekarski pregled (.docx)</button>
-        <div class="error-msg hidden" id="uput-gen-error"></div>
-        <p class="info-msg">Redni broj uputa se automatski dodeljuje (sledeći slobodan, počev od 274). Opis posla, procenjeni rizici i posebni zdravstveni uslovi se uzimaju iz kataloga radnih mesta (isti katalog kao za Obrazac 6). Podaci o prethodnom pregledu (datum, ustanova, rezultat) se automatski uzimaju iz poslednjeg unetog lekarskog pregleda ispod.</p>
-      </div>
-
-      <h3>Lekarski pregledi</h3>
-      <div id="pregledi-list"></div>
-
-      <h3>Novi lekarski pregled</h3>
-      <form id="novi-pregled-form">
-        <label for="vrsta-pregleda">Vrsta pregleda</label>
-        <select id="vrsta-pregleda" required>
-          <option value="prethodni">Prethodni</option>
-          <option value="periodicni">Periodični</option>
-          <option value="vanredni">Vanredni</option>
-        </select>
-
-        <label for="datum-pregleda">Datum pregleda</label>
-        <input type="date" id="datum-pregleda" required />
-
-        <label for="rezultat">Rezultat</label>
-        <select id="rezultat" required>
-          <option value="sposoban">Sposoban</option>
-          <option value="sposoban pod uslovima">Sposoban pod uslovima</option>
-          <option value="nesposoban">Nesposoban</option>
-        </select>
-
-        <label for="ustanova">Zdravstvena ustanova</label>
-        <input type="text" id="ustanova" />
-
-        <label for="broj-uverenja">Broj uverenja</label>
-        <input type="text" id="broj-uverenja" />
-
-        <label for="vazi-do">Važi do</label>
-        <input type="date" id="vazi-do" />
-
-        <label for="napomena">Napomena</label>
-        <textarea id="napomena"></textarea>
-
-        <label>Izveštaj o lekarskom pregledu (PDF) — čuva se bezbedno na Supabase-u</label>
-        <div class="file-picker-row">
-          <button type="button" class="secondary" id="izvestaj-browse-btn">Izaberi fajl...</button>
-          <input type="file" id="izvestaj-file" accept=".pdf" class="hidden" />
-          <span class="info-msg" id="izvestaj-filename">Nije izabran fajl</span>
-        </div>
-        <p class="info-msg">Fajl se otprema na Supabase tek kada klikneš "Sačuvaj pregled" ispod. Kad izveštaju istekne rok ("važi do"), na listi pregleda će se pojaviti podsetnik da ga preuzmeš na disk i arhiviraš.</p>
-
-        <label for="folder-obrazac6">Folder sa Obrascem br. 6 (podesi jednom)</label>
-        <input type="text" id="folder-obrazac6" placeholder="npr. C:\BZR\obrazac6" />
-        <label>Obrazac br. 6</label>
-        <div class="file-picker-row">
-          <button type="button" class="secondary" id="obrazac6-browse-btn">Izaberi fajl...</button>
-          <input type="file" id="obrazac6-file" class="hidden" />
-          <span class="info-msg" id="obrazac6-filename">Nije izabran fajl</span>
-          <a href="#" id="obrazac6-test-link" class="hidden" target="_blank" rel="noopener">Otvori</a>
-          <button type="button" class="secondary hidden" id="obrazac6-copy-btn">Kopiraj putanju</button>
-        </div>
-        <p class="info-msg">Napomena (Obrazac br. 6): iz bezbednosnih razloga browser ponekad neće sam da otvori fajl sa diska. Ako klik na "Otvori" ne uradi ništa, klikni "Kopiraj putanju" i nalepi (Ctrl+V) u Windows Explorer ili u prozor "Run" (Win+R).</p>
-
-        <button type="submit" class="primary">Sačuvaj pregled</button>
-        <div class="error-msg hidden" id="pregled-error"></div>
-      </form>
-    </section>
-
-  </div>
-
-  <!-- MODUL: OPREMA ZA RAD -->
-  <div id="modul-oprema" class="hidden">
-
-    <!-- LISTA OPREME -->
-    <section id="oprema-list-view" class="panel hidden">
-      <div class="panel-header-row">
-        <h2>Oprema za rad</h2>
-        <div>
-          <button type="button" class="secondary" id="oprema-novi-btn">+ Dodaj opremu</button>
-          <button type="button" class="secondary" id="obrazac8-btn">Generiši Obrazac 8 (.docx)</button>
-        </div>
-      </div>
-
-      <!-- FORMA ZA NOVU OPREMU (skrivena dok se ne klikne "+ Dodaj opremu") -->
-      <form id="oprema-novi-form" class="hidden" style="margin-bottom: 18px; border: 1px solid var(--border); border-radius: var(--radius); padding: 14px;">
-        <h3 style="margin-top:0;">Nova oprema</h3>
-        <label for="oprema-vrsta-input">Vrsta opreme</label>
-        <input type="text" id="oprema-vrsta-input" required placeholder="npr. Kran toranjski" />
-        <label for="oprema-fabricki-input">Fabrički broj</label>
-        <input type="text" id="oprema-fabricki-input" />
-        <label for="oprema-godina-input">Godina proizvodnje</label>
-        <input type="number" id="oprema-godina-input" min="1900" max="2100" />
-        <label for="oprema-lokacija-input">Lokacija</label>
-        <input type="text" id="oprema-lokacija-input" />
-        <label for="oprema-namena-input">Namena</label>
-        <input type="text" id="oprema-namena-input" />
-        <button type="submit" class="primary">Sačuvaj opremu</button>
-        <button type="button" class="secondary" id="oprema-novi-otkazi-btn">Otkaži</button>
-        <div class="error-msg hidden" id="oprema-novi-error"></div>
-      </form>
-
-      <table id="oprema-table">
-        <thead>
-          <tr>
-            <th>Vrsta</th>
-            <th>Fabrički broj</th>
-            <th>God. proizv.</th>
-            <th>Lokacija</th>
-            <th>Namena</th>
-            <th>Semafor</th>
-            <th>Status</th>
-          </tr>
-          <tr class="filter-row">
-            <th><input type="text" id="oprema-filter-vrsta" placeholder="filter..." /></th>
-            <th><input type="text" id="oprema-filter-fabricki" placeholder="filter..." /></th>
-            <th></th>
-            <th><input type="text" id="oprema-filter-lokacija" placeholder="filter..." /></th>
-            <th></th>
-            <th>
-              <select id="oprema-filter-semafor">
-                <option value="">svi</option>
-                <option value="red">crveni (isteklo / nema pregled)</option>
-                <option value="orange">narandžasti (ističe uskoro)</option>
-                <option value="green">zeleni (važi)</option>
-              </select>
-            </th>
-            <th>
-              <select id="oprema-filter-status">
-                <option value="">svi</option>
-                <option value="aktivna">aktivna</option>
-                <option value="neaktivna">neaktivna</option>
-              </select>
-            </th>
-          </tr>
-        </thead>
-        <tbody id="oprema-tbody"></tbody>
-      </table>
-      <p class="info-msg" id="oprema-info"></p>
-    </section>
-
-    <!-- DETALJI OPREME -->
-    <section id="oprema-detail-view" class="panel hidden">
-      <span class="back-link" id="oprema-back-to-list">&larr; Nazad na listu</span>
-      <h2 id="oprema-detail-naslov"></h2>
-
-      <h3>Podaci o opremi</h3>
-      <label for="oprema-edit-vrsta">Vrsta opreme</label>
-      <input type="text" id="oprema-edit-vrsta" required />
-      <label for="oprema-edit-fabricki">Fabrički broj</label>
-      <input type="text" id="oprema-edit-fabricki" />
-      <label for="oprema-edit-godina">Godina proizvodnje</label>
-      <input type="number" id="oprema-edit-godina" min="1900" max="2100" />
-      <label for="oprema-edit-lokacija">Lokacija</label>
-      <input type="text" id="oprema-edit-lokacija" />
-      <label for="oprema-edit-namena">Namena</label>
-      <input type="text" id="oprema-edit-namena" />
-      <label for="oprema-edit-aktivna">
-        <input type="checkbox" id="oprema-edit-aktivna" style="width:auto; display:inline-block; vertical-align:middle;" />
-        Oprema je aktivna (u upotrebi)
-      </label>
-      <button type="button" class="primary" id="oprema-sacuvaj-btn">Sačuvaj izmene</button>
-      <button type="button" class="danger-link" id="oprema-obrisi-btn">Obriši opremu</button>
-      <div class="error-msg hidden" id="oprema-edit-error"></div>
-
-      <h3>Istorija pregleda i provera</h3>
-      <div id="oprema-pregledi-list"></div>
-
-      <h3>Novi pregled / provera</h3>
-      <form id="oprema-novi-pregled-form">
-        <label for="oprema-pregled-broj">Broj stručnog nalaza</label>
-        <input type="text" id="oprema-pregled-broj" />
-
-        <label for="oprema-pregled-datum">Datum pregleda, odnosno provere</label>
-        <input type="date" id="oprema-pregled-datum" required />
-
-        <label for="oprema-pregled-sledeci">Datum sledećeg pregleda, odnosno provere</label>
-        <input type="date" id="oprema-pregled-sledeci" />
-
-        <label for="oprema-pregled-napomena">Napomena</label>
-        <textarea id="oprema-pregled-napomena"></textarea>
-
-        <label>Stručni nalaz (PDF) — čuva se bezbedno na Supabase-u</label>
-        <div class="file-picker-row">
-          <button type="button" class="secondary" id="oprema-pregled-browse-btn">Izaberi fajl...</button>
-          <input type="file" id="oprema-pregled-file" accept=".pdf" class="hidden" />
-          <span class="info-msg" id="oprema-pregled-filename">Nije izabran fajl</span>
-        </div>
-        <p class="info-msg">Fajl se otprema na Supabase tek kada klikneš "Sačuvaj pregled". Kad prođe datum sledećeg pregleda, na listi će se pojaviti podsetnik da nalaz preuzmeš na disk i arhiviraš.</p>
-
-        <button type="submit" class="primary">Sačuvaj pregled</button>
-        <div class="error-msg hidden" id="oprema-pregled-error"></div>
-      </form>
-    </section>
-
-  </div>
-
-  <!-- MODUL: POVREDE NA RADU -->
-  <section id="modul-povrede" class="panel hidden">
-    <div class="panel-header-row">
-      <h2>Povrede na radu</h2>
-      <div>
-        <button type="button" class="secondary" id="povreda-novi-btn">+ Dodaj povredu</button>
-        <button type="button" class="secondary" id="obrazac2-btn">Generiši Obrazac 2 (.docx)</button>
-      </div>
-    </div>
-
-    <!-- FORMA ZA NOVU/IZMENU POVREDE -->
-    <form id="povreda-form" class="hidden" style="margin-bottom: 18px; border: 1px solid var(--border); border-radius: var(--radius); padding: 14px;">
-      <h3 id="povreda-form-naslov" style="margin-top:0;">Nova povreda</h3>
-
-      <label for="povreda-zaposleni-select">Zaposleni (opciono — popuniće ime i radno mesto)</label>
-      <select id="povreda-zaposleni-select">
-        <option value="">-- unesi ručno --</option>
-      </select>
-
-      <label for="povreda-ime-input">Ime i prezime povređenog</label>
-      <input type="text" id="povreda-ime-input" required />
-
-      <label for="povreda-radno-mesto-input">Naziv radnog mesta na kome je radio kada se dogodila povreda</label>
-      <input type="text" id="povreda-radno-mesto-input" required />
-
-      <label for="povreda-datum-input">Datum povrede</label>
-      <input type="date" id="povreda-datum-input" required />
-
-      <label for="povreda-vreme-input">Čas (vreme nastanka)</label>
-      <input type="time" id="povreda-vreme-input" />
-
-      <label for="povreda-vrsta-select">Vrsta povrede</label>
-      <select id="povreda-vrsta-select" required>
-        <option value="pojedinačna">Pojedinačna</option>
-        <option value="kolektivna">Kolektivna</option>
-      </select>
-
-      <label for="povreda-ocena-select">Ocena težine povrede</label>
-      <select id="povreda-ocena-select" required>
-        <option value="laka">Laka</option>
-        <option value="teška">Teška</option>
-        <option value="smrtna">Smrtna</option>
-      </select>
-
-      <label for="povreda-opis-input">Napomena / opis događaja (interno, ne štampa se na Obrascu 2)</label>
-      <textarea id="povreda-opis-input"></textarea>
-
-      <button type="submit" class="primary">Sačuvaj</button>
-      <button type="button" class="secondary" id="povreda-otkazi-btn">Otkaži</button>
-      <button type="button" class="danger-link hidden" id="povreda-obrisi-btn">Obriši povredu</button>
-      <div class="error-msg hidden" id="povreda-form-error"></div>
-    </form>
-
-    <table id="povreda-table">
-      <thead>
-        <tr>
-          <th>Datum</th>
-          <th>Ime i prezime</th>
-          <th>Radno mesto</th>
-          <th>Vreme</th>
-          <th>Vrsta</th>
-          <th>Ocena težine</th>
-        </tr>
-        <tr class="filter-row">
-          <th></th>
-          <th><input type="text" id="povreda-filter-ime" placeholder="filter..." /></th>
-          <th><input type="text" id="povreda-filter-radno-mesto" placeholder="filter..." /></th>
-          <th></th>
-          <th>
-            <select id="povreda-filter-vrsta">
-              <option value="">sve</option>
-              <option value="pojedinačna">pojedinačna</option>
-              <option value="kolektivna">kolektivna</option>
-            </select>
-          </th>
-          <th>
-            <select id="povreda-filter-ocena">
-              <option value="">sve</option>
-              <option value="laka">laka</option>
-              <option value="teška">teška</option>
-              <option value="smrtna">smrtna</option>
-            </select>
-          </th>
-        </tr>
-      </thead>
-      <tbody id="povreda-tbody"></tbody>
-    </table>
-    <p class="info-msg" id="povreda-info"></p>
-  </section>
-
-  <!-- MODUL: KATALOG RADNIH MESTA -->
-  <section id="modul-katalog" class="panel hidden">
-    <div class="panel-header-row">
-      <h2>Katalog radnih mesta</h2>
-      <div>
-        <button type="button" class="secondary" id="katalog-novi-btn">+ Dodaj radno mesto</button>
-      </div>
-    </div>
-    <p class="info-msg">Ovde se popunjava sadržaj koji se koristi za generisanje Obrasca 1, Obrasca 6 i Uputa za periodični lekarski pregled: opis posla, procenjeni rizici, mere, LZO i posebni zdravstveni uslovi po radnom mestu (šifri). Katalog sadrži SVA radna mesta (Obrazac 6 se generiše za sve zaposlene) — polje "povećan rizik" posebno obeležava ona radna mesta koja Akt o proceni rizika svrstava u povećan rizik.</p>
-
-    <!-- FORMA ZA NOVO/IZMENU RADNOG MESTA -->
-    <form id="katalog-form" class="hidden" style="margin-bottom: 18px; border: 1px solid var(--border); border-radius: var(--radius); padding: 14px;">
-      <h3 id="katalog-form-naslov" style="margin-top:0;">Novo radno mesto</h3>
-
-      <label for="katalog-sifra-input">Šifra radnog mesta</label>
-      <input type="text" id="katalog-sifra-input" required />
-      <p class="info-msg" id="katalog-sifra-napomena">Ista šifra kao u evidenciji zaposlenih (kolona sifra_radnog_mesta).</p>
-
-      <label for="katalog-naziv-input">Naziv radnog mesta</label>
-      <input type="text" id="katalog-naziv-input" required />
-
-      <label><input type="checkbox" id="katalog-povecan-rizik-input" /> Radno mesto sa povećanim rizikom (po Aktu o proceni rizika)</label>
-      <p class="info-msg">Štiklirano samo za radna mesta koja Akt o proceni rizika svrstava u povećan rizik. Od ovoga zavisi da li se zaposlenom na ovom radnom mestu prikazuje "Uput za periodični lekarski pregled" i da li se po default-u smatra "povećan rizik" (osim ako postoji ručni izuzetak kod konkretnog zaposlenog). Obrazac 6 se generiše za sva radna mesta, bez obzira na ovo polje.</p>
-
-      <label for="katalog-periodicitet-input">Periodičnost lekarskog pregleda (meseci)</label>
-      <input type="number" id="katalog-periodicitet-input" min="1" placeholder="npr. 12" />
-
-      <label for="katalog-opis-input">Opis posla na radnom mestu</label>
-      <textarea id="katalog-opis-input"></textarea>
-
-      <label for="katalog-opasnosti-input">Procenjeni rizici / opasnosti (utvrđeni Aktom o proceni rizika)</label>
-      <textarea id="katalog-opasnosti-input"></textarea>
-
-      <label for="katalog-sifra-opasnosti-input">Šifre opasnosti iz Akta (opciono)</label>
-      <input type="text" id="katalog-sifra-opasnosti-input" placeholder="npr. 01, 16, 21, 28" />
-
-      <label for="katalog-mere-input">Mere za bezbedan i zdrav rad</label>
-      <textarea id="katalog-mere-input"></textarea>
-
-      <label for="katalog-lzo-input">Lična zaštitna oprema (LZO)</label>
-      <textarea id="katalog-lzo-input"></textarea>
-
-      <label for="katalog-posebni-uslovi-input">Posebni zdravstveni uslovi (za Uput za lekarski pregled)</label>
-      <textarea id="katalog-posebni-uslovi-input"></textarea>
-
-      <label><input type="checkbox" id="katalog-aktivan-input" checked /> Aktivno radno mesto</label>
-
-      <button type="submit" class="primary">Sačuvaj</button>
-      <button type="button" class="secondary" id="katalog-otkazi-btn">Otkaži</button>
-      <button type="button" class="danger-link hidden" id="katalog-obrisi-btn">Obriši radno mesto</button>
-      <div class="error-msg hidden" id="katalog-form-error"></div>
-    </form>
-
-    <table id="katalog-table">
-      <thead>
-        <tr>
-          <th>Šifra</th>
-          <th>Naziv radnog mesta</th>
-          <th>Povećan rizik</th>
-          <th>Popunjeno</th>
-          <th>Aktivno</th>
-        </tr>
-      </thead>
-      <tbody id="katalog-tbody"></tbody>
-    </table>
-    <p class="info-msg" id="katalog-info"></p>
-  </section>
-
-</main>
-
-<script src="config.js"></script>
-<script src="kadrovska-uvoz.js"></script>
-<script src="app.js"></script>
+    </div>`;
+
+  function zatvoriZahtevView(){
+    $('modalRoot').innerHTML='';
+    document.removeEventListener('keydown', escListener);
+  }
+  function escListener(e){ if(e.key==='Escape') zatvoriZahtevView(); }
+  document.addEventListener('keydown', escListener);
+
+  $('closeOvera').addEventListener('click', zatvoriZahtevView);
+  $('printOvera').addEventListener('click',()=>window.print());
+  $('overaOverlay').addEventListener('click',e=>{ if(e.target.id==='overaOverlay') zatvoriZahtevView(); });
+  if(mozePonovoPoslatiMejl){
+    $('resendOveraMail').addEventListener('click', async ()=>{
+      const targetEmail = emailZaKorak(r.approvalStep);
+      if(!targetEmail){ alert(`Nije dodeljen korisnik za korak "${imeUloge(r.approvalStep)}". Obratite se administratoru.`); return; }
+      if(!confirm(`Ponovo poslati mejl na overu (${imeUloge(r.approvalStep)})?`)) return;
+      $('resendOveraMail').disabled=true;
+      const ok = await posaljiApprovalMail_(r, targetEmail,
+        `Zahtev za nabavku ${r.redniBroj} - podsetnik`,
+        `Podsetnik: zahtev za nabavku ${r.redniBroj} čeka vašu overu.`);
+      $('resendOveraMail').disabled=false;
+      if(ok) alert('Mejl je ponovo poslat.');
+    });
+  }
+  if(mozeIzborZaUpit){
+    const skupiIzabrane_ = () => [...document.querySelectorAll('[data-upit-check]:checked')].map(cb=>Number(cb.dataset.upitCheck));
+    $('izvezUpitBtn').addEventListener('click', ()=>{
+      const izabraniIdx = skupiIzabrane_();
+      if(!izabraniIdx.length){ alert('Označite bar jednu poziciju pre izvoza.'); return; }
+      izvezizabranePozicijeWord_(r, izabraniIdx);
+    });
+    $('izvezUpitMejlBtn').addEventListener('click', ()=>{
+      const izabraniIdx = skupiIzabrane_();
+      if(!izabraniIdx.length){ alert('Označite bar jednu poziciju pre izvoza.'); return; }
+      izvezizabranePozicijeMejl_(r, izabraniIdx);
+    });
+  }
+
+  if(r.prilozi && r.prilozi.length){
+    const prilContainer = $('overaPrilozi');
+    prilContainer.innerHTML = r.prilozi.map((p,idx)=>`
+      <div class="prilog-item">
+        <span class="naziv">📄 ${escapeHtml(p.filename)}</span>
+        <button type="button" class="btn-ghost" data-open-overa-prilog="${idx}" style="padding:3px 8px;font-size:11px;">Otvori</button>
+      </div>`).join('');
+    prilContainer.querySelectorAll('[data-open-overa-prilog]').forEach(b=>b.addEventListener('click',e=>{
+      otvoriPrilog_(r.prilozi[Number(e.currentTarget.dataset.openOveraPrilog)].path);
+    }));
+  }
+
+  function gatherNoveStavke(){
+    return r.stavke.map((s,idx)=>{
+      const inpK=$('modalRoot').querySelector(`[data-overa-kolicina="${idx}"]`);
+      const inpO=$('modalRoot').querySelector(`[data-overa-od="${idx}"]`);
+      const kolicina = inpK ? inpK.value : s.kolicina;
+      const odPostojeceg = inpO ? inpO.value : s.odPostojeceg;
+      const k=parseFloat(kolicina)||0, o=parseFloat(odPostojeceg)||0;
+      return { ...s, kolicina, odPostojeceg, zaNabavku: Math.round((k-o)*1000)/1000 };
+    });
+  }
+
+  if(mogucaOvera){
+    function preracunajZan(idx){
+      const inpK=$('modalRoot').querySelector(`[data-overa-kolicina="${idx}"]`);
+      const inpO=$('modalRoot').querySelector(`[data-overa-od="${idx}"]`);
+      const k=parseFloat(inpK?inpK.value:r.stavke[idx].kolicina)||0;
+      const o=parseFloat(inpO?inpO.value:r.stavke[idx].odPostojeceg)||0;
+      const zan=Math.round((k-o)*1000)/1000;
+      $('modalRoot').querySelector(`[data-overa-zan="${idx}"]`).textContent=zan;
+    }
+    $('modalRoot').querySelectorAll('[data-overa-kolicina]').forEach(inp=>inp.addEventListener('input',e=>{
+      preracunajZan(Number(e.currentTarget.dataset.overaKolicina));
+    }));
+    $('modalRoot').querySelectorAll('[data-overa-od]').forEach(inp=>inp.addEventListener('input',e=>{
+      preracunajZan(Number(e.currentTarget.dataset.overaOd));
+    }));
+    $('overiBtn').addEventListener('click', async ()=>{
+      $('overaErr').textContent='';
+      const noveStavke = gatherNoveStavke();
+      const komentar = $('overaKomentar').value.trim();
+      $('overiBtn').disabled=true;
+      try{
+        await apiOveriZahtev(r.id, noveStavke, komentar);
+        await loadData();
+        // Overavalac odmah gubi RLS vidljivost posle sopstvene overe ako
+        // nema pristup gradilištu — ručno računamo tačno novo stanje (isto
+        // pravilo kao u RPC-u overi_zahtev) umesto zastarelog "r".
+        const azurirano = DATA.requests.find(x=>x.id===r.id) || (
+          r.approvalStep < 3
+            ? { ...r, stavke:noveStavke, status:'na_overi', approvalStep:r.approvalStep+1 }
+            : { ...r, stavke:noveStavke, status:'odobren' }
+        );
+        zatvoriZahtevView();
+        if(azurirano.status==='odobren'){
+          const radosavEmail = emailZaKorak(4);
+          if(radosavEmail){
+            const ok = await posaljiApprovalMail_(azurirano, radosavEmail,
+              `Zahtev za nabavku ${azurirano.redniBroj} - konačno odobren`,
+              `Zahtev za nabavku ${azurirano.redniBroj} je konačno odobren i spreman je za realizaciju nabavke.${komentar?'\n\nKomentar: '+komentar:''}`);
+            if(ok) alert('Zahtev je konačno odobren, mejl je automatski poslat.');
+          }
+        }else{
+          const sledeciEmail = emailZaKorak(azurirano.approvalStep);
+          if(sledeciEmail){
+            const ok = await posaljiApprovalMail_(azurirano, sledeciEmail,
+              `Zahtev za nabavku ${azurirano.redniBroj} - na overi (${imeUloge(azurirano.approvalStep)})`,
+              `Zahtev za nabavku ${azurirano.redniBroj} je overen od strane prethodnog koraka i sada čeka vašu overu.${komentar?'\n\nKomentar: '+komentar:''}`);
+            if(ok) alert('Zahtev je overen i prosleđen dalje, mejl je automatski poslat.');
+          }else{
+            alert(`Nije dodeljen korisnik za sledeći korak (${imeUloge(azurirano.approvalStep)}). Obratite se administratoru.`);
+          }
+        }
+      }catch(e){
+        $('overaErr').textContent='Overa nije uspela. Pokušaj ponovo.';
+        $('overiBtn').disabled=false;
+      }
+    });
+    $('vratiBtn').addEventListener('click', async ()=>{
+      $('overaErr').textContent='';
+      const komentar = $('overaKomentar').value.trim();
+      if(!komentar){ $('overaErr').textContent='Komentar je obavezan kada vraćaš zahtev na doradu.'; return; }
+      const noveStavke = gatherNoveStavke();
+      const vraceniOd = r.approvalStep; // korak koji vraća (pre akcije)
+      $('vratiBtn').disabled=true;
+      try{
+        await apiVratiNaDoradu(r.id, komentar, noveStavke);
+        await loadData();
+        zatvoriZahtevView();
+
+        const podnosilacEmail = r.createdByEmail || (r.createdByUsername ? `${r.createdByUsername}@te-enel.rs` : null);
+        const azurirano = DATA.requests.find(x=>x.id===r.id) ||
+          { ...r, stavke:noveStavke, status: vraceniOd>1?'na_overi':'vracen_na_doradu', approvalStep: vraceniOd>1?vraceniOd-1:0 };
+        const idePrethodnomOveravaocu = azurirano.status==='na_overi';
+        const odKoga = imeUloge(vraceniOd);
+        const kome = idePrethodnomOveravaocu ? imeUloge(azurirano.approvalStep) : 'podnosiocu zahteva';
+
+        // Primarni primalac — onaj ko sada treba da postupi (prethodni
+        // overavalac, ili direktno podnosilac ako je vratio prvi u lancu).
+        // Šalje se SAMO njemu — ostali u lancu ne dobijaju mejl (mogu da
+        // provere status u aplikaciji ako ih zanima).
+        const primaryEmail = idePrethodnomOveravaocu ? emailZaKorak(azurirano.approvalStep) : podnosilacEmail;
+        let primaryOk = false;
+        if(primaryEmail){
+          primaryOk = await posaljiApprovalMail_({ ...r, stavke:noveStavke }, primaryEmail,
+            `Zahtev za nabavku ${r.redniBroj} - vraćen na doradu`,
+            `Zahtev za nabavku ${r.redniBroj} je vratio/la ${odKoga} na doradu, ide ${kome}.\nKomentar: ${komentar}`);
+        }
+
+        if(primaryOk) alert('Zahtev je vraćen na doradu, mejlovi su automatski poslati.');
+      }catch(e){
+        $('overaErr').textContent='Vraćanje na doradu nije uspelo. Pokušaj ponovo.';
+        $('vratiBtn').disabled=false;
+      }
+    });
+  }
+
+  try{
+    const logData = await apiListApprovalLog(r.id);
+    const log = logData.log || [];
+    const akcijaTekst = { poslato:'Poslato na overu', overeno:'Overeno i prosleđeno dalje', vraceno:'Vraćeno na doradu', konacno_odobreno:'Konačno odobreno' };
+    $('overaLog').innerHTML = log.length ? `<table class="log-table"><thead><tr><th>Korak</th><th>Akcija</th><th>Ko</th><th>Kada</th><th>Komentar</th></tr></thead><tbody>
+      ${log.map((l,i)=>`<tr><td>${i+1}</td><td>${escapeHtml(akcijaTekst[l.action]||l.action)}</td><td>${escapeHtml(l.actorUsername||'—')}</td><td>${new Date(l.createdAt).toLocaleString('sr-RS')}</td><td>${escapeHtml(l.komentar||'—')}</td></tr>`).join('')}
+    </tbody></table>` : '<div class="hint">Još uvek nema istorije.</div>';
+  }catch(e){
+    $('overaLog').innerHTML = '<div class="hint">Istorija nije mogla da se učita.</div>';
+  }
+}
+
+function blobToBase64_(blob){
+  return new Promise((resolve,reject)=>{
+    const reader=new FileReader();
+    reader.onloadend=()=>resolve(String(reader.result).split(',')[1]);
+    reader.onerror=reject;
+    reader.readAsDataURL(blob);
+  });
+}
+
+function loadImageDims_(dataUri){
+  return new Promise((resolve)=>{
+    const img=new Image();
+    img.onload=()=>resolve({w:img.naturalWidth,h:img.naturalHeight});
+    img.onerror=()=>resolve({w:280,h:60});
+    img.src=dataUri;
+  });
+}
+
+// PDF se pravi PROGRAMSKI (tekst/tabela/linije kao prave PDF komande), a ne
+// hvatanjem "slike" ekrana — tako nema šanse za pomeranje/izobličenje
+// sadržaja, bez obzira na modal, skrol ili veličinu prozora.
+function arrayBufferToBase64_(buffer){
+  let binary=''; const bytes=new Uint8Array(buffer); const chunk=8192;
+  for(let i=0;i<bytes.length;i+=chunk){ binary+=String.fromCharCode.apply(null, bytes.subarray(i,i+chunk)); }
+  return btoa(binary);
+}
+
+// jsPDF-ov ugrađeni font (helvetica) nema č/ć/š/đ/ž — učitavamo IBM Plex Sans
+// (isti font koji sajt već koristi) sa punom podrškom za srpsku latinicu.
+// Preuzima se samo JEDNOM (keširano u memoriji) i registruje u svaki novi
+// jsPDF dokument.
+async function ensurePdfFonts_(doc){
+  if(!ensurePdfFonts_.regularB64){
+    const [regBuf, boldBuf] = await Promise.all([
+      fetch('https://raw.githubusercontent.com/IBM/plex/master/packages/plex-sans/fonts/complete/ttf/IBMPlexSans-Regular.ttf').then(r=>r.arrayBuffer()),
+      fetch('https://raw.githubusercontent.com/IBM/plex/master/packages/plex-sans/fonts/complete/ttf/IBMPlexSans-Bold.ttf').then(r=>r.arrayBuffer())
+    ]);
+    ensurePdfFonts_.regularB64 = arrayBufferToBase64_(regBuf);
+    ensurePdfFonts_.boldB64 = arrayBufferToBase64_(boldBuf);
+  }
+  doc.addFileToVFS('IBMPlexSans-Regular.ttf', ensurePdfFonts_.regularB64);
+  doc.addFont('IBMPlexSans-Regular.ttf','IBMPlexSans','normal');
+  doc.addFileToVFS('IBMPlexSans-Bold.ttf', ensurePdfFonts_.boldB64);
+  doc.addFont('IBMPlexSans-Bold.ttf','IBMPlexSans','bold');
+}
+
+async function buildRequestPdfBlob_(r){
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ unit:'mm', format:'a4', orientation:'portrait' });
+  await ensurePdfFonts_(doc);
+  const marginX = 16, pageWidth = 210, contentWidth = pageWidth - marginX*2;
+  let y = 18;
+
+  const dims = await loadImageDims_(LOGO_DATA_URI);
+  const logoH = 10, logoW = logoH * (dims.w / dims.h);
+  try{ doc.addImage(LOGO_DATA_URI, 'JPEG', marginX, y, logoW, logoH); }catch(e){}
+  y += logoH + 7;
+
+  doc.setFont('IBMPlexSans','bold'); doc.setFontSize(16); doc.setTextColor(20,20,20);
+  doc.text('ZAHTEV ZA NABAVKU', marginX, y);
+  y += 5.5;
+  doc.setFont('IBMPlexSans','normal'); doc.setFontSize(9); doc.setTextColor(110,110,110);
+  doc.text(`Dokument generisan ${formatDatumVremeSr(new Date(r.createdAt))}`, marginX, y);
+  y += 6;
+  doc.setFont('IBMPlexSans','bold'); doc.setFontSize(9.5); doc.setTextColor(50,50,50);
+  doc.text(`Status: ${statusTekst(r)}`, marginX, y);
+  y += 7;
+
+  const col2X = marginX + contentWidth/2 + 8;
+  const colW = contentWidth/2 - 8;
+  doc.setFont('IBMPlexSans','normal'); doc.setFontSize(7.5); doc.setTextColor(130,130,130);
+  doc.text('REDNI BROJ', marginX, y);
+  doc.text('NALOG ZA REALIZACIJU', col2X, y);
+  y += 5.5;
+  doc.setFont('IBMPlexSans','bold'); doc.setFontSize(13); doc.setTextColor(20,20,20);
+  doc.text(String(r.redniBroj||''), marginX, y);
+  doc.text(String(r.nalog||''), col2X, y);
+  let yRight = y;
+  const nalogNaziv = nazivNaloga(r.nalog) || '';
+  if(nalogNaziv){
+    yRight += 4;
+    doc.setFont('IBMPlexSans','normal'); doc.setFontSize(8); doc.setTextColor(85,85,85);
+    const lines = doc.splitTextToSize(nalogNaziv, colW);
+    doc.text(lines, col2X, yRight);
+    yRight += (lines.length-1)*3.4;
+  }
+  y = Math.max(y, yRight) + 6;
+
+  doc.setFont('IBMPlexSans','normal'); doc.setFontSize(7.5); doc.setTextColor(130,130,130);
+  doc.text('OZNAKA GRADILIŠTA', marginX, y);
+  y += 5.5;
+  doc.setFont('IBMPlexSans','bold'); doc.setFontSize(13); doc.setTextColor(20,20,20);
+  doc.text(`${r.gradiliste} — ${nazivGradilista(r.gradiliste)||''}`, marginX, y);
+  y += 5;
+
+  doc.setDrawColor(20,20,20); doc.setLineWidth(0.5);
+  doc.line(marginX, y, marginX+contentWidth, y);
+  y += 6;
+
+  // --- Napomena (samo ako postoji) — isti istaknut okvir kao na ekranu ---
+  if(r.napomena && r.napomena.trim()){
+    doc.setFont('IBMPlexSans','normal'); doc.setFontSize(8.5);
+    const napLines = doc.splitTextToSize(r.napomena, contentWidth - 10);
+    const boxHeight = 6 + napLines.length * 4 + 4;
+    doc.setFillColor(251, 241, 228);
+    doc.rect(marginX, y, contentWidth, boxHeight, 'F');
+    doc.setFillColor(192, 118, 42);
+    doc.rect(marginX, y, 1.2, boxHeight, 'F');
+    doc.setFont('IBMPlexSans','bold'); doc.setFontSize(7.5); doc.setTextColor(192, 118, 42);
+    doc.text('NAPOMENA', marginX + 5, y + 5);
+    doc.setFont('IBMPlexSans','normal'); doc.setFontSize(8.5); doc.setTextColor(40,40,40);
+    doc.text(napLines, marginX + 5, y + 10);
+    y += boxHeight + 6;
+  }
+
+  const head=[['Rb.','Broj poz. spec.','Opis','Jed. mere','Količina','Od postojećeg','Za nabavku','Rok isporuke','Atest']];
+  const body=r.stavke.map((s,idx)=>[
+    String(idx+1), s.sifra||'—', s.opis||'', s.jm||'',
+    String(s.kolicina!==undefined?s.kolicina:''),
+    String(s.odPostojeceg||'0'),
+    String(s.zaNabavku!==undefined?s.zaNabavku:''),
+    formatDatumSr(s.rok)||'', s.atest||'—'
+  ]);
+  doc.autoTable({
+    head, body, startY:y,
+    margin:{ left:marginX, right:marginX },
+    styles:{ font:'IBMPlexSans', fontSize:8.3, cellPadding:2.2, lineColor:[221,221,221], lineWidth:0.1, textColor:[26,26,26] },
+    headStyles:{ fillColor:[255,255,255], textColor:[68,68,68], fontStyle:'bold', fontSize:7.3, lineWidth:{bottom:0.4}, lineColor:[20,20,20] },
+    columnStyles:{ 0:{cellWidth:8}, 4:{halign:'right'}, 5:{halign:'right'}, 6:{halign:'right',fontStyle:'bold'}, 8:{halign:'center'} }
+  });
+
+  // Istorija (koraci overe/odobravanja i komentari) — isti podaci koji se
+  // vide i na ekranu u "Prikaži i štampaj", tako da je ovo UVEK isti
+  // dokument, samo se ova sekcija dopunjuje kako zahtev napreduje kroz lanac.
+  let yLog = doc.lastAutoTable.finalY + 10;
+  if(yLog > 260){ doc.addPage(); yLog = 20; }
+  doc.setFont('IBMPlexSans','bold'); doc.setFontSize(11); doc.setTextColor(20,20,20);
+  doc.text('Istorija', marginX, yLog);
+  yLog += 5;
+
+  let logRows = [];
+  try{
+    const logData = await apiListApprovalLog(r.id);
+    const akcijaTekst = { poslato:'Poslato na overu', overeno:'Overeno i prosleđeno dalje', vraceno:'Vraćeno na doradu', konacno_odobreno:'Konačno odobreno' };
+    logRows = (logData.log || []).map((l,i)=>[
+      String(i+1),
+      akcijaTekst[l.action] || l.action,
+      l.actorUsername || '—',
+      new Date(l.createdAt).toLocaleString('sr-RS'),
+      l.komentar || '—',
+    ]);
+  }catch(e){ /* ako istorija ne može da se učita, PDF se i dalje šalje bez te sekcije */ }
+
+  if(logRows.length){
+    doc.autoTable({
+      head:[['Korak','Akcija','Ko','Kada','Komentar']],
+      body: logRows, startY:yLog,
+      margin:{ left:marginX, right:marginX },
+      styles:{ font:'IBMPlexSans', fontSize:8, cellPadding:2.2, lineColor:[221,221,221], lineWidth:0.1, textColor:[26,26,26] },
+      headStyles:{ fillColor:[255,255,255], textColor:[68,68,68], fontStyle:'bold', fontSize:7.3, lineWidth:{bottom:0.4}, lineColor:[20,20,20] },
+      columnStyles:{ 0:{cellWidth:14} },
+    });
+  }else{
+    doc.setFont('IBMPlexSans','normal'); doc.setFontSize(9); doc.setTextColor(130,130,130);
+    doc.text('Još uvek nema istorije.', marginX, yLog);
+  }
+
+  return doc.output('blob');
+}
+
+// Base64 mora biti prelomljen na redove od najviše 76 znakova (MIME standard)
+function wrapBase64_(b64){
+  return b64.match(/.{1,76}/g).join('\r\n');
+}
+
+// UTF-8 string -> base64 (za HTML telo mejla)
+function utf8ToBase64_(str){
+  const bytes = new TextEncoder().encode(str);
+  let binary = '';
+  const chunk = 8192;
+  for(let i=0;i<bytes.length;i+=chunk){
+    binary += String.fromCharCode.apply(null, bytes.subarray(i,i+chunk));
+  }
+  return btoa(binary);
+}
+
+// Pravi .eml fajl sa već upisanim Kome/CC/Naslovom i PDF-om kao ugrađenim
+// prilogom. "X-Unsent: 1" zaglavlje tera Outlook da ovo tretira kao
+// nedovršenu poruku (dobija dugme "Pošalji"), a ne kao primljenu.
+// HTML telo se šalje kao base64 (ne quoted-printable) — kod base64 prelom
+// reda je isključivo tehnički detalj transporta i uvek se u potpunosti
+// sastavi PRE nego što se sadržaj čita kao HTML, pa ne postoji rizik da
+// "meki prelom" padne usred href atributa i pokida link (što se dešavalo
+// sa quoted-printable enkodovanjem).
+function buildEmlBlob_({ to, cc, subject, bodyText, link, pdfBase64, pdfFilename }){
+  const boundary = 'ZN_BOUNDARY_' + Date.now();
+  const bodyHtmlParagraphs = escapeHtml(bodyText).split('\n').map(l=>l?`<p>${l}</p>`:'').join('');
+  const linkHtml = link ? `<p><a href="${escapeHtml(link)}">${escapeHtml(link)}</a></p>` : '';
+  const htmlBody = `<html><body>${bodyHtmlParagraphs}${linkHtml}</body></html>`;
+  const lines = [
+    `To: ${to.join(', ')}`,
+    cc ? `Cc: ${cc}` : '',
+    `Subject: ${subject}`,
+    'X-Unsent: 1',
+    'MIME-Version: 1.0',
+    `Content-Type: multipart/mixed; boundary="${boundary}"`,
+    '',
+    `--${boundary}`,
+    'Content-Type: text/html; charset="utf-8"',
+    'Content-Transfer-Encoding: base64',
+    '',
+    wrapBase64_(utf8ToBase64_(htmlBody)),
+    '',
+    `--${boundary}`,
+    `Content-Type: application/pdf; name="${pdfFilename}"`,
+    `Content-Disposition: attachment; filename="${pdfFilename}"`,
+    'Content-Transfer-Encoding: base64',
+    '',
+    wrapBase64_(pdfBase64),
+    '',
+    `--${boundary}--`,
+    ''
+  ].filter(l => l !== '' || true); // zadrži prazne linije (bitne za MIME)
+  return new Blob([lines.join('\r\n')], { type:'message/rfc822' });
+}
+
+$('gradiliste').addEventListener('input', renderPlate);
+$('redniBrojManual').addEventListener('input', renderPlate);
+$('addRowBtn').addEventListener('click', ()=>{ specRows.push(newSpecRow()); renderSpecRows(); });
+$('cancelEditBtn').addEventListener('click', ()=>resetForm());
+
+$('saveBtn').addEventListener('click', async ()=>{
+  if(!validate()) return;
+  const wasEditing = !!editingId;
+  $('saveBtn').disabled = true;
+  $('saveBtn').textContent = wasEditing ? 'Čuvanje izmena…' : 'Čuvanje…';
+  const g = $('gradiliste').value;
+  const nalog = $('nalog').value.trim();
+  const validRows = specRows.filter(r=>r.opis.trim()&&r.jm.trim()&&r.kolicina!==''&&!isNaN(parseFloat(r.kolicina)))
+    .map(r=>({ sifra:r.sifra.trim(), opis:r.opis.trim(), jm:r.jm.trim(), kolicina:r.kolicina, odPostojeceg:r.odPostojeceg, zaNabavku:zaNabavkuValue(r), rok:r.rok, atest:r.atest }));
+  try{
+    if(wasEditing){
+      const result = await apiUpdate(editingId, {nalog, stavke:validRows, napomena: $('napomena').value.trim()});
+      if(result && result.request){
+        const idx=DATA.requests.findIndex(x=>x.id===result.request.id);
+        if(idx!==-1) DATA.requests[idx]=result.request;
+        renderList(); resetForm();
+      }else{ throw new Error(result&&result.error?result.error:'Neispravan odgovor servera.'); }
+    }else{
+      const brojVal = $('redniBrojManual').value.trim();
+      const payload = { gradiliste:g, godina:yy, nalog, stavke:validRows, napomena: $('napomena').value.trim() };
+      if(brojVal!=='') payload.broj = parseInt(brojVal,10);
+      const result = await apiAdd(payload);
+      if(result && result.request){
+        DATA.requests.push(result.request);
+        $('countTag').textContent = DATA.requests.length+' zahteva evidentirano';
+        if(pendingFiles.length){
+          $('saveBtn').textContent = 'Otpremanje priloga…';
+          const noviId = result.request.id;
+          const otpremljeni = [];
+          for(const f of pendingFiles){
+            try{ otpremljeni.push(await uploadPrilogZaZahtev_(noviId, f)); }
+            catch(err){ alert(`Otpremanje "${f.name}" nije uspelo — ostalo je pridodato.`); }
+          }
+          if(otpremljeni.length){
+            try{
+              await apiUpdatePrilozi(noviId, otpremljeni);
+              const idxD=DATA.requests.findIndex(x=>x.id===noviId);
+              if(idxD!==-1) DATA.requests[idxD].prilozi = otpremljeni;
+            }catch(err){ alert('Prilozi su otpremljeni, ali čuvanje liste nije uspelo.'); }
+          }
+        }
+        renderList(); resetForm(); refreshNextBrojPreview();
+      }else{ throw new Error(result&&result.error?result.error:'Neispravan odgovor servera.'); }
+    }
+  }catch(err){
+    if(!wasEditing&&err&&err.message&&err.message.toLowerCase().includes('zauzet')){ $('errBroj').textContent=err.message; }
+    else{ alert(wasEditing?'Čuvanje izmena nije uspelo. Proveri internet konekciju, pa pokušaj ponovo.':'Čuvanje nije uspelo. Proveri internet konekciju i SCRIPT_URL, pa pokušaj ponovo.'); }
+  }
+  $('saveBtn').disabled=false;
+  $('saveBtn').textContent=editingId?'Sačuvaj izmene':'Sačuvaj zahtev';
+});
+
+// Logo je JPEG (nema providnost ugrađenu u fajl), pa belu pozadinu
+// uklanjamo u browseru: piksele bliske beloj boji pretvaramo u providne.
+function ukloniBeluPozadinu_(dataUri){
+  return new Promise((resolve)=>{
+    const img = new Image();
+    img.onload = ()=>{
+      const canvas = document.createElement('canvas');
+      canvas.width = img.naturalWidth; canvas.height = img.naturalHeight;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0);
+      try{
+        const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const d = imgData.data;
+        const prag = 235; // piksel se smatra "belim" ako su sve 3 komponente iznad ovoga
+        for(let i=0; i<d.length; i+=4){
+          if(d[i]>=prag && d[i+1]>=prag && d[i+2]>=prag) d[i+3] = 0;
+        }
+        ctx.putImageData(imgData, 0, 0);
+        resolve(canvas.toDataURL('image/png'));
+      }catch(e){
+        resolve(dataUri); // ako obrada ne uspe (npr. CORS), koristi original
+      }
+    };
+    img.onerror = ()=>resolve(dataUri);
+    img.src = dataUri;
+  });
+}
+ukloniBeluPozadinu_(LOGO_DATA_URI).then(rezultat=>{ $('mastheadLogo').src = rezultat; });
+
+/* ============================================================
+   INICIJALIZACIJA
+   ============================================================ */
+(async function initApp(){
+  const user = await ZN.currentUsername();
+  if(user){
+    sessionStorage.setItem(SESSION_KEY, user);
+    if(await proveriIPrikaziPromenuLozinke_()) return;
+    showApp();
+    await Promise.all([loadRefData(), loadData()]);
+    renderList();
+    populateZbirniNalogSelect();
+    resetForm();
+    const zahtevId = new URLSearchParams(location.search).get('zahtev');
+    if(zahtevId) openZahtevView(zahtevId);
+  }
+})();
+</script>
 </body>
 </html>
