@@ -741,9 +741,14 @@ function prikaziRizikStatus(z) {
   els.rizikError.classList.add('hidden');
   els.rizikSavedMsg.classList.add('hidden');
 
-  els.rizikPoAktuInfo.innerHTML = z.povecan_rizik_po_aktu
-    ? 'Prema Aktu o proceni rizika, ovo radno mesto je <strong>sa povećanim rizikom</strong>.'
-    : 'Prema Aktu o proceni rizika, ovo radno mesto <strong>nije</strong> sa povećanim rizikom.';
+  els.rizikPoAktuInfo.classList.remove('rizik-po-aktu-da', 'rizik-po-aktu-ne');
+  if (z.povecan_rizik_po_aktu) {
+    els.rizikPoAktuInfo.innerHTML = 'Prema Aktu o proceni rizika, ovo radno mesto <strong>JESTE</strong> sa povećanim rizikom.';
+    els.rizikPoAktuInfo.classList.add('rizik-po-aktu-da');
+  } else {
+    els.rizikPoAktuInfo.innerHTML = 'Prema Aktu o proceni rizika, ovo radno mesto <strong>NIJE</strong> sa povećanim rizikom.';
+    els.rizikPoAktuInfo.classList.add('rizik-po-aktu-ne');
+  }
 
   if (z.rizik_override === true) {
     els.rizikOverrideSelect.value = 'da';
