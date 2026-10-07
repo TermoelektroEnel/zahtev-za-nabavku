@@ -1193,6 +1193,14 @@ function renderList(){
 $('filterNalog').addEventListener('change', renderList);
 $('filterStatus').addEventListener('change', renderList);
 
+// Osvežava listu overavalaca sa servera. Poziva se neposredno pre svake akcije koja
+// šalje mejl, da tab koji je ostao otvoren danima ne šalje na prethodno ime/adresu.
+async function osveziUloge_(){
+  try{
+    const d = await apiListApprovalRoles();
+    if(d && Array.isArray(d.roles) && d.roles.length) APPROVAL_ROLES = d.roles;
+  }catch(e){ /* ostaje prethodna lista */ }
+}
 function imeUloge(step){
   const r = APPROVAL_ROLES.find(x=>x.step===step);
   return r ? `${step}. ${r.nazivUloge}` : `Korak ${step}`;
@@ -1231,6 +1239,7 @@ function statusBadgeHtml(r){
 
 async function posaljiNaOveruClick(id){
   const r = DATA.requests.find(x=>x.id===id); if(!r) return;
+  await osveziUloge_();
   if(!confirm(`Poslati zahtev ${r.redniBroj} na overu?`)) return;
   const targetEmail = emailZaKorak(1);
   if(!targetEmail){ alert(`Nije dodeljen korisnik za korak "${imeUloge(1)}". Obratite se administratoru (Uloge u lancu odobravanja).`); return; }
@@ -1470,6 +1479,7 @@ async function openZahtevView(id){
   $('overaOverlay').addEventListener('click',e=>{ if(e.target.id==='overaOverlay') zatvoriZahtevView(); });
   if(mozePonovoPoslatiMejl){
     $('resendOveraMail').addEventListener('click', async ()=>{
+      await osveziUloge_();
       const targetEmail = emailZaKorak(r.approvalStep);
       if(!targetEmail){ alert(`Nije dodeljen korisnik za korak "${imeUloge(r.approvalStep)}". Obratite se administratoru.`); return; }
       if(!confirm(`Ponovo poslati mejl na overu (${imeUloge(r.approvalStep)})?`)) return;
@@ -1539,6 +1549,7 @@ async function openZahtevView(id){
       const komentar = $('overaKomentar').value.trim();
       $('overiBtn').disabled=true;
       try{
+        await osveziUloge_();
         await apiOveriZahtev(r.id, noveStavke, komentar);
         await loadData();
         // Overavalac odmah gubi RLS vidljivost posle sopstvene overe ako
@@ -1582,6 +1593,7 @@ async function openZahtevView(id){
       const vraceniOd = r.approvalStep; // korak koji vraća (pre akcije)
       $('vratiBtn').disabled=true;
       try{
+        await osveziUloge_();
         await apiVratiNaDoradu(r.id, komentar, noveStavke);
         await loadData();
         zatvoriZahtevView();
