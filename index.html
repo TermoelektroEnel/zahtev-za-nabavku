@@ -1366,8 +1366,7 @@ function izvezizabranePozicijeMejl_(r, izabraniIdx){
   const linije = stavke.map((s,i)=>{
     const sifraDeo = s.sifra ? `[${s.sifra}] ` : '';
     const kolicina = s.zaNabavku!==undefined ? s.zaNabavku : s.kolicina;
-    const rokDeo = s.rok ? `, rok isporuke: ${formatDatumSr(s.rok)}` : '';
-    return `${i+1}. ${sifraDeo}${s.opis} — ${kolicina} ${s.jm}${rokDeo}`;
+    return `${i+1}. ${sifraDeo}${s.opis} — ${kolicina} ${s.jm}`;
   }).join('\n');
 
   const subject = `Zahtev za ponudu (ZN ${r.redniBroj})`;
@@ -1377,8 +1376,6 @@ function izvezizabranePozicijeMejl_(r, izabraniIdx){
 Molimo Vas ponudu za sledeće pozicije:
 
 ${linije}
-
-Unapred hvala,
 `;
 
   const mailtoUrl = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
