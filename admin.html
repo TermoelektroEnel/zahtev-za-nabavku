@@ -75,7 +75,11 @@ td{padding:8px 8px 8px 0;border-bottom:1px solid var(--line-soft);font-size:13px
 .tag{font-family:'IBM Plex Mono',monospace;font-size:11px;background:var(--steel-dark);color:#fff;padding:2px 7px;border-radius:12px;}
 .tag.sva{background:var(--good);}
 .tag.nijedno{background:var(--danger);}
-.row-actions{display:flex;gap:6px;white-space:nowrap;}
+.row-actions{display:flex;gap:6px;flex-wrap:wrap;}
+/* u tabeli ćelija mora ostati ćelija (display:flex bi je izbacio iz kolone,
+   pa dugmad "pobegnu" van kartice) — dugmad se prelamaju u više redova */
+td.row-actions{display:table-cell;}
+td.row-actions > *{margin:0 6px 6px 0;}
 .empty{color:var(--ink-soft);font-size:13px;padding:16px 0;text-align:center;}
 .loading{color:var(--ink-soft);font-size:13px;padding:16px 0;text-align:center;}
 
