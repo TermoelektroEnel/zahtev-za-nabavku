@@ -1356,32 +1356,162 @@ function izvezizabranePozicijeWord_(r, izabraniIdx){
   document.body.removeChild(link);
 }
 
-// Otvara podrazumevani mejl program (Outlook i sl.) sa već upisanim
-// naslovom i izabranim pozicijama u telu mejla — korisnik sam bira
-// primaoce, doda svoj tekst, i pošalje. Telo mejla mora biti čist tekst
-// (mailto: ne podržava HTML formatiranje).
-function izvezizabranePozicijeMejl_(r, izabraniIdx){
-  const stavke = izabraniIdx.map(i=>r.stavke[i]);
-  const linije = stavke.map((s,i)=>{
-    const kolicina = s.zaNabavku!==undefined ? s.zaNabavku : s.kolicina;
-    return `${i+1}. ${s.opis} — ${kolicina} ${s.jm}`;
-  }).join('\n');
+// Preuzima .eml fajl sa gotovim (neposlatim) mejlom "Zahtev za ponudu":
+// naslov, izabrane pozicije u tabeli i potpis korisnika sa logotipom.
+// Outlook ga otvara kao novi mejl (X-Unsent: 1) — korisnik sam bira
+// primaoce i šalje. Umesto mailto: linka, jer mailto prenosi samo čist
+// tekst (bez slike u potpisu) i ograničene je dužine.
+async function izvezizabranePozicijeMejl_(r, izabraniIdx){
+  let potpis = null;
+  try { potpis = await ZN.mojPotpis(); }
+  catch(e){ alert('Potpis nije mogao da se učita ('+e.message+'). Mejl će biti formiran bez potpisa.'); }
+  if(!potpis && !confirm('Potpis za mejl još nije podešen (dugme "Potpis"). Nastaviti bez potpisa?')) return;
+
+  const td = 'border:1px solid #999;padding:4px 8px;';
+  const th = td+'background:#F2F1EA;text-align:left;';
+  const redovi = izabraniIdx.map(i=>r.stavke[i]).map((s,i)=>`
+    <tr>
+      <td style="${td}text-align:center;">${i+1}</td>
+      <td style="${td}">${escapeHtml(s.opis)}</td>
+      <td style="${td}text-align:center;">${escapeHtml(s.jm)}</td>
+      <td style="${td}text-align:right;">${escapeHtml(s.zaNabavku!==undefined?s.zaNabavku:s.kolicina)}</td>
+    </tr>`).join('');
+
+  const logo = potpis && /^data:(image\/[\w.+-]+);base64,(.+)$/.exec(potpis.logo||'');
+  const potpisHtml = !potpis ? '' : `
+    <p style="margin:24px 0 0 0;">${potpisTekstHtml_(potpis.tekst_iznad)}</p>
+    ${logo?'<p style="margin:12px 0;"><img src="cid:logo-potpis" alt="Logo"></p>':''}
+    <p style="margin:0;">${potpisTekstHtml_(potpis.tekst_ispod)}</p>`;
+
+  const html = `<!DOCTYPE html><html><head><meta charset="utf-8"></head>
+<body style="font-family:Arial,sans-serif;font-size:10pt;color:#000;">
+  <p>Poštovani,</p>
+  <p>Molimo Vas ponudu za sledeće pozicije:</p>
+  <table style="border-collapse:collapse;font-family:Arial,sans-serif;font-size:10pt;">
+    <thead><tr>
+      <th style="${th}">Rb.</th><th style="${th}">Opis</th><th style="${th}">JM</th><th style="${th}">Količina</th>
+    </tr></thead>
+    <tbody>${redovi}</tbody>
+  </table>
+  ${potpisHtml}
+</body></html>`;
 
   const subject = `Zahtev za ponudu (ZN ${r.redniBroj})`;
-  const body =
-`Poštovani,
-
-Molimo Vas ponudu za sledeće pozicije:
-
-${linije}
-`;
-
-  const mailtoUrl = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-  if(mailtoUrl.length > 1900){
-    alert('Izabrano je previše pozicija za direktno otvaranje mejla (tekst bi bio predug). Koristite "Izvezi izabrane pozicije (Word)" umesto toga za veći broj pozicija.');
-    return;
+  const granica = 'zn-' + Date.now().toString(36);
+  const delovi = [
+    'X-Unsent: 1',
+    `Subject: =?UTF-8?B?${base64Utf8_(subject)}?=`,
+    'MIME-Version: 1.0',
+    `Content-Type: multipart/related; boundary="${granica}"; type="text/html"`,
+    '',
+    `--${granica}`,
+    'Content-Type: text/html; charset=UTF-8',
+    'Content-Transfer-Encoding: base64',
+    '',
+    prelomi76_(base64Utf8_(html))
+  ];
+  if(logo){
+    const ext = logo[1].split('/')[1].replace('jpeg','jpg');
+    delovi.push(
+      `--${granica}`,
+      `Content-Type: ${logo[1]}; name="logo.${ext}"`,
+      'Content-Transfer-Encoding: base64',
+      'Content-ID: <logo-potpis>',
+      `Content-Disposition: inline; filename="logo.${ext}"`,
+      '',
+      prelomi76_(logo[2])
+    );
   }
-  window.location.href = mailtoUrl;
+  delovi.push(`--${granica}--`, '');
+
+  const blob = new Blob([delovi.join('\r\n')], { type: 'message/rfc822' });
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = `Zahtev-za-ponudu-${String(r.redniBroj).replace(/\//g,'-')}.eml`;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+}
+
+// Tekst potpisa -> HTML: novi red = <br>, **tekst** = podebljano.
+function potpisTekstHtml_(tekst){
+  return escapeHtml(tekst||'').replace(/\*\*(.+?)\*\*/g,'<b>$1</b>').replace(/\r?\n/g,'<br>');
+}
+function base64Utf8_(s){
+  const bajtovi = new TextEncoder().encode(s);
+  let bin = '';
+  for(let i=0;i<bajtovi.length;i+=0x8000) bin += String.fromCharCode.apply(null, bajtovi.subarray(i,i+0x8000));
+  return btoa(bin);
+}
+function prelomi76_(b64){ return b64.replace(/.{1,76}/g, '$&\r\n').trimEnd(); }
+
+// Prozor za podešavanje sopstvenog potpisa (tekst iznad logotipa, logo,
+// tekst ispod). Čuva se u bazi (tabela potpisi), ne u kodu — repozitorijum je javan.
+async function otvoriPodesavanjePotpisa_(){
+  let potpis;
+  try { potpis = await ZN.mojPotpis() || {}; }
+  catch(e){ alert('Potpis nije mogao da se učita: '+e.message); return; }
+  let logo = potpis.logo || '';
+
+  const el = document.createElement('div');
+  el.className = 'overlay';
+  el.style.zIndex = '2000';
+  el.innerHTML = `
+    <div class="doc" style="max-width:560px;min-height:0;padding:24px;">
+      <h3 style="margin-top:0;">Potpis za mejl „Zahtev za ponudu“</h3>
+      <div class="field">
+        <label for="potpisIznad">Tekst iznad logotipa</label>
+        <textarea id="potpisIznad" rows="4" style="width:100%;padding:8px;border:1px solid var(--line);border-radius:var(--radius);font-family:inherit;">${escapeHtml(potpis.tekst_iznad||'')}</textarea>
+      </div>
+      <div class="field">
+        <label>Logotip</label>
+        <div id="potpisLogoPrikaz" style="margin:4px 0;"></div>
+        <input type="file" id="potpisLogoFajl" accept="image/png,image/jpeg,image/gif">
+        <button class="btn-ghost" id="potpisLogoUkloni" type="button">Ukloni logotip</button>
+      </div>
+      <div class="field">
+        <label for="potpisIspod">Tekst ispod logotipa</label>
+        <textarea id="potpisIspod" rows="7" style="width:100%;padding:8px;border:1px solid var(--line);border-radius:var(--radius);font-family:inherit;">${escapeHtml(potpis.tekst_ispod||'')}</textarea>
+      </div>
+      <div class="hint">Svaki red ostaje u svom redu. Tekst između dve zvezdice **ovako** biće podebljan.</div>
+      <div class="err" id="potpisErr"></div>
+      <div class="overa-actions">
+        <button class="btn btn-primary" style="width:auto;" id="potpisSacuvaj">Sačuvaj</button>
+        <button class="btn-ghost" id="potpisOtkazi">Otkaži</button>
+      </div>
+    </div>`;
+  document.body.appendChild(el);
+
+  const prikaziLogo = () => {
+    el.querySelector('#potpisLogoPrikaz').innerHTML = logo
+      ? `<img src="${logo}" alt="Logo" style="max-height:60px;max-width:100%;">`
+      : '<span class="hint">Nema logotipa.</span>';
+  };
+  prikaziLogo();
+  const zatvori = () => el.remove();
+
+  el.querySelector('#potpisLogoFajl').addEventListener('change', e=>{
+    const f = e.target.files[0];
+    if(!f) return;
+    if(f.size > 250*1024){ alert('Slika je prevelika (najviše 250 KB).'); e.target.value=''; return; }
+    const rd = new FileReader();
+    rd.onload = () => { logo = rd.result; prikaziLogo(); };
+    rd.readAsDataURL(f);
+  });
+  el.querySelector('#potpisLogoUkloni').addEventListener('click', ()=>{ logo=''; el.querySelector('#potpisLogoFajl').value=''; prikaziLogo(); });
+  el.querySelector('#potpisOtkazi').addEventListener('click', zatvori);
+  el.querySelector('#potpisSacuvaj').addEventListener('click', async ()=>{
+    const btn = el.querySelector('#potpisSacuvaj');
+    btn.disabled = true;
+    const rez = await ZN.sacuvajPotpis({
+      tekst_iznad: el.querySelector('#potpisIznad').value,
+      logo,
+      tekst_ispod: el.querySelector('#potpisIspod').value
+    });
+    btn.disabled = false;
+    if(rez.error){ el.querySelector('#potpisErr').textContent = 'Greška pri čuvanju: '+rez.error; return; }
+    zatvori();
+  });
 }
 
 async function openZahtevView(id){
@@ -1442,7 +1572,8 @@ async function openZahtevView(id){
           <div class="overa-actions" style="margin-top:10px;">
             <button class="btn-ghost" id="izvezUpitMejlBtn">Otvori u mejlu</button>
             <button class="btn-ghost" id="izvezUpitBtn">Izvezi izabrane pozicije (Word)</button>
-            <span class="hint">Označi pozicije u tabeli iznad (kvadratić levo) — koristi za formiranje upita ka dobavljačima kad pozicije idu različitim dobavljačima. "Otvori u mejlu" popunjava naslov i tekst u tvom mejl programu (biraš primaoce sam); "Word" je bolji za duže liste.</span>
+            <button class="btn-ghost" id="podesiPotpisBtn">Potpis</button>
+            <span class="hint">Označi pozicije u tabeli iznad (kvadratić levo) — koristi za formiranje upita ka dobavljačima kad pozicije idu različitim dobavljačima. "Otvori u mejlu" preuzima fajl koji otvaraš u Outlook-u: gotov mejl sa pozicijama i tvojim potpisom (primaoce biraš sam). "Potpis" služi za podešavanje potpisa.</span>
           </div>
           `:''}
           ${mogucaOvera?`
@@ -1498,6 +1629,7 @@ async function openZahtevView(id){
       if(!izabraniIdx.length){ alert('Označite bar jednu poziciju pre izvoza.'); return; }
       izvezizabranePozicijeMejl_(r, izabraniIdx);
     });
+    $('podesiPotpisBtn').addEventListener('click', otvoriPodesavanjePotpisa_);
   }
 
   if(r.prilozi && r.prilozi.length){

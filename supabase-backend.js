@@ -608,6 +608,32 @@
         .maybeSingle();
       return (data && data.email) ? data.email : `${username}@te-enel.rs`;
     },
+    // Potpis za mejl "Zahtev za ponudu" (tabela potpisi, svako vidi samo svoj).
+    // Vraća null ako potpis još nije podešen.
+    async mojPotpis() {
+      const { data: sessionData } = await sbClient.auth.getSession();
+      if (!sessionData.session) return null;
+      const { data, error } = await sbClient
+        .from('potpisi')
+        .select('tekst_iznad, logo, tekst_ispod')
+        .eq('user_id', sessionData.session.user.id)
+        .maybeSingle();
+      if (error) throw new Error(error.message);
+      return data || null;
+    },
+    async sacuvajPotpis(potpis) {
+      const { data: sessionData } = await sbClient.auth.getSession();
+      if (!sessionData.session) return { error: 'Niste prijavljeni.' };
+      const { error } = await sbClient.from('potpisi').upsert({
+        user_id: sessionData.session.user.id,
+        tekst_iznad: potpis.tekst_iznad || '',
+        logo: potpis.logo || '',
+        tekst_ispod: potpis.tekst_ispod || '',
+        updated_at: new Date().toISOString()
+      });
+      if (error) return { error: error.message };
+      return { ok: true };
+    },
     // Poziva Edge funkciju uz JEDAN automatski ponovni pokušaj ako je greška
     // MREŽNA (npr. Edge funkcija se "budi" iz mirovanja, kratak mrežni hip)
     // — ne ponavlja ako je funkcija stvarno odgovorila sa poslovnom greškom
