@@ -115,6 +115,7 @@ td{padding:8px 8px 8px 0;border-bottom:1px solid var(--line-soft);font-size:13px
 .login-err.visible{display:block;}
 .login-box .btn-primary{width:100%;margin-top:6px;font-size:13.5px;padding:12px;}
 </style>
+<link rel="stylesheet" href="tema.css">
 </head>
 <body>
 
@@ -164,11 +165,14 @@ td{padding:8px 8px 8px 0;border-bottom:1px solid var(--line-soft);font-size:13px
     </div>
     <div class="masthead-right">
       <span class="current-user-badge" id="currentUserBadge">▸ …</span>
-      <a class="back-link" href="index.html">← Nazad na glavnu stranicu</a>
-      <a class="back-link admin-only-inline" href="admin.html">Administracija</a>
       <button type="button" class="btn-logout" id="logoutBtn">Odjavi se</button>
     </div>
   </div>
+  <nav class="module-nav">
+    <a href="index.html">Zahtev za nabavku</a>
+    <a href="ponude.html" class="active">Izveštaji o ponudama</a>
+    <a href="admin.html" class="admin-only-inline">Administracija</a>
+  </nav>
 
   <!-- NEMA PRISTUPA (za neadmin korisnike bez validnog linka) -->
   <div class="card" id="noAccessCard" style="display:none;">

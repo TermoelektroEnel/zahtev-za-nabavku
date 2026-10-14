@@ -162,6 +162,7 @@ table.spec td input{padding:7px 8px;font-size:13px;}
 input[type=password]{width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:var(--radius);background:#fff;font-family:'IBM Plex Sans',sans-serif;font-size:13.5px;color:var(--ink);}
 input[type=password]:focus{outline:2px solid var(--steel);outline-offset:1px;}
 </style>
+<link rel="stylesheet" href="tema.css">
 </head>
 <body>
 
@@ -219,6 +220,11 @@ input[type=password]:focus{outline:2px solid var(--steel);outline-offset:1px;}
       <button type="button" class="btn-logout" id="logoutBtn">Odjavi se</button>
     </div>
   </div>
+  <nav class="module-nav" id="moduleNav" style="display:none;">
+    <a href="index.html" class="active">Zahtev za nabavku</a>
+    <a href="ponude.html">Izveštaji o ponudama</a>
+    <a href="admin.html">Administracija</a>
+  </nav>
 
   <div class="grid">
     <!-- FORM -->
@@ -298,7 +304,7 @@ input[type=password]:focus{outline:2px solid var(--steel);outline-offset:1px;}
 
     <!-- NA OVERI KOD VAS -->
     <div class="card" id="naOveriCard" style="display:none;">
-      <h2>Zahtevi na overi kod vas</h2>
+      <h2>Zahtevi na overi kod vas <span class="broj-na-overi" id="naOveriBroj"></span></h2>
       <div id="naOveriWrap"></div>
     </div>
 
@@ -614,6 +620,7 @@ async function loadRefData(){
     APPROVAL_ROLES = (arData.roles||[]);
     CURRENT_USER_ID = myUid;
     IS_ADMIN = !!admFlag;
+    $('moduleNav').style.display = IS_ADMIN ? 'flex' : 'none';
     IS_MAGACIONER = !!magFlag;
     PORUCENI_ZAHTEVI = new Set(pData.porucene||[]);
     document.querySelectorAll('.magacioner-hide').forEach(el=>{ el.style.display = IS_MAGACIONER ? 'none' : ''; });
@@ -1152,13 +1159,21 @@ function renderList(){
   wrap.innerHTML = `<div class="list">${groupKeys.map(nalogKod=>{
     const items = groups[nalogKod].slice().sort((a,b)=>brojZaSort(a)-brojZaSort(b));
     const naziv = nazivNaloga(nalogKod);
-    return `<div class="nalog-group-title">Nalog za realizaciju: ${escapeHtml(nalogKod)}${naziv?' — '+escapeHtml(naziv):''} <span class="hint">(${items.length})</span></div>`
+    // Gradilište naloga iz šifarnika; za naloge koji važe za "SVA" (ili nemaju
+    // gradilište) — gradilišta zahteva koji su stvarno u ovoj grupi.
+    const nalog = NALOZI.find(x=>x.code===nalogKod);
+    const gradilistaGrupe = (nalog && Array.isArray(nalog.gradiliste) && nalog.gradiliste.length)
+      ? nalog.gradiliste
+      : [...new Set(items.map(r=>String(r.gradiliste)))].sort();
+    const gradHtml = gradilistaGrupe.map(g=>`<span class="ng-grad">${escapeHtml(g)}${nazivGradilista(g)?' · '+escapeHtml(nazivGradilista(g)):''}</span>`).join('');
+    return `<div class="nalog-group-title">${escapeHtml(nalogKod)}${gradHtml}${naziv?'<span class="ng-naziv">— '+escapeHtml(naziv)+'</span>':''} <span class="hint">(${items.length})</span></div>`
       + items.map(r=>{
         const mozeNaOveru = !IS_MAGACIONER && (r.status==='u_izradi' || r.status==='vracen_na_doradu');
         const mozeIzmenu = !IS_MAGACIONER && ((r.status||'u_izradi')==='u_izradi' || r.status==='vracen_na_doradu');
         const mozeBrisanje = !IS_MAGACIONER && (mozeIzmenu || IS_ADMIN);
+        const statusKlasaStavke = PORUCENI_ZAHTEVI.has(r.id) ? 's-porucen' : 's-'+(r.status||'u_izradi');
         return `
-      <div class="item">
+      <div class="item ${statusKlasaStavke}">
         <div class="item-top">
           <span class="item-code">${escapeHtml(r.redniBroj)}</span>
           <span class="item-date">${new Date(r.createdAt).toLocaleDateString('sr-RS')}</span>
@@ -1283,6 +1298,7 @@ function renderNaOveri(){
   const moji = DATA.requests.filter(jeTrenutniOveravalac);
   if(!moji.length){ card.style.display='none'; wrap.innerHTML=''; return; }
   card.style.display='block';
+  $('naOveriBroj').textContent = moji.length;
   wrap.innerHTML = moji.map(r=>`
     <div class="overa-item">
       <div class="top">
