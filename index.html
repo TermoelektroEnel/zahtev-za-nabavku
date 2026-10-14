@@ -1317,7 +1317,6 @@ function izvezizabranePozicijeWord_(r, izabraniIdx){
   const redovi = stavke.map((s,i)=>`
     <tr>
       <td style="border:1px solid #999;padding:6px;text-align:center;">${i+1}</td>
-      <td style="border:1px solid #999;padding:6px;">${escapeHtml(s.sifra||'')}</td>
       <td style="border:1px solid #999;padding:6px;">${escapeHtml(s.opis)}</td>
       <td style="border:1px solid #999;padding:6px;text-align:center;">${escapeHtml(s.jm)}</td>
       <td style="border:1px solid #999;padding:6px;text-align:right;">${escapeHtml(s.zaNabavku!==undefined?s.zaNabavku:s.kolicina)}</td>
@@ -1342,7 +1341,7 @@ function izvezizabranePozicijeWord_(r, izabraniIdx){
       </div>
       <table>
         <thead><tr>
-          <th>Rb.</th><th>Broj poz. spec.</th><th>Opis</th><th>JM</th><th>Količina</th><th>Rok isporuke</th><th>Napomena</th>
+          <th>Rb.</th><th>Opis</th><th>JM</th><th>Količina</th><th>Rok isporuke</th><th>Napomena</th>
         </tr></thead>
         <tbody>${redovi}</tbody>
       </table>
@@ -1364,9 +1363,8 @@ function izvezizabranePozicijeWord_(r, izabraniIdx){
 function izvezizabranePozicijeMejl_(r, izabraniIdx){
   const stavke = izabraniIdx.map(i=>r.stavke[i]);
   const linije = stavke.map((s,i)=>{
-    const sifraDeo = s.sifra ? `[${s.sifra}] ` : '';
     const kolicina = s.zaNabavku!==undefined ? s.zaNabavku : s.kolicina;
-    return `${i+1}. ${sifraDeo}${s.opis} — ${kolicina} ${s.jm}`;
+    return `${i+1}. ${s.opis} — ${kolicina} ${s.jm}`;
   }).join('\n');
 
   const subject = `Zahtev za ponudu (ZN ${r.redniBroj})`;
