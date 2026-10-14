@@ -103,6 +103,14 @@ td{padding:8px 8px 8px 0;border-bottom:1px solid var(--line-soft);font-size:13px
    pa dugmad "pobegnu" van kartice) — dugmad se prelamaju u više redova */
 td.row-actions{display:table-cell;}
 td.row-actions > *{margin:0 6px 6px 0;}
+/* lista izveštaja grupisana po gradilištu i nalogu */
+.grad-group{margin-bottom:26px;}
+.grad-group:last-child{margin-bottom:0;}
+.grad-group-title{font-size:15px;font-weight:700;color:#fff;background:var(--steel-dark);border-radius:var(--radius);padding:8px 14px;margin-bottom:4px;}
+.grad-group-title .hint{color:rgba(255,255,255,.75);font-size:13px;font-weight:400;margin:0;}
+.nalog-group-title{font-size:16px;font-weight:700;color:var(--steel-dark);line-height:1.35;padding:14px 2px 6px;}
+.nalog-group-title .hint{display:inline-block;font-size:13px;font-weight:400;color:var(--ink-soft);}
+.grad-group-title + .nalog-group-title{border-top:none;padding-top:10px;}
 .empty{color:var(--ink-soft);font-size:13px;padding:16px 0;text-align:center;}
 .loading{color:var(--ink-soft);font-size:13px;padding:16px 0;text-align:center;}
 
@@ -887,16 +895,25 @@ function renderPonudaList(){
   });
   if(!filtrirano.length){ wrap.innerHTML='<div class="empty">Nema izveštaja koji odgovaraju izabranom filteru.</div>'; return; }
 
-  wrap.innerHTML=`<table><thead><tr><th>Broj izveštaja</th><th>Zahtev</th><th>Gradilište</th><th>Status</th><th style="width:180px;"></th></tr></thead><tbody>
-    ${filtrirano.map(p=>{
-      const z = ZAHTEVI.find(x=>x.id===p.requestId);
-      const gNaziv = z ? (GRADILISTA.find(g=>g.kod===z.gradiliste)||{}).naziv||'' : '';
+  // Grupisanje: gradilište -> nalog za realizaciju -> izveštaji od manjeg ka većem broju.
+  // Izveštaji čiji je zahtev obrisan idu u posebnu grupu na kraju.
+  const BEZ_ZAHTEVA = '￿';
+  const poGradilistu = {};
+  filtrirano.forEach(p=>{
+    const z = ZAHTEVI.find(x=>x.id===p.requestId);
+    const g = z ? String(z.gradiliste) : BEZ_ZAHTEVA;
+    const n = z ? String(z.nalog||'—') : BEZ_ZAHTEVA;
+    ((poGradilistu[g] = poGradilistu[g] || {})[n] = poGradilistu[g][n] || []).push({ p, z });
+  });
+  const uporedi = (a,b)=>String(a).localeCompare(String(b),'sr',{numeric:true});
+
+  const tabelaHtml = stavke => `<table><thead><tr><th style="width:170px;">Broj izveštaja</th><th style="width:150px;">Zahtev</th><th>Status</th><th style="width:300px;"></th></tr></thead><tbody>
+    ${stavke.sort((a,b)=>uporedi(a.p.brojIzvestaja,b.p.brojIzvestaja)).map(({p,z})=>{
       const mozeOznacitiPorucen = (IS_ADMIN_PONUDE || MOZE_KREIRATI_PONUDE) && p.status==='odobren';
       const porucenoOznaka = p.porucen ? '<span class="tag" style="margin-left:6px;">Poručeno</span>' : '';
       return `<tr>
         <td style="font-family:'IBM Plex Mono',monospace;">${escapeHtml(p.brojIzvestaja)}</td>
-        <td>${z ? escapeHtml(z.redniBroj)+' — nalog '+escapeHtml(z.nalog) : '<span class="hint">zahtev obrisan</span>'}</td>
-        <td>${z ? escapeHtml(z.gradiliste)+(gNaziv?' — '+escapeHtml(gNaziv):'') : '—'}</td>
+        <td>${z ? escapeHtml(z.redniBroj) : '<span class="hint">zahtev obrisan</span>'}</td>
         <td>${ponudaStatusBadgeHtml(p)}${porucenoOznaka}</td>
         <td class="row-actions">
           <button class="btn-ghost" data-open-p="${p.id}">Otvori</button>
@@ -906,6 +923,21 @@ function renderPonudaList(){
       </tr>`;
     }).join('')}
   </tbody></table>`;
+
+  wrap.innerHTML = Object.keys(poGradilistu).sort(uporedi).map(g=>{
+    const nalozi = poGradilistu[g];
+    const ukupno = Object.values(nalozi).reduce((s,a)=>s+a.length,0);
+    const gNaziv = (GRADILISTA.find(x=>x.kod===g)||{}).naziv||'';
+    const gNaslov = g===BEZ_ZAHTEVA ? 'Bez zahteva (zahtev obrisan)' : escapeHtml(g)+(gNaziv?' · '+escapeHtml(gNaziv):'');
+    return `<div class="grad-group">
+      <div class="grad-group-title">${gNaslov} <span class="hint">(${ukupno})</span></div>
+      ${Object.keys(nalozi).sort(uporedi).map(n=>{
+        const nOpis = (NALOZI.find(x=>x.kod===n)||{}).opis||'';
+        return (n===BEZ_ZAHTEVA ? '' : `<div class="nalog-group-title">${escapeHtml(n)}${nOpis?'<span class="ng-naziv">— '+escapeHtml(nOpis)+'</span>':''} <span class="hint">(${nalozi[n].length})</span></div>`)
+          + tabelaHtml(nalozi[n]);
+      }).join('')}
+    </div>`;
+  }).join('');
   wrap.querySelectorAll('[data-open-p]').forEach(b=>b.addEventListener('click',e=>openPonudaEditor(e.currentTarget.dataset.openP)));
   wrap.querySelectorAll('[data-toggle-porucen]').forEach(b=>b.addEventListener('click',async e=>{
     const id=e.currentTarget.dataset.togglePorucen, trenutno=e.currentTarget.dataset.porucen==='1';
