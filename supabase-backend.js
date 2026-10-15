@@ -608,6 +608,39 @@
         .maybeSingle();
       return (data && data.email) ? data.email : `${username}@te-enel.rs`;
     },
+    // Evidencija upita ka dobavljačima (tabela upiti). requestId je opcion —
+    // bez njega vraća sve upite koje korisnik sme da vidi.
+    async listUpiti(requestId) {
+      let q = sbClient.from('upiti')
+        .select('id, request_id, created_at, nacin, dobavljac, status_zahteva, stavke')
+        .order('created_at', { ascending: true });
+      if (requestId) q = q.eq('request_id', requestId);
+      const { data, error } = await q;
+      if (error) throw new Error(error.message);
+      return (data || []).map(u => ({
+        id: u.id, requestId: u.request_id, createdAt: u.created_at, nacin: u.nacin,
+        dobavljac: u.dobavljac || '', statusZahteva: u.status_zahteva, stavke: u.stavke || []
+      }));
+    },
+    async addUpit(upit) {
+      const { data, error } = await sbClient.from('upiti').insert({
+        request_id: upit.requestId,
+        nacin: upit.nacin,
+        dobavljac: upit.dobavljac || '',
+        status_zahteva: upit.statusZahteva || '',
+        stavke: upit.stavke
+      }).select('id, request_id, created_at, nacin, dobavljac, status_zahteva, stavke').single();
+      if (error) return { error: error.message };
+      return { upit: {
+        id: data.id, requestId: data.request_id, createdAt: data.created_at, nacin: data.nacin,
+        dobavljac: data.dobavljac || '', statusZahteva: data.status_zahteva, stavke: data.stavke || []
+      } };
+    },
+    async deleteUpit(id) {
+      const { error } = await sbClient.from('upiti').delete().eq('id', id);
+      if (error) return { error: error.message };
+      return { ok: true };
+    },
     // Potpis za mejl "Zahtev za ponudu" (tabela potpisi, svako vidi samo svoj).
     // Vraća null ako potpis još nije podešen.
     async mojPotpis() {

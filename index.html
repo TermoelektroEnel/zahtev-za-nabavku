@@ -65,6 +65,18 @@ input:disabled,select:disabled,textarea:disabled,button:disabled{background:#E7E
 .field-istaknuto label{font-size:12.5px;font-weight:700;color:var(--steel-dark);letter-spacing:0.02em;}
 .field-istaknuto select{font-size:15px;font-weight:500;margin-top:3px;}
 .napomena-istaknuta{background:#FBF1E4;border-left:4px solid var(--safety);border-radius:var(--radius);padding:10px 14px;font-size:14px;white-space:pre-wrap;line-height:1.5;}
+.upit-poslat{font-size:11px;color:var(--good);font-weight:600;white-space:nowrap;}
+.upit-promena{font-size:11px;color:#8A5A00;font-weight:700;}
+.upit-napomena{background:#FDF3E1;border:1px solid #F1DDB5;border-left:4px solid #B7791F;border-radius:var(--radius);padding:9px 12px;font-size:12.5px;color:#6B4A00;margin:10px 0;}
+.dob-polje{display:flex;flex-wrap:wrap;gap:6px;align-items:center;min-height:40px;padding:5px 8px;border:1px solid var(--line);border-radius:var(--radius);background:#fff;cursor:text;}
+.dob-polje:focus-within{outline:2px solid var(--steel);outline-offset:1px;}
+.dob-polje #dobOznake{display:contents;}
+.dob-polje input{border:none !important;outline:none !important;width:auto !important;flex:1 1 140px;min-width:120px;padding:4px 2px !important;background:transparent;}
+.dob-oznaka{display:inline-flex;align-items:center;gap:4px;background:#E6EEF6;color:#003A70;border:1px solid #C9D8E8;border-radius:999px;padding:2px 4px 2px 10px;font-size:12.5px;font-weight:600;white-space:nowrap;}
+.dob-oznaka button{border:none;background:none;color:#003A70;cursor:pointer;font-size:11px;padding:2px 5px;border-radius:999px;line-height:1;}
+.dob-oznaka button:hover{background:rgba(0,58,112,.12);}
+.upit-istorija{width:100%;border-collapse:collapse;font-size:12px;margin-top:6px;}
+.upit-istorija td,.upit-istorija th{padding:5px 8px;border-bottom:1px solid var(--line-soft);text-align:left;vertical-align:top;}
 .napomena-istaknuta .napomena-label{display:block;font-weight:700;color:var(--safety);text-transform:uppercase;font-size:11px;letter-spacing:0.06em;margin-bottom:5px;}
 
 /* spec table */
@@ -146,6 +158,7 @@ table.spec td input{padding:7px 8px;font-size:13px;}
   .mail-panel{display:none !important;}
   .doc{box-shadow:none;width:100%;max-width:none;min-height:0;margin:0;padding:0;}
   .prilog-item button{display:none;}
+  .upit-kol,.upit-napomena,.upit-sekcija{display:none !important;}
 }
 
 /* ====== LOGIN OVERLAY ====== */
@@ -306,6 +319,13 @@ input[type=password]:focus{outline:2px solid var(--steel);outline-offset:1px;}
     <div class="card" id="naOveriCard" style="display:none;">
       <h2>Zahtevi na overi kod vas <span class="broj-na-overi" id="naOveriBroj"></span></h2>
       <div id="naOveriWrap"></div>
+    </div>
+
+    <!-- ČEKA UPIT (samo Rukovodilac nabavke) -->
+    <div class="card" id="cekaUpitCard" style="display:none;">
+      <h2>Zahtevi koji čekaju upit ka dobavljačima <span class="broj-na-overi" id="cekaUpitBroj"></span></h2>
+      <div class="hint" style="margin:-8px 0 12px;">Zahtevi na overi i odobreni zahtevi koji imaju pozicije bez poslatog upita, ili im je količina promenjena posle upita.</div>
+      <div id="cekaUpitWrap"></div>
     </div>
 
     <!-- LIST -->
@@ -532,6 +552,7 @@ const yy = new Date().getFullYear().toString().slice(-2);
 let GRADILISTA = [], NALOZI = [], MOJA_GRADILISTA = null; // null = sva
 let APPROVAL_ROLES = [], CURRENT_USER_ID = null, IS_ADMIN = false, IS_MAGACIONER = false;
 let PORUCENI_ZAHTEVI = new Set();
+let UPITI = []; // evidencija upita ka dobavljačima (učitava se samo za Rukovodioca nabavke)
 
 function nazivGradilista(code){ const g=GRADILISTA.find(x=>x.code===String(code)); return g?g.naziv:''; }
 function nazivNaloga(code){ const n=NALOZI.find(x=>x.code===String(code)); return n?n.opis:''; }
@@ -623,6 +644,10 @@ async function loadRefData(){
     $('moduleNav').style.display = IS_ADMIN ? 'flex' : 'none';
     IS_MAGACIONER = !!magFlag;
     PORUCENI_ZAHTEVI = new Set(pData.porucene||[]);
+    if(jeRukovodilacNabavke_()){
+      try { UPITI = await ZN.listUpiti(); } catch(e){ UPITI = []; }
+      renderCekaUpit();
+    }
     document.querySelectorAll('.magacioner-hide').forEach(el=>{ el.style.display = IS_MAGACIONER ? 'none' : ''; });
     populateGradilisteSelect();
     populateNalogSelect(null);
@@ -1114,7 +1139,7 @@ async function loadData(){
     $('countTag').textContent = 'Greška'; return;
   }
   $('countTag').textContent = DATA.requests.length + ' zahteva evidentirano';
-  renderList(); renderPlate(); refreshNextBrojPreview();
+  renderList(); renderCekaUpit(); renderPlate(); refreshNextBrojPreview();
 }
 
 function renderList(){
@@ -1204,6 +1229,7 @@ function renderList(){
     }
   }));
   renderNaOveri();
+  renderCekaUpit();
 }
 $('filterNalog').addEventListener('change', renderList);
 $('filterStatus').addEventListener('change', renderList);
@@ -1252,12 +1278,152 @@ function statusBadgeHtml(r){
   return `<span class="status-badge status-${st}">${escapeHtml(statusTekst(r))}</span>`;
 }
 
+/* ===== EVIDENCIJA UPITA KA DOBAVLJAČIMA ===== */
+// Odobreni zahtevi stariji od ovog datuma ne ulaze u karticu "Čeka upit"
+// (upiti za njih su slati pre uvođenja evidencije). Zahtevi na overi ulaze uvek.
+const UPITI_EVIDENCIJA_OD = new Date('2026-10-15T00:00:00');
+
+function jeRukovodilacNabavke_(){
+  return APPROVAL_ROLES.some(x=>x.step===4 && x.userId===CURRENT_USER_ID);
+}
+function kolicinaZaNabavku_(s){
+  return s.zaNabavku!==undefined && s.zaNabavku!==null && s.zaNabavku!=='' ? s.zaNabavku : s.kolicina;
+}
+// Upiti u kojima je bila pozicija idx zahteva r (najstariji prvi). Pozicija se
+// prepoznaje po rednom broju + opisu; ako je podnosilac pri doradi menjao
+// redosled, traži se po opisu i jedinici mere.
+function upitiZaStavku_(r, idx, lista){
+  const s = r.stavke[idx]; if(!s) return [];
+  const rez = [];
+  (lista||UPITI).filter(u=>u.requestId===r.id).forEach(u=>{
+    const st = (u.stavke||[]).find(x=>x.idx===idx && x.opis===s.opis)
+            || (u.stavke||[]).find(x=>x.opis===s.opis && x.jm===s.jm);
+    if(st) rez.push({ upit:u, stavka:st });
+  });
+  return rez;
+}
+// Pozicije za koje je poslat upit, a količina za nabavku se od tada promenila.
+function promenjeneKolicine_(r, lista){
+  const rez = [];
+  r.stavke.forEach((s,idx)=>{
+    const u = upitiZaStavku_(r, idx, lista);
+    if(!u.length) return;
+    const poslednja = u[u.length-1].stavka.kolicina;
+    if(String(poslednja)!==String(kolicinaZaNabavku_(s))) rez.push({ idx, s, ranije:poslednja, sada:kolicinaZaNabavku_(s) });
+  });
+  return rez;
+}
+function upitKolonaHtml_(r, idx){
+  const u = upitiZaStavku_(r, idx);
+  if(!u.length) return '<span class="hint">—</span>';
+  const p = u[u.length-1];
+  const datum = new Date(p.upit.createdAt).toLocaleDateString('sr-RS');
+  const sada = kolicinaZaNabavku_(r.stavke[idx]);
+  const promena = String(p.stavka.kolicina)!==String(sada)
+    ? `<div class="upit-promena">količina: ${escapeHtml(p.stavka.kolicina)} → ${escapeHtml(sada)}</div>` : '';
+  const dob = dobavljaciUpita_(p.upit);
+  const dobTekst = dob.length===1 ? ' · '+escapeHtml(dob[0]) : (dob.length>1 ? ` · ${dob.length} dobavljača` : '');
+  return `<span class="upit-poslat" title="${escapeHtml(dob.join(', '))}">✓ ${escapeHtml(datum)}${dobTekst}${u.length>1?' ('+u.length+'×)':''}</span>${promena}`;
+}
+
+// Dobavljači jednog upita: u bazi su u jednom tekstualnom polju, odvojeni sa "; ".
+const DOB_SEP = '; ';
+function dobavljaciUpita_(u){
+  return String(u.dobavljac||'').split(';').map(x=>x.trim()).filter(Boolean);
+}
+// Dobavljači izabrani u polju (oznake) — pamte se dok je stranica otvorena,
+// da se za sledeću grupu pozicija ne upisuju ponovo.
+let UPIT_DOBAVLJACI = [];
+function poznatiDobavljaci_(){
+  const sve = new Map();
+  UPITI.forEach(u=>dobavljaciUpita_(u).forEach(d=>{ if(!sve.has(d.toLowerCase())) sve.set(d.toLowerCase(), d); }));
+  return [...sve.values()].sort((a,b)=>a.localeCompare(b,'sr'));
+}
+function dodajDobavljaca_(ime){
+  const d = String(ime||'').replace(/[;,]/g,' ').replace(/\s+/g,' ').trim();
+  if(!d) return;
+  // ako već postoji u ranijim upitima — koristi isti zapis (velika/mala slova)
+  const postojeci = poznatiDobavljaci_().find(x=>x.toLowerCase()===d.toLowerCase()) || d;
+  if(!UPIT_DOBAVLJACI.some(x=>x.toLowerCase()===postojeci.toLowerCase())) UPIT_DOBAVLJACI.push(postojeci);
+}
+function renderDobavljacOznake_(){
+  const wrap = $('dobOznake'); if(!wrap) return;
+  wrap.innerHTML = UPIT_DOBAVLJACI.map((d,i)=>`<span class="dob-oznaka">${escapeHtml(d)}<button type="button" data-ukloni-dob="${i}" title="Ukloni">✕</button></span>`).join('');
+  wrap.querySelectorAll('[data-ukloni-dob]').forEach(b=>b.addEventListener('click',e=>{
+    UPIT_DOBAVLJACI.splice(Number(e.currentTarget.dataset.ukloniDob),1);
+    renderDobavljacOznake_();
+  }));
+}
+function poveziPoljeDobavljaca_(){
+  const inp = $('upitDobavljac'); if(!inp) return;
+  $('dobLista').innerHTML = poznatiDobavljaci_().map(d=>`<option value="${escapeHtml(d)}"></option>`).join('');
+  renderDobavljacOznake_();
+  const preuzmi = () => { if(inp.value.trim()){ dodajDobavljaca_(inp.value); inp.value=''; renderDobavljacOznake_(); } };
+  inp.addEventListener('keydown', e=>{
+    if(e.key==='Enter' || e.key===',' || e.key===';'){ e.preventDefault(); preuzmi(); }
+    else if(e.key==='Backspace' && !inp.value && UPIT_DOBAVLJACI.length){ UPIT_DOBAVLJACI.pop(); renderDobavljacOznake_(); }
+  });
+  // izbor iz liste predloga (datalist) — odmah postaje oznaka
+  inp.addEventListener('input', e=>{
+    if(e.inputType==='insertReplacementText' || (!e.inputType && poznatiDobavljaci_().includes(inp.value))) preuzmi();
+  });
+  inp.addEventListener('blur', preuzmi);
+  $('dobPolje').addEventListener('click', e=>{ if(e.target.id==='dobPolje' || e.target.id==='dobOznake') inp.focus(); });
+}
+// Svi dobavljači za upis: oznake + eventualno upisano ime bez Enter-a.
+function izabraniDobavljaci_(){
+  const inp = $('upitDobavljac');
+  if(inp && inp.value.trim()){ dodajDobavljaca_(inp.value); inp.value=''; renderDobavljacOznake_(); }
+  return UPIT_DOBAVLJACI.slice();
+}
+async function zabeleziUpit_(r, izabraniIdx, nacin, dobavljac){
+  const rez = await ZN.addUpit({
+    requestId: r.id, nacin, dobavljac, statusZahteva: r.status||'',
+    stavke: izabraniIdx.map(i=>({ idx:i, opis:r.stavke[i].opis, jm:r.stavke[i].jm, kolicina:kolicinaZaNabavku_(r.stavke[i]) }))
+  });
+  if(rez.error){ alert('Upit je napravljen, ali nije upisan u evidenciju: '+rez.error); return false; }
+  UPITI.push(rez.upit);
+  renderCekaUpit();
+  return true;
+}
+// Kartica na glavnoj stranici: zahtevi (na overi ili odobreni) sa pozicijama
+// za koje još nije poslat upit, ili im se količina promenila posle upita.
+function renderCekaUpit(){
+  const card = $('cekaUpitCard'), wrap = $('cekaUpitWrap');
+  if(!card) return;
+  if(!jeRukovodilacNabavke_()){ card.style.display='none'; return; }
+  const lista = DATA.requests.filter(r=>
+    !PORUCENI_ZAHTEVI.has(r.id) &&
+    (r.status==='na_overi' || (r.status==='odobren' && new Date(r.createdAt)>=UPITI_EVIDENCIJA_OD))
+  ).map(r=>{
+    const bezUpita = r.stavke.filter((s,idx)=>!upitiZaStavku_(r, idx).length).length;
+    const promenjene = promenjeneKolicine_(r).length;
+    return { r, bezUpita, promenjene };
+  }).filter(x=>x.bezUpita || x.promenjene)
+    .sort((a,b)=>String(a.r.redniBroj).localeCompare(String(b.r.redniBroj),'sr',{numeric:true}));
+  if(!lista.length){ card.style.display='none'; wrap.innerHTML=''; return; }
+  card.style.display='block';
+  $('cekaUpitBroj').textContent = lista.length;
+  wrap.innerHTML = lista.map(({r,bezUpita,promenjene})=>`
+    <div class="overa-item">
+      <div class="top">
+        <div>
+          <strong>${escapeHtml(r.redniBroj)}</strong> — ${escapeHtml(nazivGradilista(r.gradiliste)||r.gradiliste)} ${statusBadgeHtml(r)}
+          <div class="hint">Nalog: ${escapeHtml(r.nalog)} · bez upita: ${bezUpita} od ${r.stavke.length} pozicija${promenjene?` · <span class="upit-promena">promenjena količina posle upita: ${promenjene}</span>`:''}</div>
+        </div>
+        <button class="btn-ghost" data-otvori-upit="${r.id}">Otvori</button>
+      </div>
+    </div>`).join('');
+  wrap.querySelectorAll('[data-otvori-upit]').forEach(b=>b.addEventListener('click',e=>openZahtevView(e.currentTarget.dataset.otvoriUpit)));
+}
+
 async function posaljiNaOveruClick(id){
   const r = DATA.requests.find(x=>x.id===id); if(!r) return;
   await osveziUloge_();
   if(!confirm(`Poslati zahtev ${r.redniBroj} na overu?`)) return;
   const targetEmail = emailZaKorak(1);
   if(!targetEmail){ alert(`Nije dodeljen korisnik za korak "${imeUloge(1)}". Obratite se administratoru (Uloge u lancu odobravanja).`); return; }
+  const posleDorade = r.status==='vracen_na_doradu';
   try{
     await apiPosaljiNaOveru(id);
     await loadData();
@@ -1267,6 +1433,20 @@ async function posaljiNaOveruClick(id){
       `Zahtev za nabavku ${noviR.redniBroj} - na overi (${imeUloge(1)})`,
       `Zahtev za nabavku ${noviR.redniBroj} je poslat vama na overu.`
     );
+    // Obaveštenje Rukovodiocu nabavke (korak 4) — da može da šalje upite
+    // dobavljačima dok zahtev prolazi lanac overe.
+    const nabavkaEmail = emailZaKorak(4);
+    if(nabavkaEmail && nabavkaEmail.toLowerCase()!==targetEmail.toLowerCase()){
+      await posaljiApprovalMail_(
+        noviR, nabavkaEmail,
+        posleDorade
+          ? `Zahtev za nabavku ${noviR.redniBroj} - ponovo poslat posle dorade`
+          : `Zahtev za nabavku ${noviR.redniBroj} - novi zahtev na overi (informativno za nabavku)`,
+        posleDorade
+          ? `Zahtev za nabavku ${noviR.redniBroj} je ispravljen posle dorade i ponovo poslat na overu (${imeUloge(1)}).\nProverite da li su se promenile pozicije ili količine za koje ste već poslali upit.`
+          : `Zahtev za nabavku ${noviR.redniBroj} je poslat na overu (${imeUloge(1)}).\nZahtev još nije odobren — možete da pošaljete upite dobavljačima, ali količine se mogu promeniti tokom overe.`
+      );
+    }
     if(posalato) alert('Zahtev je poslat na overu, mejl je automatski poslat.');
   }catch(e){
     alert('Slanje na overu nije uspelo. Pokušaj ponovo.');
@@ -1355,6 +1535,7 @@ function izvezizabranePozicijeWord_(r, izabraniIdx){
         Gradilište: ${escapeHtml(r.gradiliste)} — ${escapeHtml(nazivGradilista(r.gradiliste))}&nbsp;&nbsp;|&nbsp;&nbsp;
         Nalog: ${escapeHtml(r.nalog)}
       </div>
+      ${r.status!=='odobren'?'<p><i>Upit je informativnog karaktera; konačne količine biće potvrđene narudžbenicom.</i></p>':''}
       <table>
         <thead><tr>
           <th>Rb.</th><th>Opis</th><th>JM</th><th>Količina</th><th>Rok isporuke</th><th>Napomena</th>
@@ -1381,7 +1562,7 @@ async function izvezizabranePozicijeMejl_(r, izabraniIdx){
   let potpis = null;
   try { potpis = await ZN.mojPotpis(); }
   catch(e){ alert('Potpis nije mogao da se učita ('+e.message+'). Mejl će biti formiran bez potpisa.'); }
-  if(!potpis && !confirm('Potpis za mejl još nije podešen (dugme "Potpis"). Nastaviti bez potpisa?')) return;
+  if(!potpis && !confirm('Potpis za mejl još nije podešen (dugme "Potpis"). Nastaviti bez potpisa?')) return false;
 
   const td = 'border:1px solid #999;padding:4px 8px;';
   const th = td+'background:#F2F1EA;text-align:left;';
@@ -1402,7 +1583,8 @@ async function izvezizabranePozicijeMejl_(r, izabraniIdx){
   const html = `<!DOCTYPE html><html><head><meta charset="utf-8"></head>
 <body style="font-family:Arial,sans-serif;font-size:10pt;color:#000;">
   <p>Poštovani,</p>
-  <p>Molimo Vas ponudu za sledeće pozicije:</p>
+  <p>Molimo Vas ponudu za sledeće pozicije:</p>${r.status!=='odobren'?`
+  <p><i>Upit je informativnog karaktera; konačne količine biće potvrđene narudžbenicom.</i></p>`:''}
   <table style="border-collapse:collapse;font-family:Arial,sans-serif;font-size:10pt;">
     <thead><tr>
       <th style="${th}">Rb.</th><th style="${th}">Opis</th><th style="${th}">JM</th><th style="${th}">Količina</th>
@@ -1447,6 +1629,7 @@ async function izvezizabranePozicijeMejl_(r, izabraniIdx){
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
+  return true;
 }
 
 // Tekst potpisa -> HTML: novi red = <br>, **tekst** = podebljano.
@@ -1542,12 +1725,15 @@ async function openZahtevView(id){
   const mogucaOvera = jeTrenutniOveravalac(r);
   const naziv = nazivNaloga(r.nalog);
   const mozePonovoPoslatiMejl = r.status==='na_overi' && (IS_ADMIN || MOJA_GRADILISTA===null || (MOJA_GRADILISTA||[]).includes(String(r.gradiliste)));
-  const jeRukovodilacNabavke = APPROVAL_ROLES.some(x=>x.step===4 && x.userId===CURRENT_USER_ID);
-  const mozeIzborZaUpit = jeRukovodilacNabavke && r.status==='odobren';
+  const jeRukovodilacNabavke = jeRukovodilacNabavke_();
+  // Upiti se mogu slati i dok je zahtev na overi (da ponude stižu ranije).
+  const mozeIzborZaUpit = jeRukovodilacNabavke && (r.status==='odobren' || r.status==='na_overi');
+  const upitiZahteva = mozeIzborZaUpit ? UPITI.filter(u=>u.requestId===r.id) : [];
 
   const rows = r.stavke.map((s,idx)=>`
     <tr>
-      ${mozeIzborZaUpit?`<td style="width:22px;"><input type="checkbox" data-upit-check="${idx}"></td>`:''}
+      ${mozeIzborZaUpit?`<td class="upit-kol" style="width:22px;"><input type="checkbox" data-upit-check="${idx}"></td>`:''}
+      ${mozeIzborZaUpit?`<td class="upit-kol" style="width:120px;">${upitKolonaHtml_(r, idx)}</td>`:''}
       <td style="width:26px;color:#777;">${idx+1}</td>
       <td>${escapeHtml(s.sifra||'—')}</td>
       <td>${escapeHtml(s.opis)}</td>
@@ -1580,16 +1766,42 @@ async function openZahtevView(id){
           ${r.lastReturnComment?`<div class="err" style="margin:10px 0;">Poslednji komentar (vraćeno na doradu): ${escapeHtml(r.lastReturnComment)}</div>`:''}
           ${r.napomena?`<div class="field"><div class="napomena-istaknuta"><span class="napomena-label">📌 Napomena</span>${escapeHtml(r.napomena)}</div></div>`:''}
           ${(r.prilozi&&r.prilozi.length)?`<div class="field"><label>Prilozi</label><div id="overaPrilozi"></div></div>`:''}
+          ${mozeIzborZaUpit && r.status!=='odobren'?`<div class="upit-napomena">⚠ Zahtev još nije odobren — količine se mogu promeniti tokom overe. Upit dobavljaču biće označen kao informativni.</div>`:''}
           <table style="font-size:11.5px;margin-top:10px;">
-            <thead><tr>${mozeIzborZaUpit?'<th></th>':''}<th>Rb.</th><th>Broj poz. spec.</th><th>Opis</th><th>JM</th><th>Količina${mogucaOvera?' (može se izmeniti)':''}</th><th>Od postojećeg${mogucaOvera?' (može se izmeniti)':''}</th><th>Za nabavku</th><th>Rok isporuke</th><th style="text-align:center;">Atest</th></tr></thead>
+            <thead><tr>${mozeIzborZaUpit?'<th class="upit-kol"><input type="checkbox" id="upitSviCheck" title="Označi sve / poništi izbor"></th><th class="upit-kol">Upit</th>':''}<th>Rb.</th><th>Broj poz. spec.</th><th>Opis</th><th>JM</th><th>Količina${mogucaOvera?' (može se izmeniti)':''}</th><th>Od postojećeg${mogucaOvera?' (može se izmeniti)':''}</th><th>Za nabavku</th><th>Rok isporuke</th><th style="text-align:center;">Atest</th></tr></thead>
             <tbody>${rows}</tbody>
           </table>
           ${mozeIzborZaUpit?`
-          <div class="overa-actions" style="margin-top:10px;">
-            <button class="btn-ghost" id="izvezUpitMejlBtn">Otvori u mejlu</button>
-            <button class="btn-ghost" id="izvezUpitBtn">Izvezi izabrane pozicije (Word)</button>
-            <button class="btn-ghost" id="podesiPotpisBtn">Potpis</button>
-            <span class="hint">Označi pozicije u tabeli iznad (kvadratić levo) — koristi za formiranje upita ka dobavljačima kad pozicije idu različitim dobavljačima. "Otvori u mejlu" preuzima fajl koji otvaraš u Outlook-u: gotov mejl sa pozicijama i tvojim potpisom (primaoce biraš sam). "Potpis" služi za podešavanje potpisa.</span>
+          <div class="upit-sekcija">
+          <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-top:10px;">
+            <div style="min-width:260px;flex:1 1 360px;">
+              <label for="upitDobavljac">Dobavljači (opciono, za evidenciju)</label>
+              <div class="dob-polje" id="dobPolje">
+                <span id="dobOznake"></span>
+                <input type="text" id="upitDobavljac" list="dobLista" autocomplete="off" placeholder="upiši ime i pritisni Enter">
+              </div>
+              <datalist id="dobLista"></datalist>
+            </div>
+            <div class="overa-actions" style="margin-top:0;">
+              <button class="btn-ghost" id="izvezUpitMejlBtn">Otvori u mejlu</button>
+              <button class="btn-ghost" id="izvezUpitBtn">Izvezi izabrane pozicije (Word)</button>
+              <button class="btn-ghost" id="podesiPotpisBtn">Potpis</button>
+            </div>
+          </div>
+          <div class="hint">Označi pozicije u tabeli iznad (kvadratić levo; kvadratić u zaglavlju označava sve). "Otvori u mejlu" preuzima fajl koji otvaraš u Outlook-u: gotov mejl sa pozicijama i tvojim potpisom (primaoce biraš sam). Svaki upit (mejl ili Word) upisuje se u evidenciju — kolona "Upit" pokazuje kada je pozicija poslata i da li joj se količina u međuvremenu promenila.</div>
+          ${upitiZahteva.length?`
+          <h3 style="margin:16px 0 0;font-size:14px;">Poslati upiti</h3>
+          <table class="upit-istorija">
+            <thead><tr><th>Datum</th><th>Način</th><th>Dobavljači</th><th>Pozicije (količina u upitu)</th><th></th></tr></thead>
+            <tbody>${upitiZahteva.slice().reverse().map(u=>`
+              <tr>
+                <td style="white-space:nowrap;">${escapeHtml(formatDatumVremeSr(new Date(u.createdAt)))}${u.statusZahteva==='na_overi'?'<br><span class="hint">zahtev na overi</span>':''}</td>
+                <td>${u.nacin==='word'?'Word':'Mejl'}</td>
+                <td>${dobavljaciUpita_(u).length?dobavljaciUpita_(u).map(escapeHtml).join('<br>'):'—'}</td>
+                <td>${(u.stavke||[]).map(x=>`${x.idx+1}. ${escapeHtml(x.opis)} — ${escapeHtml(x.kolicina)} ${escapeHtml(x.jm)}`).join('<br>')}</td>
+                <td><button class="btn-ghost" style="padding:3px 8px;font-size:11px;" data-obrisi-upit="${u.id}">Obriši</button></td>
+              </tr>`).join('')}</tbody>
+          </table>`:''}
           </div>
           `:''}
           ${mogucaOvera?`
@@ -1635,17 +1847,36 @@ async function openZahtevView(id){
   }
   if(mozeIzborZaUpit){
     const skupiIzabrane_ = () => [...document.querySelectorAll('[data-upit-check]:checked')].map(cb=>Number(cb.dataset.upitCheck));
-    $('izvezUpitBtn').addEventListener('click', ()=>{
+    poveziPoljeDobavljaca_();
+    $('upitSviCheck').addEventListener('change', e=>{
+      document.querySelectorAll('[data-upit-check]').forEach(cb=>{ cb.checked = e.currentTarget.checked; });
+    });
+    // Posle upita: upis u evidenciju i ponovno otvaranje zahteva (osvežena kolona "Upit").
+    const posleUpita_ = async (izabraniIdx, nacin) => {
+      const ok = await zabeleziUpit_(r, izabraniIdx, nacin, izabraniDobavljaci_().join(DOB_SEP));
+      if(ok) openZahtevView(r.id);
+    };
+    $('izvezUpitBtn').addEventListener('click', async ()=>{
       const izabraniIdx = skupiIzabrane_();
       if(!izabraniIdx.length){ alert('Označite bar jednu poziciju pre izvoza.'); return; }
       izvezizabranePozicijeWord_(r, izabraniIdx);
+      await posleUpita_(izabraniIdx, 'word');
     });
-    $('izvezUpitMejlBtn').addEventListener('click', ()=>{
+    $('izvezUpitMejlBtn').addEventListener('click', async ()=>{
       const izabraniIdx = skupiIzabrane_();
       if(!izabraniIdx.length){ alert('Označite bar jednu poziciju pre izvoza.'); return; }
-      izvezizabranePozicijeMejl_(r, izabraniIdx);
+      if(await izvezizabranePozicijeMejl_(r, izabraniIdx)) await posleUpita_(izabraniIdx, 'mejl');
     });
     $('podesiPotpisBtn').addEventListener('click', otvoriPodesavanjePotpisa_);
+    $('modalRoot').querySelectorAll('[data-obrisi-upit]').forEach(b=>b.addEventListener('click', async e=>{
+      if(!confirm('Obrisati ovaj upit iz evidencije? (Mejl/Word koji je već poslat dobavljaču se ne menja.)')) return;
+      const id = e.currentTarget.dataset.obrisiUpit;
+      const rez = await ZN.deleteUpit(id);
+      if(rez.error){ alert('Brisanje nije uspelo: '+rez.error); return; }
+      UPITI = UPITI.filter(u=>u.id!==id);
+      renderCekaUpit();
+      openZahtevView(r.id);
+    }));
   }
 
   if(r.prilozi && r.prilozi.length){
@@ -1707,9 +1938,22 @@ async function openZahtevView(id){
         if(azurirano.status==='odobren'){
           const radosavEmail = emailZaKorak(4);
           if(radosavEmail){
+            // Ako su upiti već poslati dok je zahtev bio na overi — navedi pozicije
+            // kojima se količina promenila u međuvremenu.
+            let promeneTekst = '';
+            try{
+              const upitiZ = await ZN.listUpiti(azurirano.id);
+              const promene = promenjeneKolicine_(azurirano, upitiZ);
+              if(promene.length){
+                promeneTekst = '\n\nPAŽNJA — pozicije za koje je već poslat upit, a količina je promenjena tokom overe:\n'
+                  + promene.map(p=>`${p.idx+1}. ${p.s.opis}: ${p.ranije} → ${p.sada} ${p.s.jm}`).join('\n');
+              }else if(upitiZ.length){
+                promeneTekst = '\n\nZa ovaj zahtev su već poslati upiti; količine poslatih pozicija nisu menjane tokom overe.';
+              }
+            }catch(e){ /* evidencija nije dostupna — mejl ide bez tog dela */ }
             const ok = await posaljiApprovalMail_(azurirano, radosavEmail,
               `Zahtev za nabavku ${azurirano.redniBroj} - konačno odobren`,
-              `Zahtev za nabavku ${azurirano.redniBroj} je konačno odobren i spreman je za realizaciju nabavke.${komentar?'\n\nKomentar: '+komentar:''}`);
+              `Zahtev za nabavku ${azurirano.redniBroj} je konačno odobren i spreman je za realizaciju nabavke.${komentar?'\n\nKomentar: '+komentar:''}${promeneTekst}`);
             if(ok) alert('Zahtev je konačno odobren, mejl je automatski poslat.');
           }
         }else{
