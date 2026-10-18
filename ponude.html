@@ -259,8 +259,8 @@ td.row-actions > *{margin:0 6px 6px 0;}
         <div class="field"><label for="bulkNacin">Način plaćanja</label><input type="text" id="bulkNacin" placeholder="npr. Virmanski 30 dana"></div>
       </div>
       <div class="field">
-        <label>Ponuda dobavljača (PDF) — do 5 fajlova, važi za sve pozicije</label>
-        <input type="file" id="bulkPdfInput" accept="application/pdf" multiple>
+        <label>Ponuda dobavljača (PDF, Excel, Word) — do 5 fajlova, važi za sve pozicije</label>
+        <input type="file" id="bulkPdfInput" accept=".pdf,.xlsx,.docx,application/pdf,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.openxmlformats-officedocument.wordprocessingml.document" multiple>
         <div class="hint" id="bulkPdfHint"></div>
       </div>
       <div id="bulkStavkeWrap"></div>
@@ -488,11 +488,21 @@ function getSbStorage_(){
   return _sbStorage;
 }
 const PONUDA_PDF_BUCKET = 'ponude-pdf';
+// Dozvoljeni tipovi priloga ponude: PDF, Excel (.xlsx), Word (.docx).
+const PONUDA_PRILOG_TIPOVI = {
+  pdf:  'application/pdf',
+  xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+};
+function prilogContentType_(file){
+  const ext = (file.name.split('.').pop()||'').toLowerCase();
+  return PONUDA_PRILOG_TIPOVI[ext] || null;
+}
 
 async function uploadPonudaPdf_(posIdx, offIdx, file){
   const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g,'_');
   const path = `${currentPonuda.id}/${posIdx}_${offIdx}_${Date.now()}_${safeName}`;
-  const { error } = await getSbStorage_().storage.from(PONUDA_PDF_BUCKET).upload(path, file, { contentType:'application/pdf', upsert:false });
+  const { error } = await getSbStorage_().storage.from(PONUDA_PDF_BUCKET).upload(path, file, { contentType:prilogContentType_(file)||'application/pdf', upsert:false });
   if(error){ alert('Otpremanje PDF-a nije uspelo: '+error.message); return; }
   const o = currentPonuda.stavke[posIdx].ponude[offIdx];
   o.pdfPath = path; o.pdfName = file.name;
@@ -595,6 +605,13 @@ $('bulkPdfInput').addEventListener('change', e=>{
   const files = Array.from(e.currentTarget.files || []);
   if(files.length > 5){
     alert('Možete otpremiti najviše 5 fajlova odjednom.');
+    e.currentTarget.value = '';
+    bulkPdfFiles = [];
+    return;
+  }
+  const nedozvoljeni = files.filter(f=>!prilogContentType_(f));
+  if(nedozvoljeni.length){
+    alert('Dozvoljeni su samo PDF, Excel (.xlsx) i Word (.docx) fajlovi. Nije dozvoljeno: '+nedozvoljeni.map(f=>f.name).join(', '));
     e.currentTarget.value = '';
     bulkPdfFiles = [];
     return;
@@ -756,7 +773,7 @@ $('bulkSaveBtn').addEventListener('click', async ()=>{
       try{
         const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g,'_');
         const path = `${currentPonuda.id}/dob_${dobavljac.replace(/[^a-zA-Z0-9._-]/g,'_')}_${Date.now()}_${safeName}`;
-        const { error } = await getSbStorage_().storage.from(PONUDA_PDF_BUCKET).upload(path, file, { contentType:'application/pdf', upsert:false });
+        const { error } = await getSbStorage_().storage.from(PONUDA_PDF_BUCKET).upload(path, file, { contentType:prilogContentType_(file)||'application/pdf', upsert:false });
         if(error){ alert(`Otpremanje fajla "${file.name}" nije uspelo: ${error.message}`); continue; }
         noviPrilozi.push({ path, filename: file.name });
       }catch(e){ alert(`Otpremanje fajla "${file.name}" nije uspelo.`); }
