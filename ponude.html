@@ -295,6 +295,8 @@ td.row-actions > *{margin:0 6px 6px 0;}
       <div id="pePregledWrap" style="overflow-x:auto;padding-bottom:18px;"></div>
     </div>
 
+    <div class="err" id="peNesacuvanoHint" style="display:none;">⚠ Ima nesačuvanih izmena — klikni „Sačuvaj izveštaj" da bi ponude dobavljača i prilozi bili trajno sačuvani.</div>
+    <div class="hint" id="peZakljucanoHint" style="display:none;"></div>
     <div class="err" id="peErr"></div>
     <div class="info-msg" id="peInfo"></div>
     <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;" id="peActionsWrap">
@@ -450,7 +452,7 @@ async function handlePostAuth(){
 $('loginBtn').addEventListener('click', doLogin);
 $('loginPass').addEventListener('keydown', e => { if(e.key==='Enter') doLogin(); });
 $('loginUser').addEventListener('keydown', e => { if(e.key==='Enter') $('loginPass').focus(); });
-$('logoutBtn').addEventListener('click', async ()=>{ await ZN.signOut(); sessionStorage.removeItem(SESSION_KEY); showLogin(); });
+$('logoutBtn').addEventListener('click', async ()=>{ if(!potvrdiNapustanje_()) return; await ZN.signOut(); sessionStorage.removeItem(SESSION_KEY); showLogin(); });
 
 /* ============================================================
    API HELPERS
@@ -524,6 +526,53 @@ async function removePonudaPdf_(posIdx, offIdx){
   }
   delete o.pdfPath; delete o.pdfName;
   renderPeStavke();
+}
+
+// Izveštaji pravljeni pre uvođenja više priloga (do 14.09.2026) čuvaju
+// prilog u starom obliku (pdfPath/pdfName). Prevodimo ga u "prilozi" da bi
+// se prikazao dugme "Otvori" i da se ne bi izgubio pri izmeni dobavljača.
+function normalizujPriloge_(p){
+  (p.stavke||[]).forEach(s=>(s.ponude||[]).forEach(o=>{
+    if(o.pdfPath && !(o.prilozi && o.prilozi.length)){
+      o.prilozi = [{ path:o.pdfPath, filename:o.pdfName||'prilog.pdf' }];
+    }
+    delete o.pdfPath; delete o.pdfName;
+  }));
+  return p;
+}
+
+// Praćenje nesačuvanih izmena: unos dobavljača i prilozi žive samo u
+// radnoj kopiji dok se ne klikne "Sačuvaj izveštaj".
+let peNesacuvano = false;
+function postaviNesacuvano_(v){
+  peNesacuvano = v;
+  $('peNesacuvanoHint').style.display = v ? 'block' : 'none';
+}
+function bulkImaNesacuvano_(){
+  return bulkPdfFiles.length>0 || (!editingBulkDobavljac && $('bulkDobavljac').value.trim()!=='');
+}
+function potvrdiNapustanje_(){
+  if(!currentPonuda || !trenutniMozeUredovati) return true;
+  if(!peNesacuvano && !bulkImaNesacuvano_()) return true;
+  return confirm('Izveštaj ima nesačuvane izmene (ponude dobavljača ili prilozi). Ako nastaviš, one će biti izgubljene. Nastaviti?');
+}
+window.addEventListener('beforeunload', e=>{
+  if(currentPonuda && trenutniMozeUredovati && (peNesacuvano || bulkImaNesacuvano_())){ e.preventDefault(); e.returnValue=''; }
+});
+
+// Fajlovi koje treba obrisati iz Storage-a tek POSLE uspešnog čuvanja
+// izveštaja (uklonjen dobavljač ili zamenjeni prilozi). Ako izveštaj ne
+// bude sačuvan, fajlovi ostaju, pa sačuvana verzija i dalje može da ih otvori.
+let priloziZaBrisanje = [];
+async function obrisiNepotrebnePriloge_(stavke){
+  if(!priloziZaBrisanje.length) return;
+  const koriscene = new Set();
+  (stavke||[]).forEach(s=>(s.ponude||[]).forEach(o=>(o.prilozi||[]).forEach(pr=>koriscene.add(pr.path))));
+  const zaBrisanje = [...new Set(priloziZaBrisanje)].filter(p=>!koriscene.has(p));
+  priloziZaBrisanje = [];
+  if(zaBrisanje.length){
+    try{ await getSbStorage_().storage.from(PONUDA_PDF_BUCKET).remove(zaBrisanje); }catch(e){}
+  }
 }
 
 /* ============================================================
@@ -653,14 +702,13 @@ function renderBulkDobavljaci(){
       const idx = s.ponude.findIndex(o=>o.dobavljac===name);
       if(idx!==-1){
         const o = s.ponude[idx];
-        if(o.prilozi && o.prilozi.length){
-          try{ await getSbStorage_().storage.from(PONUDA_PDF_BUCKET).remove(o.prilozi.map(p=>p.path)); }catch(err){}
-        }
+        if(o.prilozi && o.prilozi.length) priloziZaBrisanje.push(...o.prilozi.map(p=>p.path));
         s.ponude.splice(idx,1);
         if(s.predlogRukovodioca===name) s.predlogRukovodioca='';
       }
     }
     if(editingBulkDobavljac===name) resetBulkForm();
+    postaviNesacuvano_(true);
     renderPeStavke();
   }));
 }
@@ -779,7 +827,10 @@ $('bulkSaveBtn').addEventListener('click', async ()=>{
         noviPrilozi.push({ path, filename: file.name });
       }catch(e){ alert(`Otpremanje fajla "${file.name}" nije uspelo.`); }
     }
-    if(noviPrilozi.length) priloziMeta = noviPrilozi;
+    if(noviPrilozi.length){
+      priloziZaBrisanje.push(...(bulkPdfExisting||[]).map(p=>p.path));
+      priloziMeta = noviPrilozi;
+    }
   }
 
   redovi.forEach(row=>{
@@ -801,6 +852,7 @@ $('bulkSaveBtn').addEventListener('click', async ()=>{
 
   $('bulkSaveBtn').disabled=false;
   resetBulkForm();
+  postaviNesacuvano_(true);
   renderPeStavke();
 });
 
@@ -956,7 +1008,7 @@ function renderPonudaList(){
       }).join('')}
     </div>`;
   }).join('');
-  wrap.querySelectorAll('[data-open-p]').forEach(b=>b.addEventListener('click',e=>openPonudaEditor(e.currentTarget.dataset.openP)));
+  wrap.querySelectorAll('[data-open-p]').forEach(b=>b.addEventListener('click',e=>{ if(potvrdiNapustanje_()) openPonudaEditor(e.currentTarget.dataset.openP); }));
   wrap.querySelectorAll('[data-toggle-porucen]').forEach(b=>b.addEventListener('click',async e=>{
     const id=e.currentTarget.dataset.togglePorucen, trenutno=e.currentTarget.dataset.porucen==='1';
     const r=await apiPost('postaviPorucenoPonuda',{ id, porucen: !trenutno });
@@ -972,6 +1024,7 @@ function renderPonudaList(){
 $('filterPonudaStatus').addEventListener('change', renderPonudaList);
 
 $('pKreirajBtn').addEventListener('click', async ()=>{
+  if(!potvrdiNapustanje_()) return;
   $('pNoviErr').textContent='';
   const requestId=$('pZahtev').value;
   if(!requestId){ $('pNoviErr').textContent='Izaberi zahtev za nabavku.'; return; }
@@ -995,7 +1048,8 @@ $('pKreirajBtn').addEventListener('click', async ()=>{
 
 function openPonudaEditor(id){
   const p=PONUDE.find(x=>x.id===id); if(!p) return;
-  currentPonuda = JSON.parse(JSON.stringify(p)); // radna kopija
+  currentPonuda = normalizujPriloge_(JSON.parse(JSON.stringify(p))); // radna kopija
+  priloziZaBrisanje = [];
   const z = ZAHTEVI.find(x=>x.id===p.requestId);
   const gradilisteNazivZaNaslov = z ? (GRADILISTA.find(g=>g.kod===z.gradiliste)||{}).naziv||'' : '';
   const gradilisteDeoNaslova = z ? ` — ${z.gradiliste}${gradilisteNazivZaNaslov?' ('+gradilisteNazivZaNaslov+')':''}` : '';
@@ -1026,19 +1080,28 @@ function openPonudaEditor(id){
   }
 
   // Pun uređivač (unos po dobavljaču, izmena pozicija) vidi admin ili onaj
-  // ko je kreirao ovaj konkretan izveštaj (npr. Rukovodilac nabavke).
-  // Tehnički/Generalni direktor (overavaoci) vide samo pregled.
-  trenutniMozeUredovati = IS_ADMIN_PONUDE || (p.createdBy && p.createdBy===CURRENT_USER_ID);
+  // ko je kreirao ovaj konkretan izveštaj (npr. Rukovodilac nabavke), i to
+  // SAMO dok je izveštaj "u izradi" ili "vraćen na doradu". Dok je na overi
+  // ili odobren, izmene se ne bi sačuvale (RLS ih odbija) ili bi ih overa
+  // prepisala — pa ih i ne nudimo. Overavaoci vide samo pregled.
+  const jeAutor = IS_ADMIN_PONUDE || (p.createdBy && p.createdBy===CURRENT_USER_ID);
+  const statusDozvoljavaIzmene = (p.status==='u_izradi' || p.status==='vracen_na_doradu');
+  trenutniMozeUredovati = jeAutor && statusDozvoljavaIzmene;
   document.querySelectorAll('.editor-only-part').forEach(el=>{ el.style.display = trenutniMozeUredovati ? '' : 'none'; });
+  postaviNesacuvano_(false);
+  $('peZakljucanoHint').style.display = (jeAutor && !statusDozvoljavaIzmene) ? 'block' : 'none';
+  $('peZakljucanoHint').textContent = p.status==='odobren'
+    ? '🔒 Izveštaj je odobren — izmene više nisu moguće.'
+    : '🔒 Izveštaj je na overi — izmene su moguće tek ako bude vraćen na doradu.';
 
-  const mozeNaOveru = trenutniMozeUredovati && (p.status==='u_izradi' || p.status==='vracen_na_doradu');
+  const mozeNaOveru = trenutniMozeUredovati;
   $('pePosaljiNaOveruBtn').style.display = mozeNaOveru ? 'inline-block' : 'none';
 
   // Ako je izveštaj već "na overi" ali je iz nekog razloga (npr. mrežni
   // problem) mejl propao da stigne, ovo dugme omogućava da se OBAVEŠTENJE
   // pošalje ponovo trenutnom overavaocu — bez ponovnog pokretanja cele
   // radnje (status se ne menja, samo se mejl šalje iznova).
-  const mozePonovoPoslatiMejl = (IS_ADMIN_PONUDE || trenutniMozeUredovati) && p.status==='na_overi';
+  const mozePonovoPoslatiMejl = jeAutor && p.status==='na_overi';
   $('peResendBtn').style.display = mozePonovoPoslatiMejl ? 'inline-block' : 'none';
 
   const mogucaOvera = jeTrenutniPonudaOveravalac(p);
@@ -1072,9 +1135,10 @@ async function loadPonudaLog_(id){
 
 function closePonudaEditor(){
   currentPonuda=null;
+  postaviNesacuvano_(false);
   $('ponudaEditorCard').style.display='none';
 }
-$('peCloseBtn').addEventListener('click', closePonudaEditor);
+$('peCloseBtn').addEventListener('click', ()=>{ if(potvrdiNapustanje_()) closePonudaEditor(); });
 
 function jedCena_(o){ return (Number(o.bruto)||0) * (1 - (Number(o.rabat)||0)/100); }
 // Predložena ponuda za poziciju = ona čiji dobavljač je izabran u "Predlog
@@ -1160,6 +1224,7 @@ function renderPeStavke(){
   wrap.querySelectorAll('[data-predlog]').forEach(i=>i.addEventListener('change',e=>{
     const posIdx=Number(e.currentTarget.dataset.predlog);
     currentPonuda.stavke[posIdx].predlogRukovodioca=e.currentTarget.value;
+    postaviNesacuvano_(true);
     renderPeStavke();
   }));
   wrap.querySelectorAll('[data-ugovorena-cena]').forEach(i=>i.addEventListener('input',e=>{
@@ -1167,6 +1232,7 @@ function renderPeStavke(){
     const posIdx=Number(e.currentTarget.dataset.ugovorenaCena);
     const v=e.currentTarget.value;
     currentPonuda.stavke[posIdx].ugovorenaCena = v===''?null:parsirajSrpski_(v);
+    postaviNesacuvano_(true);
     updateMarzaLine_(posIdx);
     renderPeTotals();
     renderPePregled();
@@ -1216,6 +1282,10 @@ function renderPeTotals(){
 }
 
 $('peKurs').addEventListener('input', renderPeTotals);
+['peVrstaRadova','peAdresa','peKurs','peNapomena'].forEach(id=>{
+  $(id).addEventListener('input', ()=>postaviNesacuvano_(true));
+  $(id).addEventListener('change', ()=>postaviNesacuvano_(true));
+});
 
 $('peOsveziKursBtn').addEventListener('click', async ()=>{
   $('peKursHint').textContent='Preuzimanje kursa…';
@@ -1225,6 +1295,7 @@ $('peOsveziKursBtn').addEventListener('click', async ()=>{
     const eur = (data.rates||[]).find(r=>r.code==='EUR');
     if(!eur){ $('peKursHint').textContent='Kurs nije pronađen u odgovoru servisa.'; return; }
     $('peKurs').value = eur.exchange_middle;
+    postaviNesacuvano_(true);
     $('peKursHint').textContent = `Srednji kurs NBS na dan ${eur.date}.`;
     renderPeTotals();
   }catch(e){
@@ -1487,6 +1558,7 @@ $('peExportBtn').addEventListener('click', async ()=>{
 
 $('peSaveBtn').addEventListener('click', async ()=>{
   $('peErr').textContent=''; $('peInfo').classList.remove('visible');
+  if(bulkImaNesacuvano_() && !confirm('U formi "Unos ponude dobavljača" ima izabranih priloga ili unetog dobavljača, ali nije kliknuto "Sačuvaj ponudu ovog dobavljača" — to NEĆE biti sačuvano. Sačuvati izveštaj bez toga?')) return;
   const payload = {
     id: currentPonuda.id,
     vrstaRadova: $('peVrstaRadova').value.trim(),
@@ -1496,13 +1568,17 @@ $('peSaveBtn').addEventListener('click', async ()=>{
     stavke: currentPonuda.stavke
   };
   $('peSaveBtn').disabled=true;
-  const r=await apiPost('updatePonuda', payload);
+  let r;
+  try{ r=await apiPost('updatePonuda', payload); }
+  catch(e){ r={ error:'Čuvanje nije uspelo (mreža ili istekla prijava). Izmene NISU sačuvane — pokušaj ponovo.' }; }
   $('peSaveBtn').disabled=false;
-  if(r&&r.error){ $('peErr').textContent=r.error; return; }
+  if(r&&r.error){ $('peErr').textContent=r.error; alert('Izveštaj NIJE sačuvan: '+r.error); return; }
+  await obrisiNepotrebnePriloge_(payload.stavke);
+  postaviNesacuvano_(false);
   // Osveži lokalno stanje i prikaz napomene — server je uspešno sačuvao,
   // ali dosad se prikaz na ekranu (i time PDF izvoz koji čita isti objekat)
   // nije osvežavao dok se editor ne zatvori i ponovo otvori.
-  if(r && r.ponuda) currentPonuda = r.ponuda;
+  if(r && r.ponuda) currentPonuda = normalizujPriloge_(r.ponuda);
   $('peNapomenaPregledWrap').style.display = currentPonuda.napomena ? '' : 'none';
   $('peNapomenaPregled').textContent = currentPonuda.napomena||'';
   $('peInfo').textContent='Izveštaj je sačuvan.'; $('peInfo').classList.add('visible');
@@ -1560,12 +1636,13 @@ $('peResendBtn').addEventListener('click', async ()=>{
 
 $('pePosaljiNaOveruBtn').addEventListener('click', async ()=>{
   if(!currentPonuda) return;
+  if(bulkImaNesacuvano_() && !confirm('U formi "Unos ponude dobavljača" ima izabranih priloga ili unetog dobavljača, ali nije kliknuto "Sačuvaj ponudu ovog dobavljača" — to NEĆE biti sačuvano. Nastaviti?')) return;
   if(!confirm(`Poslati izveštaj ${currentPonuda.brojIzvestaja} na overu?`)) return;
   const targetEmail = emailZaKorak(2);
   if(!targetEmail){ alert(`Nije dodeljen korisnik za korak "${imeUloge(2)}". Obratite se administratoru (admin.html — Uloge u lancu odobravanja).`); return; }
   $('pePosaljiNaOveruBtn').disabled=true;
   try{
-    await apiPost('updatePonuda', {
+    const sacuvano = await apiPost('updatePonuda', {
       id: currentPonuda.id,
       vrstaRadova: $('peVrstaRadova').value.trim(),
       adresaIsporuke: $('peAdresa').value.trim(),
@@ -1573,6 +1650,10 @@ $('pePosaljiNaOveruBtn').addEventListener('click', async ()=>{
       napomena: $('peNapomena').value.trim(),
       stavke: currentPonuda.stavke
     });
+    // Ako čuvanje ne uspe, NE šaljemo na overu — inače bi otišla stara verzija bez novih priloga.
+    if(sacuvano && sacuvano.error){ alert('Izveštaj NIJE sačuvan, pa nije ni poslat na overu: '+sacuvano.error); $('pePosaljiNaOveruBtn').disabled=false; return; }
+    await obrisiNepotrebnePriloge_(currentPonuda.stavke);
+    postaviNesacuvano_(false);
     const r = await apiPost('posaljiPonuduNaOveru', { id: currentPonuda.id });
     if(r && r.error){ alert(r.error); $('pePosaljiNaOveruBtn').disabled=false; return; }
     await loadPonudeSection();
@@ -1593,7 +1674,9 @@ $('peOveriBtn').addEventListener('click', async ()=>{
   const vraceniStep = p.approvalStep;
   $('peOveriBtn').disabled=true;
   try{
-    const r = await apiPost('overiPonudu', { id: currentPonuda.id, stavke: currentPonuda.stavke, komentar });
+    // stavke se NE šalju: overavalac ih ne menja, a slanje radne kopije
+    // (učitane pri otvaranju) moglo je da prepiše novije podatke i priloge.
+    const r = await apiPost('overiPonudu', { id: currentPonuda.id, komentar });
     if(r && r.error){ $('peOveraErr').textContent=r.error; $('peOveriBtn').disabled=false; return; }
     await loadPonudeSection();
     // Isti razlog kao kod vraćanja na doradu — overavalac odmah gubi RLS
@@ -1636,7 +1719,7 @@ $('peVratiBtn').addEventListener('click', async ()=>{
   const vraceniStep = p.approvalStep;
   $('peVratiBtn').disabled=true;
   try{
-    const r = await apiPost('vratiPonuduNaDoradu', { id: currentPonuda.id, komentar, stavke: currentPonuda.stavke });
+    const r = await apiPost('vratiPonuduNaDoradu', { id: currentPonuda.id, komentar });
     if(r && r.error){ $('peOveraErr').textContent=r.error; $('peVratiBtn').disabled=false; return; }
     await loadPonudeSection();
     // Onaj ko je upravo vratio izveštaj MOŽE odmah izgubiti RLS vidljivost
