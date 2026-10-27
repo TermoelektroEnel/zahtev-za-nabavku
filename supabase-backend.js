@@ -291,6 +291,7 @@
       case 'updateNalog': return updateNalog_(body);
       case 'deleteNalog': return deleteNalog_(body);
       case 'addPonuda': return addPonuda_(body);
+      case 'addDopunskiIzvestaj': return addDopunskiIzvestaj_(body);
       case 'updatePonuda': return updatePonuda_(body);
       case 'deletePonuda': return deletePonuda_(body);
       case 'posaljiPonuduNaOveru': return posaljiPonuduNaOveru_(body);
@@ -427,6 +428,18 @@
       p_garancija_za_placanje: body.garancijaZaPlacanje || '',
       p_stavke: body.stavke || [],
       p_napomena: body.napomena || ''
+    });
+    if (error) return { error: error.message };
+    const row = Array.isArray(data) ? data[0] : data;
+    return { ponuda: mapPonuda_(row) };
+  }
+
+  // Dopunski izveštaj (IP-...-D1, -D2...) za pozicije koje nisu pokrivene.
+  async function addDopunskiIzvestaj_(body) {
+    if (!body.parentId) return { error: 'Nedostaje izveštaj od kog se pravi dopuna.' };
+    const { data, error } = await sbClient.rpc('add_dopunski_izvestaj', {
+      p_parent_id: body.parentId,
+      p_stavke: body.stavke || []
     });
     if (error) return { error: error.message };
     const row = Array.isArray(data) ? data[0] : data;

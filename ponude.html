@@ -103,6 +103,14 @@ td{padding:8px 8px 8px 0;border-bottom:1px solid var(--line-soft);font-size:13px
    pa dugmad "pobegnu" van kartice) — dugmad se prelamaju u više redova */
 td.row-actions{display:table-cell;}
 td.row-actions > *{margin:0 6px 6px 0;}
+/* prozor za dopunski izveštaj */
+.dopuna-overlay{position:fixed;inset:0;background:rgba(20,26,28,0.55);display:flex;align-items:flex-start;justify-content:center;padding:40px 16px;overflow-y:auto;z-index:500;}
+.dopuna-box{background:#fff;border-radius:10px;padding:22px 24px;width:860px;max-width:100%;box-shadow:0 10px 40px rgba(0,0,0,.3);}
+.dopuna-tabela{width:100%;border-collapse:collapse;font-size:12.5px;}
+.dopuna-tabela th,.dopuna-tabela td{padding:6px 8px;border-bottom:1px solid var(--line-soft);text-align:left;vertical-align:top;}
+.dopuna-tabela tr.pokriveno td{color:var(--ink-soft);}
+.dopuna-tabela input{width:auto;}
+.nije-pokriveno{color:#8A5A00;font-weight:700;}
 /* lista izveštaja grupisana po gradilištu i nalogu */
 .grad-group{margin-bottom:26px;}
 .grad-group:last-child{margin-bottom:0;}
@@ -987,6 +995,7 @@ function renderPonudaList(){
         <td>${ponudaStatusBadgeHtml(p)}${porucenoOznaka}</td>
         <td class="row-actions">
           <button class="btn-ghost" data-open-p="${p.id}">Otvori</button>
+          ${MOZE_KREIRATI_PONUDE && z?`<button class="btn-ghost" data-dopuna-p="${p.id}" title="Novi izveštaj samo za pozicije zahteva koje nisu pokrivene">Dopunski izveštaj</button>`:''}
           ${mozeOznacitiPorucen?`<button class="btn-ghost" data-toggle-porucen="${p.id}" data-porucen="${p.porucen?'1':'0'}">${p.porucen?'Poništi poručeno':'Označi poručeno'}</button>`:''}
           ${IS_ADMIN_PONUDE?`<button class="btn-danger-ghost" data-del-p="${p.id}" data-broj="${escapeHtml(p.brojIzvestaja)}">Obriši</button>`:''}
         </td>
@@ -1009,6 +1018,7 @@ function renderPonudaList(){
     </div>`;
   }).join('');
   wrap.querySelectorAll('[data-open-p]').forEach(b=>b.addEventListener('click',e=>{ if(potvrdiNapustanje_()) openPonudaEditor(e.currentTarget.dataset.openP); }));
+  wrap.querySelectorAll('[data-dopuna-p]').forEach(b=>b.addEventListener('click',e=>otvoriDopunskiIzvestaj_(e.currentTarget.dataset.dopunaP)));
   wrap.querySelectorAll('[data-toggle-porucen]').forEach(b=>b.addEventListener('click',async e=>{
     const id=e.currentTarget.dataset.togglePorucen, trenutno=e.currentTarget.dataset.porucen==='1';
     const r=await apiPost('postaviPorucenoPonuda',{ id, porucen: !trenutno });
@@ -1023,6 +1033,84 @@ function renderPonudaList(){
 }
 $('filterPonudaStatus').addEventListener('change', renderPonudaList);
 
+/* ===== DOPUNSKI IZVEŠTAJ ===== */
+// Pozicija izveštaja -> pozicija zahteva: po zapamćenom rednom broju
+// (zahtevIdx, za izveštaje napravljene od 27.10.2026), inače po opisu i JM.
+function pozicijaUZahtevu_(z, s){
+  if(Number.isInteger(s.zahtevIdx) && z.stavke[s.zahtevIdx] && z.stavke[s.zahtevIdx].opis===s.opis) return s.zahtevIdx;
+  return (z.stavke||[]).findIndex(x=>x.opis===s.opis && x.jm===s.jm);
+}
+// Za svaku poziciju zahteva: izveštaji koji je pokrivaju — ili ima ponudu, ili
+// je u izveštaju koji je još u radu (u izradi / na overi / vraćen na doradu).
+// Prazna pozicija u ODOBRENOM izveštaju ne računa se kao pokrivena.
+function pokrivenostZahteva_(z){
+  const pokriveno = (z.stavke||[]).map(()=>[]);
+  PONUDE.filter(p=>p.requestId===z.id).forEach(p=>{
+    (p.stavke||[]).forEach(s=>{
+      const imaPonudu = (s.ponude||[]).length>0;
+      if(!imaPonudu && p.status==='odobren') return;
+      const i = pozicijaUZahtevu_(z, s);
+      const oznaka = p.brojIzvestaja + (imaPonudu ? '' : ' (u radu, bez ponude)');
+      if(i>=0 && !pokriveno[i].includes(oznaka)) pokriveno[i].push(oznaka);
+    });
+  });
+  return pokriveno;
+}
+function otvoriDopunskiIzvestaj_(parentId){
+  const parent = PONUDE.find(p=>p.id===parentId);
+  const z = parent && ZAHTEVI.find(x=>x.id===parent.requestId);
+  if(!z){ alert('Zahtev za ovaj izveštaj nije pronađen.'); return; }
+  const pokriveno = pokrivenostZahteva_(z);
+  const el = document.createElement('div');
+  el.className = 'dopuna-overlay';
+  el.innerHTML = `
+    <div class="dopuna-box">
+      <h3 style="margin:0 0 4px;">Dopunski izveštaj — zahtev ${escapeHtml(z.redniBroj)}</h3>
+      <div class="hint" style="margin-bottom:12px;">Označi pozicije za novi izveštaj. Unapred su označene pozicije koje nisu pokrivene ponudama ni u jednom izveštaju ovog zahteva. Zaglavlje (vrsta radova, adresa, kurs, plaćanje) preuzima se iz izveštaja ${escapeHtml(parent.brojIzvestaja)}.</div>
+      <table class="dopuna-tabela">
+        <thead><tr><th></th><th>Rb.</th><th>Opis</th><th>JM</th><th>Za nabavku</th><th>Pokriveno u izveštaju</th></tr></thead>
+        <tbody>${(z.stavke||[]).map((s,i)=>`
+          <tr${pokriveno[i].length?' class="pokriveno"':''}>
+            <td><input type="checkbox" data-dopuna-idx="${i}" ${pokriveno[i].length?'':'checked'}></td>
+            <td>${i+1}</td>
+            <td>${escapeHtml(s.opis)}</td>
+            <td>${escapeHtml(s.jm)}</td>
+            <td style="text-align:right;">${escapeHtml(s.zaNabavku!==undefined?s.zaNabavku:s.kolicina)}</td>
+            <td>${pokriveno[i].length?escapeHtml(pokriveno[i].join(', ')):'<span class="nije-pokriveno">nije pokriveno</span>'}</td>
+          </tr>`).join('')}</tbody>
+      </table>
+      <div class="err" id="dopunaErr"></div>
+      <div style="display:flex;gap:8px;margin-top:14px;">
+        <button type="button" class="btn btn-primary" id="dopunaKreiraj">Kreiraj dopunski izveštaj</button>
+        <button type="button" class="btn-ghost" id="dopunaOtkazi">Otkaži</button>
+      </div>
+    </div>`;
+  document.body.appendChild(el);
+  const zatvori = () => el.remove();
+  el.querySelector('#dopunaOtkazi').addEventListener('click', zatvori);
+  el.addEventListener('click', e=>{ if(e.target===el) zatvori(); });
+  el.querySelector('#dopunaKreiraj').addEventListener('click', async ()=>{
+    const idx = [...el.querySelectorAll('[data-dopuna-idx]:checked')].map(cb=>Number(cb.dataset.dopunaIdx));
+    if(!idx.length){ el.querySelector('#dopunaErr').textContent='Označi bar jednu poziciju.'; return; }
+    if(!potvrdiNapustanje_()) return;
+    const stavke = idx.map(i=>{ const s=z.stavke[i]; return {
+      zahtevIdx:i,
+      sifra:s.sifra||'', opis:s.opis||'', jm:s.jm||'',
+      kolicina:s.kolicina, zaNabavku: s.zaNabavku!==undefined?s.zaNabavku:s.kolicina,
+      rok:s.rok||'', atest:s.atest||'',
+      ponude:[], ugovorenaCena:null, rokIsporuke:'', predlogRukovodioca:''
+    }; });
+    const btn = el.querySelector('#dopunaKreiraj');
+    btn.disabled = true;
+    const r = await apiPost('addDopunskiIzvestaj', { parentId: parent.id, stavke });
+    btn.disabled = false;
+    if(r && r.error){ el.querySelector('#dopunaErr').textContent = r.error; return; }
+    zatvori();
+    await loadPonudeSection();
+    openPonudaEditor(r.ponuda.id);
+  });
+}
+
 $('pKreirajBtn').addEventListener('click', async ()=>{
   if(!potvrdiNapustanje_()) return;
   $('pNoviErr').textContent='';
@@ -1030,7 +1118,8 @@ $('pKreirajBtn').addEventListener('click', async ()=>{
   if(!requestId){ $('pNoviErr').textContent='Izaberi zahtev za nabavku.'; return; }
   const zahtev = ZAHTEVI.find(z=>z.id===requestId);
   if(!zahtev){ $('pNoviErr').textContent='Zahtev nije pronađen.'; return; }
-  const stavke = (zahtev.stavke||[]).map(s=>({
+  const stavke = (zahtev.stavke||[]).map((s,i)=>({
+    zahtevIdx:i, // redni broj pozicije u zahtevu (0-based) — za dopunske izveštaje
     sifra:s.sifra||'', opis:s.opis||'', jm:s.jm||'',
     kolicina:s.kolicina, zaNabavku: s.zaNabavku!==undefined?s.zaNabavku:s.kolicina,
     rok:s.rok||'', atest:s.atest||'',
@@ -1637,7 +1726,21 @@ $('peResendBtn').addEventListener('click', async ()=>{
 $('pePosaljiNaOveruBtn').addEventListener('click', async ()=>{
   if(!currentPonuda) return;
   if(bulkImaNesacuvano_() && !confirm('U formi "Unos ponude dobavljača" ima izabranih priloga ili unetog dobavljača, ali nije kliknuto "Sačuvaj ponudu ovog dobavljača" — to NEĆE biti sačuvano. Nastaviti?')) return;
+  // Pozicije bez ijedne ponude ne idu na overu — izbacuju se iz izveštaja
+  // (za njih se kasnije pravi dopunski izveštaj).
+  const praznePozicije = currentPonuda.stavke
+    .map((s,i)=>({ s, rb:i+1 }))
+    .filter(x=>!(x.s.ponude||[]).length);
+  if(praznePozicije.length===currentPonuda.stavke.length){
+    alert('Nijedna pozicija nema unetu ponudu — izveštaj ne može na overu.');
+    return;
+  }
+  if(praznePozicije.length){
+    const spisak = praznePozicije.map(x=>`  ${x.rb}. ${x.s.opis}`).join('\n');
+    if(!confirm(`${praznePozicije.length===1?'Ova pozicija nema':'Ove pozicije nemaju'} nijednu ponudu:\n\n${spisak}\n\nAko nastavite, ${praznePozicije.length===1?'biće izbačena':'biće izbačene'} iz izveštaja (za ${praznePozicije.length===1?'nju':'njih'} kasnije možete napraviti dopunski izveštaj).\n\nKliknite "Otkaži" ako želite prvo da unesete ponude.`)) return;
+  }
   if(!confirm(`Poslati izveštaj ${currentPonuda.brojIzvestaja} na overu?`)) return;
+  const stavkeZaOveru = currentPonuda.stavke.filter(s=>(s.ponude||[]).length);
   const targetEmail = emailZaKorak(2);
   if(!targetEmail){ alert(`Nije dodeljen korisnik za korak "${imeUloge(2)}". Obratite se administratoru (admin.html — Uloge u lancu odobravanja).`); return; }
   $('pePosaljiNaOveruBtn').disabled=true;
@@ -1648,10 +1751,11 @@ $('pePosaljiNaOveruBtn').addEventListener('click', async ()=>{
       adresaIsporuke: $('peAdresa').value.trim(),
       kursEur: Number($('peKurs').value)||null,
       napomena: $('peNapomena').value.trim(),
-      stavke: currentPonuda.stavke
+      stavke: stavkeZaOveru
     });
     // Ako čuvanje ne uspe, NE šaljemo na overu — inače bi otišla stara verzija bez novih priloga.
     if(sacuvano && sacuvano.error){ alert('Izveštaj NIJE sačuvan, pa nije ni poslat na overu: '+sacuvano.error); $('pePosaljiNaOveruBtn').disabled=false; return; }
+    currentPonuda.stavke = stavkeZaOveru;
     await obrisiNepotrebnePriloge_(currentPonuda.stavke);
     postaviNesacuvano_(false);
     const r = await apiPost('posaljiPonuduNaOveru', { id: currentPonuda.id });
