@@ -489,6 +489,9 @@ async function apiPost(action, payload){
 // problem sa redosledom učitavanja <script> tagova.
 let _sbStorage = null;
 function getSbStorage_(){
+  // Isti klijent kao ostatak aplikacije — dva klijenta sa istom prijavom
+  // međusobno poništavaju osvežavanje prijave (posle ~1h prilozi se ne otvaraju).
+  if(window.sbClient) return window.sbClient;
   if(!_sbStorage){
     if(typeof SUPABASE_CONFIG === 'undefined'){
       throw new Error('SUPABASE_CONFIG nije učitan (supabase-config.js).');
@@ -521,9 +524,11 @@ async function uploadPonudaPdf_(posIdx, offIdx, file){
 }
 
 async function openPonudaPdf_(path){
+  // Tab se otvara odmah (dok traje klik), da ga pregledač ne blokira.
+  const tab = window.open('', '_blank');
   const { data, error } = await getSbStorage_().storage.from(PONUDA_PDF_BUCKET).createSignedUrl(path, 120);
-  if(error || !data){ alert('Nije moguće otvoriti fajl.'); return; }
-  window.open(data.signedUrl, '_blank');
+  if(error || !data){ if(tab) tab.close(); alert('Nije moguće otvoriti fajl.'+(error&&error.message?' ('+error.message+')':'')); return; }
+  if(tab) tab.location.href = data.signedUrl; else window.location.assign(data.signedUrl);
 }
 
 async function removePonudaPdf_(posIdx, offIdx){

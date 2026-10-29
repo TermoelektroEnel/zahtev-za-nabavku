@@ -48,6 +48,9 @@ input:disabled,select:disabled,textarea:disabled,button:disabled{background:#E7E
 .prilog-item{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:6px 10px;border:1px solid var(--line-soft);border-radius:var(--radius);margin-bottom:6px;font-size:12.5px;background:#fff;}
 .prilog-item .naziv{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .prilog-item button{flex-shrink:0;}
+.prilog-item.prilog-levo{justify-content:flex-start;display:inline-flex;max-width:100%;}
+.prilog-link{color:var(--steel-dark);text-decoration:underline;text-underline-offset:2px;cursor:pointer;}
+.prilog-link:hover{color:var(--steel);}
 .status-badge{display:inline-block;font-size:10.5px;font-weight:600;padding:2px 8px;border-radius:10px;text-transform:uppercase;letter-spacing:.02em;white-space:nowrap;}
 .tag{font-family:'IBM Plex Mono',monospace;font-size:11px;background:var(--steel-dark);color:#fff;padding:2px 7px;border-radius:12px;}
 .status-u_izradi{background:var(--line-soft);color:var(--ink-soft);}
@@ -529,6 +532,9 @@ async function apiUpdatePrilozi(id, prilozi){
 const ZAHTEV_PRILOZI_BUCKET = 'zahtev-prilozi';
 let _sbStorage = null;
 function getSbStorage_(){
+  // Isti klijent kao ostatak aplikacije — dva klijenta sa istom prijavom
+  // međusobno poništavaju osvežavanje prijave (posle ~1h prilozi se ne otvaraju).
+  if(window.sbClient) return window.sbClient;
   if(!_sbStorage){
     if(typeof SUPABASE_CONFIG === 'undefined'){
       throw new Error('SUPABASE_CONFIG nije učitan (supabase-config.js).');
@@ -545,11 +551,17 @@ async function uploadPrilogZaZahtev_(requestId, file){
   return { path, filename: file.name, size: file.size };
 }
 async function otvoriPrilog_(path){
+  // Tab se otvara odmah (dok traje klik), inače ga pregledač može blokirati
+  // kao iskačući prozor; link za fajl upisuje se kad stigne.
+  const tab = window.open('', '_blank');
   try{
     const { data, error } = await getSbStorage_().storage.from(ZAHTEV_PRILOZI_BUCKET).createSignedUrl(path, 120);
-    if(error || !data){ alert('Nije moguće otvoriti prilog.'); return; }
-    window.open(data.signedUrl, '_blank');
-  }catch(e){ alert('Nije moguće otvoriti prilog.'); }
+    if(error || !data) throw new Error(error ? error.message : 'nema linka');
+    if(tab) tab.location.href = data.signedUrl; else window.location.assign(data.signedUrl);
+  }catch(e){
+    if(tab) tab.close();
+    alert('Nije moguće otvoriti prilog. ' + (e && e.message ? '('+e.message+')' : ''));
+  }
 }
 
 const $ = id => document.getElementById(id);
@@ -1887,11 +1899,12 @@ async function openZahtevView(id){
   if(r.prilozi && r.prilozi.length){
     const prilContainer = $('overaPrilozi');
     prilContainer.innerHTML = r.prilozi.map((p,idx)=>`
-      <div class="prilog-item">
-        <span class="naziv">📄 ${escapeHtml(p.filename)}</span>
+      <div class="prilog-item prilog-levo">
+        <a href="#" class="naziv prilog-link" data-open-overa-prilog="${idx}" title="Otvori prilog">📄 ${escapeHtml(p.filename)}</a>
         <button type="button" class="btn-ghost" data-open-overa-prilog="${idx}" style="padding:3px 8px;font-size:11px;">Otvori</button>
       </div>`).join('');
     prilContainer.querySelectorAll('[data-open-overa-prilog]').forEach(b=>b.addEventListener('click',e=>{
+      e.preventDefault();
       otvoriPrilog_(r.prilozi[Number(e.currentTarget.dataset.openOveraPrilog)].path);
     }));
   }
