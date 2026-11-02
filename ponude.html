@@ -103,6 +103,11 @@ td{padding:8px 8px 8px 0;border-bottom:1px solid var(--line-soft);font-size:13px
    pa dugmad "pobegnu" van kartice) — dugmad se prelamaju u više redova */
 td.row-actions{display:table-cell;}
 td.row-actions > *{margin:0 6px 6px 0;}
+/* izmena količine u izveštaju */
+.kolicina-unos{display:flex;align-items:center;gap:6px;white-space:nowrap;}
+.kolicina-unos input{width:90px !important;padding:4px 7px !important;font-size:12.5px !important;text-align:right;}
+.kolicina-promena{font-size:12px;font-weight:600;color:#8A5A00;background:#FDF3E1;border-left:3px solid #B7791F;border-radius:4px;padding:6px 10px;margin:-2px 0 10px;}
+td.kolicina-menjana{color:#8A5A00;font-weight:700;}
 /* prozor za dopunski izveštaj */
 .dopuna-overlay{position:fixed;inset:0;background:rgba(20,26,28,0.55);display:flex;align-items:flex-start;justify-content:center;padding:40px 16px;overflow-y:auto;z-index:500;}
 .dopuna-box{background:#fff;border-radius:10px;padding:22px 24px;width:860px;max-width:100%;box-shadow:0 10px 40px rgba(0,0,0,.3);}
@@ -763,7 +768,7 @@ function renderPePregled(){
     return `<tr>
       <td class="center">${idx+1}</td><td>${escapeHtml(s.opis)}</td>
       ${supplierCells}
-      <td class="center">${escapeHtml(s.jm)}</td><td class="num">${fmtBroj_(s.kolicina)}</td>
+      <td class="center">${escapeHtml(s.jm)}</td><td class="num${kolicinaPromenjena_(s)?' kolicina-menjana':''}">${escapeHtml(kolicinaTekst_(s, true))}</td>
       <td class="num">${s.ugovorenaCena!=null?fmtCena_(s.ugovorenaCena):'—'}</td>
       <td class="center">${escapeHtml(s.predlogRukovodioca||'—')}</td>
     </tr>`;
@@ -1291,8 +1296,13 @@ function renderPeStavke(){
     <div class="pozicija-block">
       <div class="pozicija-head">
         <div class="naziv">${posIdx+1}. ${escapeHtml(s.opis)}</div>
-        <div class="meta">${escapeHtml(s.jm)} · za nabavku: ${escapeHtml(s.zaNabavku)}</div>
+        <div class="meta kolicina-unos">
+          za nabavku:
+          <input type="text" inputmode="decimal" data-kolicina="${posIdx}" value="${escapeHtml(formatUnosSrpski_(String(s.zaNabavku??'').replace('.',',')))}" title="Količina koja se nabavlja — može se promeniti u odnosu na zahtev">
+          ${escapeHtml(s.jm)}
+        </div>
       </div>
+      ${kolicinaPromenjena_(s)?`<div class="kolicina-promena">⚠ Količina promenjena u odnosu na zahtev (u zahtevu: ${escapeHtml(fmtBroj_(s.zaNabavkuZahtev))} ${escapeHtml(s.jm)}) — obrazloži izmenu u polju Napomena.</div>`:''}
       ${s.ponude.length?'':'<div class="hint" style="margin-bottom:10px;">Još uvek nema unetih ponuda za ovu poziciju (unesi ih gore, kroz unos po dobavljaču).</div>'}
       <div class="pozicija-extra" style="grid-template-columns:1fr 1fr;">
         <div class="field"><label>Predlog rukovodioca</label>
@@ -1315,6 +1325,22 @@ function renderPeStavke(){
     </div>`;
   }).join('');
 
+  wrap.querySelectorAll('[data-kolicina]').forEach(i=>{
+    i.addEventListener('input',e=>{ e.currentTarget.value = formatUnosSrpski_(e.currentTarget.value); });
+    i.addEventListener('change',e=>{
+      const posIdx=Number(e.currentTarget.dataset.kolicina);
+      const s=currentPonuda.stavke[posIdx];
+      const v=e.currentTarget.value.trim();
+      const nova = v==='' ? NaN : parsirajSrpski_(v);
+      if(!(nova>0)){ alert('Količina mora biti broj veći od nule.'); renderPeStavke(); return; }
+      // prvi put kad se menja — zapamti količinu iz zahteva
+      if(s.zaNabavkuZahtev===undefined) s.zaNabavkuZahtev = s.zaNabavku;
+      s.zaNabavku = String(nova);
+      if(Number(s.zaNabavkuZahtev)===nova) delete s.zaNabavkuZahtev;
+      postaviNesacuvano_(true);
+      renderPeStavke();
+    });
+  });
   wrap.querySelectorAll('[data-predlog]').forEach(i=>i.addEventListener('change',e=>{
     const posIdx=Number(e.currentTarget.dataset.predlog);
     currentPonuda.stavke[posIdx].predlogRukovodioca=e.currentTarget.value;
@@ -1336,6 +1362,16 @@ function renderPeStavke(){
   renderPeTotals();
   renderBulkDobavljaci();
   renderPePregled();
+}
+
+// Da li je količina za nabavku u izveštaju promenjena u odnosu na zahtev.
+function kolicinaPromenjena_(s){
+  return s.zaNabavkuZahtev!==undefined && Number(s.zaNabavkuZahtev)!==Number(s.zaNabavku);
+}
+// Prikaz količine u pregledu/PDF-u: količina koja se nabavlja (+ iz zahteva, ako je menjana).
+function kolicinaTekst_(s, saZahtevom){
+  const k = fmtBroj_(s.zaNabavku!==undefined && s.zaNabavku!==null && s.zaNabavku!=='' ? s.zaNabavku : s.kolicina);
+  return kolicinaPromenjena_(s) && saZahtevom ? `${k} (ZN: ${fmtBroj_(s.zaNabavkuZahtev)})` : k;
 }
 
 // SUMPRODUCT: ukupna vrednost pozicije = jedinična cena × količina (za nabavku)
@@ -1541,7 +1577,7 @@ async function buildPonudaPdfBlob_(p, zahtev){
     return [
       idx+1, s.opis,
       ...supplierCells,
-      s.jm, fmtBroj_(s.kolicina),
+      s.jm, kolicinaTekst_(s, true),
       s.ugovorenaCena!=null?fmtCena_(s.ugovorenaCena):'—',
       s.predlogRukovodioca||'—'
     ];
@@ -1743,6 +1779,12 @@ $('pePosaljiNaOveruBtn').addEventListener('click', async ()=>{
   if(praznePozicije.length){
     const spisak = praznePozicije.map(x=>`  ${x.rb}. ${x.s.opis}`).join('\n');
     if(!confirm(`${praznePozicije.length===1?'Ova pozicija nema':'Ove pozicije nemaju'} nijednu ponudu:\n\n${spisak}\n\nAko nastavite, ${praznePozicije.length===1?'biće izbačena':'biće izbačene'} iz izveštaja (za ${praznePozicije.length===1?'nju':'njih'} kasnije možete napraviti dopunski izveštaj).\n\nKliknite "Otkaži" ako želite prvo da unesete ponude.`)) return;
+  }
+  // Promenjena količina u odnosu na zahtev — podsetnik da se obrazloži u Napomeni.
+  const promenjeneKol = currentPonuda.stavke.map((s,i)=>({s,rb:i+1})).filter(x=>(x.s.ponude||[]).length && kolicinaPromenjena_(x.s));
+  if(promenjeneKol.length && !$('peNapomena').value.trim()){
+    const spisakK = promenjeneKol.map(x=>`  ${x.rb}. ${x.s.opis}: ${fmtBroj_(x.s.zaNabavkuZahtev)} → ${fmtBroj_(x.s.zaNabavku)} ${x.s.jm}`).join('\n');
+    if(!confirm(`Količina je promenjena u odnosu na zahtev:\n\n${spisakK}\n\nPolje "Napomena" je prazno. Poslati na overu bez obrazloženja?\n\nKliknite "Otkaži" da prvo upišete obrazloženje u Napomenu.`)) { $('peNapomena').focus(); return; }
   }
   if(!confirm(`Poslati izveštaj ${currentPonuda.brojIzvestaja} na overu?`)) return;
   const stavkeZaOveru = currentPonuda.stavke.filter(s=>(s.ponude||[]).length);
