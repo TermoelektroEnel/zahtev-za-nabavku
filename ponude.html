@@ -995,13 +995,14 @@ function renderPonudaList(){
   });
   const uporedi = (a,b)=>String(a).localeCompare(String(b),'sr',{numeric:true});
 
-  const tabelaHtml = stavke => `<table><thead><tr><th style="width:170px;">Broj izveštaja</th><th style="width:150px;">Zahtev</th><th>Status</th><th style="width:300px;"></th></tr></thead><tbody>
+  const tabelaHtml = stavke => `<table><thead><tr><th style="width:170px;">Broj izveštaja</th><th style="width:150px;">Zahtev</th><th style="width:130px;">Datum zahteva</th><th>Status</th><th style="width:300px;"></th></tr></thead><tbody>
     ${stavke.sort((a,b)=>uporedi(a.p.brojIzvestaja,b.p.brojIzvestaja)).map(({p,z})=>{
       const mozeOznacitiPorucen = (IS_ADMIN_PONUDE || MOZE_KREIRATI_PONUDE) && p.status==='odobren';
       const porucenoOznaka = p.porucen ? '<span class="tag" style="margin-left:6px;">Poručeno</span>' : '';
       return `<tr>
         <td style="font-family:'IBM Plex Mono',monospace;">${escapeHtml(p.brojIzvestaja)}</td>
         <td>${z ? escapeHtml(z.redniBroj) : '<span class="hint">zahtev obrisan</span>'}</td>
+        <td>${z ? fmtDatum_(z.createdAt) : ''}</td>
         <td>${ponudaStatusBadgeHtml(p)}${porucenoOznaka}</td>
         <td class="row-actions">
           <button class="btn-ghost" data-open-p="${p.id}">Otvori</button>
@@ -1252,6 +1253,8 @@ function ukupnoRSD_(o, kolicina){
   const faktor = (o.valuta==='EUR') ? kurs : 1;
   return jc * (Number(kolicina)||0) * faktor;
 }
+// Datum kao 14.10.2026. (toLocaleDateString('sr-RS') daje "14. 10. 2026.", sa razmacima)
+function fmtDatum_(ms){ const d=new Date(ms); return `${String(d.getDate()).padStart(2,'0')}.${String(d.getMonth()+1).padStart(2,'0')}.${d.getFullYear()}.`; }
 function fmtBroj_(n){ return (Number(n)||0).toLocaleString('sr-RS',{maximumFractionDigits:2}); }
 
 // Formatira UNOS dok korisnik kuca: zarez je decimalni razdvajač, tačka
