@@ -753,6 +753,9 @@ td{padding:7px 8px;border-bottom:1px solid #ddd;font-size:12.5px;}
 .status-nije td{background:#F1948A;color:#1a1a1a;}
 .status-porucena td{background:#F8C471;color:#1a1a1a;}
 .status-isporucena td{background:#82E0AA;color:#1a1a1a;}
+.status-ne-porucuje td{background:#B5E3C4;color:#1a1a1a;}
+.status-ne-porucuje td:nth-child(5){text-decoration:line-through;text-decoration-color:rgba(0,0,0,.45);}
+textarea.napomena-zbirna.nap-obavezna{border:2px solid #C62828;background:#FFF4F2;}
 select, input[type=date], input[type=number], input[type=text]{font-family:'IBM Plex Sans',sans-serif;font-size:12.5px;padding:5px 6px;border-radius:3px;border:1px solid #CBCFC5;background:#fff;color:inherit;}
 select:disabled, input[type=date]:disabled, input[type=number]:disabled, input[type=text]:disabled{background:#E7E8E1;color:var(--ink-soft);cursor:not-allowed;}
 textarea.napomena-zbirna{font-family:'IBM Plex Sans',sans-serif;font-size:12.5px;padding:5px 6px;border-radius:3px;border:1px solid #CBCFC5;background:#fff;color:inherit;width:220px;min-height:30px;resize:vertical;display:block;}
@@ -834,7 +837,7 @@ const NALOG = ${JSON.stringify(nalog)};
 let REQUESTS = ${JSON.stringify(requestsData)};
 function escapeHtml(s){ return String(s??'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 function formatDatumSr(iso){ if(!iso) return '—'; const p=String(iso).split('-'); if(p.length!==3) return iso; return p[2]+'.'+p[1]+'.'+p[0]+'.'; }
-function statusKlasa(s){ if(s==='poručeno') return 'status-porucena'; if(s==='isporučeno') return 'status-isporucena'; return 'status-nije'; }
+function statusKlasa(s){ if(s==='poručeno') return 'status-porucena'; if(s==='isporučeno') return 'status-isporucena'; if(s==='ne poručuje se') return 'status-ne-porucuje'; return 'status-nije'; }
 function preostaloZaIsporuku(s){ const z=isNaN(parseFloat(s.zaNabavku))?0:parseFloat(s.zaNabavku); const i=isNaN(parseFloat(s.isporuceno))?0:parseFloat(s.isporuceno); return Math.round((z-i)*1000)/1000; }
 let FILTERI = { redniBroj:'', gradiliste:'', sifra:'', opis:'', jm:'', status:'', dobavljac:'', otpremnica:'', prijemnica:'', napomenaZbirna:'' };
 function podudaraSeFilteru_(vrednost, filter){
@@ -864,13 +867,14 @@ function render(){
       +'<td>'+escapeHtml(s.jm)+'</td>'
       +'<td class="num" style="font-weight:600;">'+escapeHtml(s.zaNabavku!==undefined?s.zaNabavku:'')+'</td>'
       +'<td><input type="number" min="0" step="any" style="width:80px;" data-req="'+reqIdx+'" data-idx="'+idx+'" data-field="isporuceno" value="'+escapeHtml(s.isporuceno||'')+'"></td>'
-      +'<td class="num" style="font-weight:600;">'+escapeHtml(preostaloZaIsporuku(s))+'</td>'
+      +'<td class="num" style="font-weight:600;">'+(s.status==='ne poručuje se'?'—':escapeHtml(preostaloZaIsporuku(s)))+'</td>'
       +'<td>'+escapeHtml(formatDatumSr(s.rok))+'</td>'
       +'<td style="text-align:center;">'+escapeHtml(s.atest||'—')+'</td>'
       +'<td><select data-req="'+reqIdx+'" data-idx="'+idx+'" data-field="status">'
         +'<option value="nije poručeno"'+(s.status==='nije poručeno'?' selected':'')+'>nije poručeno</option>'
         +'<option value="poručeno"'+(s.status==='poručeno'?' selected':'')+'>poručeno</option>'
         +'<option value="isporučeno"'+(s.status==='isporučeno'?' selected':'')+'>isporučeno</option>'
+        +'<option value="ne poručuje se"'+(s.status==='ne poručuje se'?' selected':'')+'>ne poručuje se</option>'
       +'</select></td>'
       +'<td><input type="date" data-req="'+reqIdx+'" data-idx="'+idx+'" data-field="datumIsporuke" value="'+escapeHtml(s.datumIsporuke||'')+'"></td>'
       +'<td><input type="text" style="width:120px;" data-req="'+reqIdx+'" data-idx="'+idx+'" data-field="dobavljac" value="'+escapeHtml(s.dobavljac||'')+'"></td>'
@@ -894,7 +898,7 @@ async function onFieldChange(e){
   const req=REQUESTS[reqIdx]; const stavka=req.stavke[idx]; stavka[field]=value;
   if(field==='isporuceno'){
     const z=parseFloat(stavka.zaNabavku); const i=parseFloat(value);
-    if(!isNaN(z)&&!isNaN(i)&&z!==0){ if(i===z) stavka.status='isporučeno'; else if(i>0&&i<z) stavka.status='poručeno'; }
+    if(!isNaN(z)&&!isNaN(i)&&z!==0&&stavka.status!=='ne poručuje se'){ if(i===z) stavka.status='isporučeno'; else if(i>0&&i<z) stavka.status='poručeno'; }
   }
   const statusMsg=document.getElementById('statusMsg'); statusMsg.textContent='Čuvanje…';
   try{
@@ -902,6 +906,11 @@ async function onFieldChange(e){
     statusMsg.textContent=error?'Greška: '+error.message:'Sačuvano '+new Date().toLocaleTimeString('sr-RS');
   }catch(err){ statusMsg.textContent='Greška pri čuvanju — proveri konekciju.'; }
   render();
+  if(field==='status' && value==='ne poručuje se' && !String(stavka.napomenaZbirna||'').trim()){
+    const nap=document.querySelector('textarea[data-req="'+reqIdx+'"][data-idx="'+idx+'"][data-field="napomenaZbirna"]');
+    if(nap){ nap.classList.add('nap-obavezna'); nap.placeholder='upiši zašto se ne poručuje…'; nap.focus(); }
+    statusMsg.textContent='Sačuvano — upiši u Napomenu zašto se pozicija ne poručuje.';
+  }
 }
 async function sacuvajSve(){
   const banner=document.getElementById('saveBanner');
