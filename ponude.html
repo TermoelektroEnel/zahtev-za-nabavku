@@ -218,6 +218,19 @@ td.kolicina-menjana{color:#8A5A00;font-weight:700;}
   </div>
 
   <div class="card admin-only-card">
+    <h2>Izveštaj o završenim nabavkama</h2>
+    <p class="section-note">Excel sa svim poručenim pozicijama za izabrani nalog za realizaciju: broj izveštaja, dobavljač, opis, JM, količina i nabavna cena (bez PDV). Uzimaju se samo odobreni izveštaji označeni kao „Poručeno".</p>
+    <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;">
+      <div class="field field-istaknuto" style="margin-bottom:0;min-width:280px;flex:0 1 480px;">
+        <label for="zavrseneNalog">Nalog za realizaciju</label>
+        <select id="zavrseneNalog"><option value="">— izaberi nalog —</option></select>
+      </div>
+      <button type="button" class="btn btn-primary" id="zavrseneExcelBtn">Preuzmi Excel</button>
+    </div>
+    <div class="err" id="zavrseneErr"></div>
+  </div>
+
+  <div class="card admin-only-card">
     <div style="display:flex;align-items:flex-end;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:4px;">
       <h2 style="margin:0;">Postojeći izveštaji o ponudama</h2>
       <div class="field-istaknuto">
@@ -972,6 +985,7 @@ function populateZahtevSelect(){
 }
 
 function renderPonudaList(){
+  populateZavrseneNalogSelect_();
   const wrap=$('ponudaListWrap');
   if(!PONUDE.length){ wrap.innerHTML='<div class="empty">Još uvek nema izveštaja o ponudama.</div>'; return; }
 
@@ -1043,6 +1057,102 @@ function renderPonudaList(){
   }));
 }
 $('filterPonudaStatus').addEventListener('change', renderPonudaList);
+
+/* ===== IZVEŠTAJ O ZAVRŠENIM NABAVKAMA (Excel) ===== */
+// Poručeni (odobreni + "Poručeno") izveštaji, po nalogu zahteva za koji su rađeni.
+function poruceniIzvestajiZaNalog_(nalog){
+  return PONUDE.filter(p=>{
+    if(p.status!=='odobren' || !p.porucen) return false;
+    const z = ZAHTEVI.find(x=>x.id===p.requestId);
+    return z && z.nalog===nalog;
+  });
+}
+function populateZavrseneNalogSelect_(){
+  const sel = $('zavrseneNalog'); if(!sel) return;
+  const trenutni = sel.value;
+  const nalozi = [...new Set(PONUDE.filter(p=>p.status==='odobren' && p.porucen)
+    .map(p=>(ZAHTEVI.find(x=>x.id===p.requestId)||{}).nalog).filter(Boolean))]
+    .sort((a,b)=>String(a).localeCompare(String(b),'sr',{numeric:true}));
+  sel.innerHTML = '<option value="">— izaberi nalog —</option>' + nalozi.map(n=>{
+    const opis = (NALOZI.find(x=>x.kod===n)||{}).opis||'';
+    const broj = poruceniIzvestajiZaNalog_(n).length;
+    return '<option value="'+escapeHtml(n)+'">'+escapeHtml(n)+(opis?' — '+escapeHtml(opis):'')+' ('+broj+' izv.)</option>';
+  }).join('');
+  if(nalozi.includes(trenutni)) sel.value = trenutni;
+}
+let _xlsxUcitan = null;
+function ucitajXlsx_(){
+  if(window.XLSX) return Promise.resolve();
+  if(!_xlsxUcitan) _xlsxUcitan = new Promise((ok, greska)=>{
+    const sc = document.createElement('script');
+    sc.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+    sc.onload = ok;
+    sc.onerror = ()=>{ _xlsxUcitan=null; greska(new Error('Biblioteka za Excel nije učitana (proveri internet vezu).')); };
+    document.head.appendChild(sc);
+  });
+  return _xlsxUcitan;
+}
+// Redovi: svaka poručena pozicija posebno (bez spajanja istih stavki).
+function redoviZavrsenihNabavki_(nalog){
+  const redovi = [], upozorenja = [];
+  poruceniIzvestajiZaNalog_(nalog)
+    .sort((a,b)=>String(a.brojIzvestaja).localeCompare(String(b.brojIzvestaja),'sr',{numeric:true}))
+    .forEach(p=>{
+      (p.stavke||[]).forEach(s=>{
+        const o = s.predlogRukovodioca ? (s.ponude||[]).find(x=>x.dobavljac===s.predlogRukovodioca) : null;
+        if(!o) return; // pozicija bez izabranog dobavljača nije nabavljena kroz ovaj izveštaj
+        const kolicina = Number(s.zaNabavku!==undefined && s.zaNabavku!==null && s.zaNabavku!=='' ? s.zaNabavku : s.kolicina) || 0;
+        let cena = jedCena_(o);
+        if(o.valuta==='EUR'){
+          const kurs = Number(p.kursEur)||0;
+          if(!kurs) upozorenja.push(p.brojIzvestaja+': '+s.opis+' — cena je u EUR, a kurs nije unet (cena ostavljena u EUR).');
+          else cena = cena * kurs;
+        }
+        redovi.push({ broj:p.brojIzvestaja, dobavljac:o.dobavljac, opis:s.opis||'', jm:s.jm||'', kolicina, cena: Math.round(cena*100)/100 });
+      });
+    });
+  return { redovi, upozorenja };
+}
+async function preuzmiZavrseneNabavke_(){
+  $('zavrseneErr').textContent = '';
+  const nalog = $('zavrseneNalog').value;
+  if(!nalog){ $('zavrseneErr').textContent = 'Izaberi nalog za realizaciju.'; return; }
+  const { redovi, upozorenja } = redoviZavrsenihNabavki_(nalog);
+  if(!redovi.length){ $('zavrseneErr').textContent = 'Za ovaj nalog nema poručenih pozicija sa izabranim dobavljačem.'; return; }
+  const btn = $('zavrseneExcelBtn'); btn.disabled = true;
+  try{ await ucitajXlsx_(); }
+  catch(e){ btn.disabled = false; $('zavrseneErr').textContent = e.message; return; }
+  btn.disabled = false;
+
+  const opisNaloga = (NALOZI.find(x=>x.kod===nalog)||{}).opis||'';
+  const POCETAK = 5; // red (1-based) u kom je zaglavlje tabele
+  const aoa = [
+    ['IZVEŠTAJ O ZAVRŠENIM NABAVKAMA'],
+    ['Nalog za realizaciju: '+nalog+(opisNaloga?' — '+opisNaloga:'')],
+    ['Datum: '+fmtDatum_(Date.now())+'  ·  poručenih izveštaja o ponudama: '+poruceniIzvestajiZaNalog_(nalog).length],
+    [],
+    ['Rb.','Broj izveštaja','Dobavljač','Opis','JM','Količina','Jed. cena (RSD, bez PDV)','Ukupno (RSD, bez PDV)'],
+    ...redovi.map((r,i)=>[i+1, r.broj, r.dobavljac, r.opis, r.jm, r.kolicina, r.cena, r.kolicina*r.cena])
+  ];
+  const ws = XLSX.utils.aoa_to_sheet(aoa);
+  const prviRed = POCETAK+1, poslednjiRed = POCETAK+redovi.length;
+  for(let red=prviRed; red<=poslednjiRed; red++){
+    ws['H'+red].f = 'F'+red+'*G'+red;
+    ws['H'+red].z = '#,##0.00';
+    ws['G'+red].z = '#,##0.00';
+  }
+  const redZbira = poslednjiRed+1;
+  ws['G'+redZbira] = { t:'s', v:'UKUPNO:' };
+  ws['H'+redZbira] = { t:'n', f:'SUM(H'+prviRed+':H'+poslednjiRed+')', v: redovi.reduce((s,r)=>s+r.kolicina*r.cena,0), z:'#,##0.00' };
+  ws['!ref'] = 'A1:H'+redZbira;
+  ws['!cols'] = [{wch:5},{wch:18},{wch:24},{wch:60},{wch:7},{wch:10},{wch:16},{wch:18}];
+  ws['!autofilter'] = { ref: 'A'+POCETAK+':H'+poslednjiRed };
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Završene nabavke');
+  XLSX.writeFile(wb, 'Zavrsene-nabavke-'+String(nalog).replace(/[^a-zA-Z0-9_-]+/g,'-')+'.xlsx');
+  if(upozorenja.length) alert('Excel je napravljen, uz napomenu:\n\n'+upozorenja.join('\n'));
+}
+$('zavrseneExcelBtn').addEventListener('click', preuzmiZavrseneNabavke_);
 
 /* ===== DOPUNSKI IZVEŠTAJ ===== */
 // Pozicija izveštaja -> pozicija zahteva: po zapamćenom rednom broju
