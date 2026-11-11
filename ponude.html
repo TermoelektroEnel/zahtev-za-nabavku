@@ -67,8 +67,9 @@
     <!-- LEVO: lista izveštaja -->
     <aside class="side admin-only-card" id="sideList">
       <div class="side-top">
+        <button type="button" class="btn btn-primary" id="otvoriNoviBtn">+ Novi izveštaj</button>
         <div class="row">
-          <button type="button" class="btn btn-primary" id="otvoriNoviBtn">+ Novi izveštaj</button>
+          <button type="button" class="btn-ghost" id="otvoriZbirnaBtn" title="Zbirna specifikacija po nalogu za realizaciju (otvara se u novom tabu)">▤ Zbirna specifikacija</button>
           <button type="button" class="btn-ghost" id="otvoriExcelBtn" title="Izveštaj o završenim nabavkama (Excel po nalogu)">⇩ Excel završenih</button>
         </div>
         <input type="search" id="pretragaListe" placeholder="Pretraga: broj, zahtev, nalog, dobavljač…">
@@ -256,6 +257,23 @@
   </div>
 </div>
 
+<!-- PROZOR: zbirna specifikacija po nalogu -->
+<div class="modal-bg" id="modalZbirna">
+  <div class="modal">
+    <h2>Zbirna specifikacija po nalogu</h2>
+    <p class="section-note">Sve pozicije iz zahteva za izabrani nalog za realizaciju, sa statusom poručivanja i isporuke. Otvara se u novom tabu — ista kao na stranici Zahtevi za nabavku.</p>
+    <div class="field">
+      <label for="zbirnaNalog">Nalog za realizaciju</label>
+      <select id="zbirnaNalog"><option value="">— izaberi nalog —</option></select>
+    </div>
+    <div class="err" id="zbirnaErr"></div>
+    <div class="dugmad">
+      <button type="button" class="btn-ghost" data-zatvori-modal>Zatvori</button>
+      <button type="button" class="btn btn-primary" id="zbirnaOtvoriBtn">Otvori zbirnu specifikaciju</button>
+    </div>
+  </div>
+</div>
+
 <!-- PROZOR: izveštaj o završenim nabavkama -->
 <div class="modal-bg" id="modalExcel">
   <div class="modal">
@@ -278,6 +296,7 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="supabase-config.js"></script>
 <script src="supabase-backend.js"></script>
+<script src="zbirna.js"></script>
 <script>
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycby9zpoac93iRvD7gavKdgKel7XaT_lmDBTfTc42-M0iKo3LIj7MSuVxXN36sTUDpBcU/exec";
 
@@ -1066,6 +1085,38 @@ function otvoriModal_(id){ $(id).classList.add('on'); }
 function zatvoriModale_(){ document.querySelectorAll('.modal-bg').forEach(m=>m.classList.remove('on')); }
 $('otvoriNoviBtn').addEventListener('click', ()=>{ $('pNoviErr').textContent=''; otvoriModal_('modalNovi'); });
 $('otvoriExcelBtn').addEventListener('click', ()=>{ $('zavrseneErr').textContent=''; otvoriModal_('modalExcel'); });
+
+// Zbirna specifikacija po nalogu (isti kod kao na stranici Zahtevi za nabavku — zbirna.js).
+// Nalozi: oni za koje postoji bar jedan zahtev koji korisnik vidi.
+$('otvoriZbirnaBtn').addEventListener('click', ()=>{
+  const nalozi = [...new Set(ZAHTEVI.map(z=>z.nalog).filter(Boolean))].sort((a,b)=>String(a).localeCompare(String(b),'sr',{numeric:true}));
+  $('zbirnaNalog').innerHTML = '<option value="">— izaberi nalog —</option>' + nalozi.map(n=>{
+    const opis = (NALOZI.find(x=>x.kod===n)||{}).opis||'';
+    return `<option value="${escapeHtml(n)}">${escapeHtml(n)}${opis?' — '+escapeHtml(opis):''}</option>`;
+  }).join('');
+  if(nalozi.includes($('filterNalog').value)) $('zbirnaNalog').value = $('filterNalog').value;
+  $('zbirnaErr').textContent='';
+  otvoriModal_('modalZbirna');
+});
+$('zbirnaOtvoriBtn').addEventListener('click', async ()=>{
+  const nalog = $('zbirnaNalog').value;
+  if(!nalog){ $('zbirnaErr').textContent='Izaberi nalog za realizaciju.'; return; }
+  // Tab se otvara odmah (dok traje klik), da ga pregledač ne blokira; sadržaj
+  // dobija tek pošto se zahtevi sveže učitaju iz baze.
+  const tab = window.open('', '_blank');
+  if(!tab){ $('zbirnaErr').textContent='Browser je blokirao novi tab — dozvoli pop-up prozore za ovu stranicu.'; return; }
+  try{ tab.document.title = 'Učitavanje…'; tab.document.body.innerHTML = '<p style="font-family:sans-serif;padding:20px;">Učitavanje zbirne specifikacije…</p>'; }catch(e){}
+  try{
+    const zData = await apiGet('list');
+    ZAHTEVI = (zData.requests||[]);
+  }catch(e){ tab.close(); $('zbirnaErr').textContent='Zahtevi nisu učitani — pokušaj ponovo.'; return; }
+  zatvoriModale_();
+  otvoriZbirnuSpecifikaciju({
+    nalog, tab, zahtevi: ZAHTEVI,
+    nazivGradilista: kod => (GRADILISTA.find(g=>g.kod===String(kod))||{}).naziv||'',
+    nazivNaloga: kod => (NALOZI.find(n=>n.kod===String(kod))||{}).opis||''
+  });
+});
 document.querySelectorAll('[data-zatvori-modal]').forEach(b=>b.addEventListener('click', zatvoriModale_));
 document.querySelectorAll('.modal-bg').forEach(m=>m.addEventListener('click', e=>{ if(e.target===m) zatvoriModale_(); }));
 document.addEventListener('keydown', e=>{ if(e.key==='Escape'){ zatvoriModale_(); $('peViseMeni').classList.remove('on'); } });
