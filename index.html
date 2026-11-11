@@ -244,7 +244,7 @@ input[type=password]:focus{outline:2px solid var(--steel);outline-offset:1px;}
   <nav class="module-nav" id="moduleNav" style="display:none;">
     <a href="index.html" class="active">Zahtev za nabavku</a>
     <a href="ponude.html">Izveštaji o ponudama</a>
-    <a href="admin.html">Administracija</a>
+    <a href="admin.html" id="navAdmin">Administracija</a>
   </nav>
 
   <div class="grid">
@@ -659,7 +659,10 @@ async function loadRefData(){
     APPROVAL_ROLES = (arData.roles||[]);
     CURRENT_USER_ID = myUid;
     IS_ADMIN = !!admFlag;
-    $('moduleNav').style.display = IS_ADMIN ? 'flex' : 'none';
+    // Meni modula: admin vidi sve; Rukovodilac nabavke (ima pristup Izveštajima
+    // o ponudama) vidi Zahtev + Izveštaje, bez Administracije; ostali ne vide meni.
+    $('moduleNav').style.display = (IS_ADMIN || jeRukovodilacNabavke_()) ? 'flex' : 'none';
+    $('navAdmin').style.display = IS_ADMIN ? '' : 'none';
     IS_MAGACIONER = !!magFlag;
     PORUCENI_ZAHTEVI = new Set(pData.porucene||[]);
     if(jeRukovodilacNabavke_()){
