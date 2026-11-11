@@ -220,3 +220,7 @@ td.kolicina-menjana{color:var(--amber);font-weight:700;}
   .row3,.pozicija-extra{grid-template-columns:1fr;}
   .kpis{grid-template-columns:1fr 1fr;}
 }
+
+/* filter po nalogu u listi — istaknut kad je izabran */
+#filterNalog{font-size:12.5px;padding:6px 9px;color:var(--ink-2);}
+#filterNalog.aktivan{border-color:var(--accent-line);background:var(--accent-soft);color:var(--accent-strong);}

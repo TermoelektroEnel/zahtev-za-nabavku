@@ -73,6 +73,7 @@
         </div>
         <input type="search" id="pretragaListe" placeholder="Pretraga: broj, zahtev, nalog, dobavljač…">
         <div class="chips" id="filterChips"></div>
+        <select id="filterNalog" title="Filter po nalogu za realizaciju"><option value="">Svi nalozi za realizaciju</option></select>
       </div>
       <div id="ponudaListWrap"><div class="loading">Učitavanje…</div></div>
     </aside>
@@ -944,10 +945,25 @@ function tekstZaPretragu_(p, z){
   const dob = [...new Set((p.stavke||[]).flatMap(s=>(s.ponude||[]).map(o=>o.dobavljac)))].join(' ');
   return [p.brojIzvestaja, z&&z.redniBroj, nalog, nOpis, z&&z.gradiliste, gNaziv, p.vrstaRadova, dob].join(' ').toLowerCase();
 }
+const nalogIzvestaja_ = p => (ZAHTEVI.find(x=>x.id===p.requestId)||{}).nalog||'';
+function populateFilterNalog_(){
+  const sel = $('filterNalog'), trenutni = sel.value;
+  const nalozi = [...new Set(PONUDE.map(nalogIzvestaja_).filter(Boolean))]
+    .sort((a,b)=>String(a).localeCompare(String(b),'sr',{numeric:true}));
+  sel.innerHTML = '<option value="">Svi nalozi za realizaciju</option>' + nalozi.map(n=>{
+    const opis = (NALOZI.find(x=>x.kod===n)||{}).opis||'';
+    return `<option value="${escapeHtml(n)}">${escapeHtml(n)}${opis?' — '+escapeHtml(opis):''} (${PONUDE.filter(p=>nalogIzvestaja_(p)===n).length})</option>`;
+  }).join('');
+  sel.value = nalozi.includes(trenutni) ? trenutni : '';
+  sel.classList.toggle('aktivan', !!sel.value);
+}
 function renderPonudaList(){
   populateZavrseneNalogSelect_();
+  populateFilterNalog_();
+  const izabraniNalog = $('filterNalog').value;
+  const uNalogu = PONUDE.filter(p=>!izabraniNalog || nalogIzvestaja_(p)===izabraniNalog);
   $('filterChips').innerHTML = FILTERI_LISTE.map(([k,t,f])=>
-    `<button type="button" class="chip${k===filterListe?' on':''}" data-filter="${k}">${t}<span class="n">${PONUDE.filter(f).length}</span></button>`).join('');
+    `<button type="button" class="chip${k===filterListe?' on':''}" data-filter="${k}">${t}<span class="n">${uNalogu.filter(f).length}</span></button>`).join('');
   $('filterChips').querySelectorAll('[data-filter]').forEach(b=>b.addEventListener('click',e=>{ filterListe=e.currentTarget.dataset.filter; renderPonudaList(); }));
 
   const wrap=$('ponudaListWrap');
@@ -955,7 +971,7 @@ function renderPonudaList(){
 
   const filterFn = (FILTERI_LISTE.find(x=>x[0]===filterListe)||FILTERI_LISTE[0])[2];
   const q = $('pretragaListe').value.trim().toLowerCase();
-  const filtrirano = PONUDE.filter(p=>{
+  const filtrirano = uNalogu.filter(p=>{
     if(!filterFn(p)) return false;
     if(!q) return true;
     return tekstZaPretragu_(p, ZAHTEVI.find(x=>x.id===p.requestId)).includes(q);
@@ -1001,6 +1017,7 @@ function renderPonudaList(){
   }));
 }
 $('pretragaListe').addEventListener('input', renderPonudaList);
+$('filterNalog').addEventListener('change', renderPonudaList);
 
 // Radnje nad otvorenim izveštajem (meni "⋯")
 function osveziMeniIzvestaja_(){
