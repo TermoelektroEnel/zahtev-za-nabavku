@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="sr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Nabavka — Termoelektro Enel</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="tamna.css">
+<style>
+/* Uvodni prozor: posle prijave bira se modul (Administracija namerno nije ovde — ima posebnu prijavu). */
+.izbor{position:fixed;inset:0;overflow:auto;display:none;flex-direction:column;align-items:center;justify-content:center;padding:40px 16px;
+  background:radial-gradient(1200px 600px at 50% -10%, rgba(91,155,224,.10), transparent 60%), var(--bg);}
+.izbor.on{display:flex;}
+.izbor .login-logo .logo-img{margin-bottom:10px;}
+.brand-sub{color:var(--ink-3);font-size:13px;margin:0 0 30px;text-align:center;}
+.hello{font-size:20px;font-weight:600;margin:0 0 4px;text-align:center;}
+.hello-sub{color:var(--ink-2);margin:0 0 24px;text-align:center;}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,340px));gap:18px;width:100%;justify-content:center;}
+.tile{display:flex;flex-direction:column;gap:12px;padding:24px;text-decoration:none;color:inherit;background:var(--surface);border:1px solid var(--line);border-radius:14px;transition:border-color .15s, transform .15s;}
+.tile:hover{border-color:var(--accent);transform:translateY(-2px);}
+.tile .ic{width:44px;height:44px;border-radius:10px;display:grid;place-items:center;background:var(--accent-soft);color:var(--accent-strong);}
+.tile h2{margin:0;font-size:18px;}
+.tile p{margin:0;color:var(--ink-2);font-size:13px;}
+.tile .stanje{display:flex;gap:6px;flex-wrap:wrap;min-height:22px;}
+.tile .go{margin-top:auto;color:var(--accent-strong);font-weight:600;font-size:13px;}
+.foot{display:flex;gap:14px;align-items:center;margin-top:28px;color:var(--ink-3);font-size:12.5px;}
+</style>
+</head>
+<body>
+
+<!-- PRIJAVA -->
+<div class="login-overlay" id="loginOverlay" style="display:none;">
+  <div class="login-logo"><img class="logo-img" src="logo.jpg" alt="Termoelektro Enel AD"></div>
+  <div class="login-box">
+    <div class="login-title">Prijava</div>
+    <div class="login-sub">Nabavka — zahtevi i izveštaji o ponudama</div>
+    <div class="login-err" id="loginErr">Pogrešno korisničko ime ili lozinka.</div>
+    <div class="field"><label for="loginUser">Korisničko ime</label><input type="text" id="loginUser" autocomplete="username" autofocus></div>
+    <div class="field"><label for="loginPass">Lozinka</label><input type="password" id="loginPass" autocomplete="current-password"></div>
+    <button type="button" class="btn btn-primary" id="loginBtn">Prijavi se</button>
+  </div>
+</div>
+
+<!-- NOVA LOZINKA -->
+<div class="login-overlay" id="pwOverlay" style="display:none;">
+  <div class="login-logo"><img class="logo-img" src="logo.jpg" alt="Termoelektro Enel AD"></div>
+  <div class="login-box">
+    <div class="login-title">Potrebna je nova lozinka</div>
+    <div class="login-sub">Iz bezbednosnih razloga, postavi novu lozinku pre nastavka rada</div>
+    <div class="login-err" id="pwErr"></div>
+    <div class="field"><label for="pwNova1">Nova lozinka</label><input type="password" id="pwNova1" autocomplete="new-password" placeholder="najmanje 8 znakova"></div>
+    <div class="field"><label for="pwNova2">Ponovi novu lozinku</label><input type="password" id="pwNova2" autocomplete="new-password"></div>
+    <button type="button" class="btn btn-primary" id="pwSaveBtn">Sačuvaj novu lozinku</button>
+  </div>
+</div>
+
+<!-- UVODNI PROZOR: izbor modula -->
+<div class="izbor" id="izbor">
+  <div class="login-logo"><img class="logo-img" src="logo.jpg" alt="Termoelektro Enel AD"></div>
+  <div class="brand-sub">Nabavka — zahtevi i izveštaji o ponudama</div>
+  <p class="hello" id="pozdrav">Dobro došli</p>
+  <p class="hello-sub">Izaberite sa čim radite.</p>
+  <div class="tiles">
+    <a class="tile" href="index.html">
+      <div class="ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6M8 13h8M8 17h5"/></svg></div>
+      <h2>Zahtevi za nabavku</h2>
+      <p>Novi zahtev, pregled prethodnih zahteva i zbirna specifikacija po nalogu.</p>
+      <div class="stanje" id="stanjeZahtevi"></div>
+      <div class="go">Otvori →</div>
+    </a>
+    <a class="tile" href="ponude.html" id="tilePonude" style="display:none;">
+      <div class="ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 15l4-4 3 3 5-6"/></svg></div>
+      <h2>Izveštaji o ponudama</h2>
+      <p>Poređenje ponuda dobavljača, izbor, overa i izveštaj o završenim nabavkama.</p>
+      <div class="stanje" id="stanjePonude"></div>
+      <div class="go">Otvori →</div>
+    </a>
+  </div>
+  <div class="foot"><span id="prijavljenKao"></span><button type="button" class="btn-logout" id="logoutBtn">Odjavi se</button></div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="supabase-config.js"></script>
+<script src="supabase-backend.js"></script>
+<script>
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycby9zpoac93iRvD7gavKdgKel7XaT_lmDBTfTc42-M0iKo3LIj7MSuVxXN36sTUDpBcU/exec";
+const $ = id => document.getElementById(id);
+const escapeHtml = s => String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+async function apiGet(action, params){
+  const res = await fetch(`${SCRIPT_URL}?${new URLSearchParams({ action, ...(params||{}) })}`);
+  if(!res.ok) throw new Error('Greška pri učitavanju.');
+  return res.json();
+}
+function prikazi_(id){
+  ['loginOverlay','pwOverlay'].forEach(x=>$(x).style.display = x===id ? 'flex' : 'none');
+  $('izbor').classList.toggle('on', id==='izbor');
+}
+function greska_(id, tekst){ $(id).textContent = tekst; $(id).classList.add('visible'); }
+
+async function doLogin(){
+  const username = $('loginUser').value.trim(), password = $('loginPass').value;
+  $('loginErr').classList.remove('visible');
+  if(!username || !password){ greska_('loginErr','Unesite korisničko ime i lozinku.'); return; }
+  $('loginBtn').disabled = true;
+  try{
+    const res = await fetch(SCRIPT_URL, { method:'POST', body: JSON.stringify({ action:'checkLogin', username, password }) });
+    const r = await res.json();
+    if(r && r.ok) await posPrijave_();
+    else { greska_('loginErr','Pogrešno korisničko ime ili lozinka.'); $('loginPass').value=''; $('loginPass').focus(); }
+  }catch(e){ greska_('loginErr','Greška pri povezivanju.'); }
+  $('loginBtn').disabled = false;
+}
+$('loginBtn').addEventListener('click', doLogin);
+$('loginPass').addEventListener('keydown', e=>{ if(e.key==='Enter') doLogin(); });
+$('loginUser').addEventListener('keydown', e=>{ if(e.key==='Enter') $('loginPass').focus(); });
+
+$('pwSaveBtn').addEventListener('click', async ()=>{
+  const p1 = $('pwNova1').value, p2 = $('pwNova2').value;
+  $('pwErr').classList.remove('visible');
+  if(p1.length < 8){ greska_('pwErr','Lozinka mora imati bar 8 znakova.'); return; }
+  if(p1 !== p2){ greska_('pwErr','Lozinke se ne poklapaju.'); return; }
+  $('pwSaveBtn').disabled = true;
+  const r = await ZN.promeniLozinku(p1);
+  $('pwSaveBtn').disabled = false;
+  if(r && r.error){ greska_('pwErr', r.error); return; }
+  await posPrijave_();
+});
+
+$('logoutBtn').addEventListener('click', async ()=>{
+  await ZN.signOut();
+  $('loginUser').value=''; $('loginPass').value='';
+  prikazi_('loginOverlay');
+});
+
+async function posPrijave_(){
+  if(await ZN.mustChangePassword()){ prikazi_('pwOverlay'); $('pwNova1').focus(); return; }
+  const ime = await ZN.currentUsername();
+  $('pozdrav').textContent = `Dobro došli, ${ime}`;
+  $('prijavljenKao').textContent = `Prijavljeni ste kao ${ime}`;
+  prikazi_('izbor');
+  ucitajStanje_();
+}
+
+// Kratko stanje na pločicama (šta čeka). Izveštaje o ponudama vidi samo
+// onaj ko ima pristup (admin, Rukovodilac nabavke ili overavalac).
+async function ucitajStanje_(){
+  const bedz = (cls, n, tekst) => n ? `<span class="status-badge status-${cls}">${n} ${escapeHtml(tekst)}</span>` : '';
+  try{
+    const [zData, pData, uData, admin, uid] = await Promise.all([
+      apiGet('list'), apiGet('listPonude').catch(()=>({ponude:[]})), apiGet('listApprovalRoles').catch(()=>({roles:[]})),
+      ZN.isAdmin(), ZN.currentUserId()
+    ]);
+    const zahtevi = zData.requests||[], ponude = pData.ponude||[];
+    const jeRukovodilac = (uData.roles||[]).some(r=>r.step===4 && r.userId===uid);
+    const saIzvestajem = new Set(ponude.map(p=>p.requestId));
+    $('stanjeZahtevi').innerHTML =
+      bedz('na_overi', zahtevi.filter(z=>z.status==='na_overi').length, 'na overi') +
+      bedz('vracen_na_doradu', zahtevi.filter(z=>z.status==='vracen_na_doradu').length, 'vraćeno') +
+      ((admin||jeRukovodilac) ? bedz('odobren', zahtevi.filter(z=>z.status==='odobren' && !saIzvestajem.has(z.id)).length, 'odobreno, bez izveštaja') : '');
+    if(admin || jeRukovodilac || ponude.length){
+      $('tilePonude').style.display = '';
+      $('stanjePonude').innerHTML =
+        bedz('u_izradi', ponude.filter(p=>(p.status||'u_izradi')==='u_izradi').length, 'u izradi') +
+        bedz('na_overi', ponude.filter(p=>p.status==='na_overi').length, 'na overi') +
+        bedz('vracen_na_doradu', ponude.filter(p=>p.status==='vracen_na_doradu').length, 'vraćeno') +
+        bedz('odobren', ponude.filter(p=>p.status==='odobren' && !p.porucen).length, 'za poručivanje');
+    }
+  }catch(e){ console.error('Stanje nije učitano:', e); }
+}
+
+(async function init(){
+  if(await ZN.currentUserId()) await posPrijave_();
+  else prikazi_('loginOverlay');
+})();
+</script>
+</body>
+</html>
