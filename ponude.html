@@ -919,6 +919,7 @@ function populateAdresaSelect(){
    PONUDE I IZBOR DOBAVLJAČA (samo admin)
    ============================================================ */
 let ZAHTEVI=[], PONUDE=[], currentPonuda=null;
+let DATUMI_ODOBRENJA={}; // requestId -> datum konačnog odobrenja (ms)
 let APPROVAL_ROLES=[], CURRENT_USER_ID=null;
 
 function imeUloge(step){
@@ -962,8 +963,9 @@ async function loadApprovalRoles(){
 
 async function loadPonudeSection(){
   try{
-    const [zData, pData] = await Promise.all([apiGet('list'), apiGet('listPonude'), loadApprovalRoles()]);
+    const [zData, pData, dData] = await Promise.all([apiGet('list'), apiGet('listPonude'), apiGet('listDatumiOdobrenja').catch(()=>({})), loadApprovalRoles()]);
     ZAHTEVI = (zData.requests||[]);
+    DATUMI_ODOBRENJA = (dData && dData.datumi) || {};
     PONUDE = (pData.ponude||[]);
     populateZahtevSelect();
     renderPonudaList();
@@ -979,7 +981,8 @@ function populateZahtevSelect(){
   [...ZAHTEVI].filter(z=>z.status==='odobren' && !zahteviSaVecIzvestajem.has(z.id)).sort((a,b)=>b.createdAt-a.createdAt).forEach(z=>{
     const opt=document.createElement('option');
     const nalogOpis = (NALOZI.find(n=>n.kod===z.nalog)||{}).opis||'';
-    opt.value=z.id; opt.textContent=`${z.redniBroj} — nalog ${z.nalog}${nalogOpis?' — '+nalogOpis:''}`;
+    const odobren = DATUMI_ODOBRENJA[z.id];
+    opt.value=z.id; opt.textContent=`${z.redniBroj}${odobren?' ('+fmtDatum_(odobren)+')':''} — nalog ${z.nalog}${nalogOpis?' — '+nalogOpis:''}`;
     sel.appendChild(opt);
   });
 }

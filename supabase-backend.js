@@ -249,6 +249,18 @@
         })
       };
     }
+    if (action === 'listDatumiOdobrenja') {
+      // Datum konačnog odobrenja po zahtevu (poslednji 'konacno_odobreno' u logu).
+      const { data, error } = await sbClient.from('request_approval_log')
+        .select('request_id, created_at').eq('action', 'konacno_odobreno');
+      if (error) throw error;
+      const datumi = {};
+      (data || []).forEach(r => {
+        const ms = new Date(r.created_at).getTime();
+        if (!datumi[r.request_id] || ms > datumi[r.request_id]) datumi[r.request_id] = ms;
+      });
+      return { datumi };
+    }
     if (action === 'listApprovalLog') {
       const requestId = params.requestId;
       if (!requestId) return { error: 'Nedostaje ID zahteva.' };
