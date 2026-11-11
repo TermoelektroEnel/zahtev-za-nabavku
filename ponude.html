@@ -2,153 +2,20 @@
 <html lang="sr">
 <head>
 <meta charset="UTF-8">
-<title>Izveštaji o ponudama — Zahtev za nabavku</title>
-<style>
-@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600;700&display=swap');
-
-:root{
-  --paper:#EAEBE4;--card:#F7F7F2;--ink:#1E2A2E;--ink-soft:#4A5559;
-  --steel:#35566B;--steel-dark:#243D4C;--safety:#C0762A;
-  --line:#CBCFC5;--line-soft:#DEE0D8;--danger:#A8432F;--good:#3F6B4A;--radius:3px;
-}
-*{box-sizing:border-box;}
-body{margin:0;background:var(--paper);color:var(--ink);font-family:'IBM Plex Sans',sans-serif;font-size:14px;-webkit-font-smoothing:antialiased;}
-.app{max-width:960px;margin:0 auto;padding:28px 24px 60px;}
-.app.wide-mode{max-width:1700px;}
-
-.masthead{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:3px solid var(--ink);padding-bottom:14px;margin-bottom:26px;flex-wrap:wrap;gap:10px;}
-.masthead h1{font-family:'Space Grotesk',sans-serif;font-size:24px;font-weight:700;letter-spacing:0.02em;margin:0;text-transform:uppercase;}
-.masthead .sub{font-family:'IBM Plex Mono',monospace;font-size:11.5px;color:var(--ink-soft);letter-spacing:0.04em;}
-.masthead-right{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
-.back-link{font-size:12.5px;color:var(--steel-dark);text-decoration:none;border:1px solid var(--line);padding:6px 12px;border-radius:var(--radius);white-space:nowrap;}
-.back-link:hover{border-color:var(--steel);}
-.current-user-badge{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--steel);border:1px solid var(--line);padding:4px 10px;border-radius:var(--radius);letter-spacing:0.04em;white-space:nowrap;}
-
-.card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:20px 22px;margin-bottom:24px;}
-.card h2{font-family:'Space Grotesk',sans-serif;font-size:14px;text-transform:uppercase;letter-spacing:0.08em;margin:0 0 16px;padding-bottom:10px;border-bottom:1px solid var(--line-soft);color:var(--steel-dark);}
-.card .section-note{font-size:12px;color:var(--ink-soft);margin:-8px 0 14px;padding-bottom:10px;border-bottom:1px dashed var(--line-soft);}
-
-label{display:block;font-size:11.5px;font-weight:600;color:var(--ink-soft);text-transform:uppercase;letter-spacing:0.05em;margin:0 0 5px;}
-input[type=text],input[type=number],input[type=password],select,textarea{width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:var(--radius);background:#fff;font-family:'IBM Plex Sans',sans-serif;font-size:13.5px;color:var(--ink);}
-input:focus,select:focus,textarea:focus{outline:2px solid var(--steel);outline-offset:1px;}
-.field{margin-bottom:14px;}
-.row2{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
-.row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;}
-.hint{font-size:11px;color:var(--ink-soft);margin-top:4px;}
-.err{font-size:11.5px;color:var(--danger);margin-top:4px;font-weight:500;}
-.napomena-istaknuta{background:#FBF1E4;border-left:4px solid var(--safety);border-radius:var(--radius);padding:10px 14px;font-size:14px;white-space:pre-wrap;line-height:1.5;}
-.field-istaknuto{background:#EDF1F3;border:1px solid var(--line);border-left:4px solid var(--steel);border-radius:var(--radius);padding:12px 14px;}
-.field-istaknuto label{font-size:12.5px;font-weight:700;color:var(--steel-dark);letter-spacing:0.02em;}
-.field-istaknuto select{font-size:15px;font-weight:500;margin-top:3px;}
-.naslov-istaknuto{background:#EDF1F3;border:1px solid var(--line);border-left:4px solid var(--steel);border-radius:var(--radius);padding:12px 14px;color:var(--steel-dark);}
-.napomena-istaknuta .napomena-label{display:block;font-weight:700;color:var(--safety);text-transform:uppercase;font-size:11px;letter-spacing:0.06em;margin-bottom:5px;}
-
-.checkbox-row{display:flex;align-items:center;gap:8px;margin-bottom:10px;}
-.checkbox-row input[type=checkbox]{width:auto;}
-.checkbox-row label{margin:0;text-transform:none;font-weight:500;font-size:13px;letter-spacing:0;color:var(--ink);}
-
-.chip-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:6px 10px;padding:10px;border:1px solid var(--line-soft);border-radius:var(--radius);background:#fff;max-height:220px;overflow-y:auto;}
-.chip-grid label{display:flex;align-items:center;gap:6px;font-size:12.5px;text-transform:none;font-weight:500;color:var(--ink);margin:0;cursor:pointer;}
-.chip-grid input{width:auto;}
-
-.pozicija-block{border:1px solid var(--line);border-radius:var(--radius);padding:14px 16px;margin-bottom:14px;background:#fff;}
-.pozicija-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px;padding-bottom:8px;border-bottom:1px dashed var(--line-soft);}
-.pozicija-head .naziv{font-weight:600;font-size:13.5px;}
-.pozicija-head .meta{font-size:11.5px;color:var(--ink-soft);font-family:'IBM Plex Mono',monospace;}
-.ponude-mini-table{width:100%;border-collapse:collapse;margin-bottom:10px;font-size:12.5px;}
-.ponude-mini-table th{font-size:10px;text-transform:uppercase;color:var(--ink-soft);padding:0 6px 6px 0;border-bottom:1px solid var(--line-soft);text-align:left;}
-.ponude-mini-table td{padding:6px 6px 6px 0;border-bottom:1px solid var(--line-soft);vertical-align:middle;}
-.ponude-mini-table input[type=text],.ponude-mini-table input[type=number]{padding:5px 7px;font-size:12.5px;}
-.add-ponuda-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px;align-items:end;margin-bottom:12px;}
-.add-ponuda-row .field{margin-bottom:0;}
-.pozicija-extra{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px;}
-.pozicija-extra .field{margin-bottom:0;}
-.pregled-table{border-collapse:collapse;font-size:12px;table-layout:fixed;}
-.pregled-table th,.pregled-table td{border:1px solid var(--line-soft);padding:5px 7px;text-align:left;overflow-wrap:break-word;}
-.pregled-table thead th{background:var(--steel-dark);color:#fff;font-size:10.5px;text-transform:uppercase;letter-spacing:.02em;text-align:center;}
-.pregled-table tbody td.num{text-align:right;font-family:'IBM Plex Mono',monospace;}
-.pregled-table tbody td.center{text-align:center;}
-.pregled-table td.izabrano{background:rgba(63,107,74,0.12);font-weight:600;color:#2E5E3B;}
-.pregled-table tfoot td{background:var(--card);font-weight:600;font-size:11.5px;border-top:2px solid var(--ink);}
-.pregled-summary{display:flex;flex-direction:column;align-items:flex-end;gap:4px;margin-top:10px;font-family:'IBM Plex Mono',monospace;font-size:13px;text-align:right;}
-.pregled-summary .razlika{padding-top:6px;margin-top:4px;border-top:1px solid var(--line-soft);}
-.status-badge{display:inline-block;font-size:10.5px;font-weight:600;padding:2px 8px;border-radius:10px;text-transform:uppercase;letter-spacing:.02em;white-space:nowrap;}
-.status-u_izradi{background:var(--line-soft);color:var(--ink-soft);}
-.status-na_overi{background:#FCE9C7;color:#8A5A00;}
-.status-vracen_na_doradu{background:#F8D3CC;color:var(--danger);}
-.status-odobren{background:#D7EBDC;color:var(--good);}
-.log-table{width:100%;border-collapse:collapse;font-size:12px;}
-.log-table th,.log-table td{padding:5px 8px;border-bottom:1px solid var(--line-soft);text-align:left;}
-
-.btn{font-family:'IBM Plex Sans',sans-serif;font-weight:600;font-size:13px;padding:11px 18px;border-radius:var(--radius);border:none;cursor:pointer;letter-spacing:0.02em;}
-.btn-primary{background:var(--steel-dark);color:#fff;}
-.btn-primary:hover{background:var(--steel);}
-.btn-primary:disabled{background:#9AA3A6;cursor:not-allowed;}
-.btn-ghost{background:none;border:1px solid var(--line);color:var(--ink);padding:7px 12px;font-size:12px;cursor:pointer;border-radius:var(--radius);font-family:'IBM Plex Sans',sans-serif;font-weight:600;}
-.btn-ghost:hover{border-color:var(--steel);color:var(--steel-dark);}
-.btn-danger-ghost{background:none;border:1px solid var(--line);color:var(--danger);padding:7px 12px;font-size:12px;cursor:pointer;border-radius:var(--radius);font-family:'IBM Plex Sans',sans-serif;font-weight:600;}
-.btn-danger-ghost:hover{border-color:var(--danger);background:rgba(168,67,47,0.07);}
-.btn-logout{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--ink-soft);border:1px solid var(--line);padding:5px 11px;border-radius:var(--radius);background:none;cursor:pointer;letter-spacing:0.04em;white-space:nowrap;}
-.btn-logout:hover{border-color:var(--danger);color:var(--danger);}
-
-table{width:100%;border-collapse:collapse;margin-bottom:6px;}
-th{text-align:left;font-size:10.5px;text-transform:uppercase;letter-spacing:0.05em;color:var(--ink-soft);padding:0 8px 8px 0;font-weight:600;border-bottom:1px solid var(--line-soft);}
-td{padding:8px 8px 8px 0;border-bottom:1px solid var(--line-soft);font-size:13px;vertical-align:top;}
-.tags{display:flex;flex-wrap:wrap;gap:4px;}
-.tag{font-family:'IBM Plex Mono',monospace;font-size:11px;background:var(--steel-dark);color:#fff;padding:2px 7px;border-radius:12px;}
-.tag.sva{background:var(--good);}
-.tag.nijedno{background:var(--danger);}
-.row-actions{display:flex;gap:6px;flex-wrap:wrap;}
-/* u tabeli ćelija mora ostati ćelija (display:flex bi je izbacio iz kolone,
-   pa dugmad "pobegnu" van kartice) — dugmad se prelamaju u više redova */
-td.row-actions{display:table-cell;}
-td.row-actions > *{margin:0 6px 6px 0;}
-/* izmena količine u izveštaju */
-.kolicina-unos{display:flex;align-items:center;gap:6px;white-space:nowrap;}
-.kolicina-unos input{width:90px !important;padding:4px 7px !important;font-size:12.5px !important;text-align:right;}
-.kolicina-promena{font-size:12px;font-weight:600;color:#8A5A00;background:#FDF3E1;border-left:3px solid #B7791F;border-radius:4px;padding:6px 10px;margin:-2px 0 10px;}
-td.kolicina-menjana{color:#8A5A00;font-weight:700;}
-/* prozor za dopunski izveštaj */
-.dopuna-overlay{position:fixed;inset:0;background:rgba(20,26,28,0.55);display:flex;align-items:flex-start;justify-content:center;padding:40px 16px;overflow-y:auto;z-index:500;}
-.dopuna-box{background:#fff;border-radius:10px;padding:22px 24px;width:860px;max-width:100%;box-shadow:0 10px 40px rgba(0,0,0,.3);}
-.dopuna-tabela{width:100%;border-collapse:collapse;font-size:12.5px;}
-.dopuna-tabela th,.dopuna-tabela td{padding:6px 8px;border-bottom:1px solid var(--line-soft);text-align:left;vertical-align:top;}
-.dopuna-tabela tr.pokriveno td{color:var(--ink-soft);}
-.dopuna-tabela input{width:auto;}
-.nije-pokriveno{color:#8A5A00;font-weight:700;}
-/* lista izveštaja grupisana po gradilištu i nalogu */
-.grad-group{margin-bottom:26px;}
-.grad-group:last-child{margin-bottom:0;}
-.grad-group-title{font-size:15px;font-weight:700;color:#fff;background:var(--steel-dark);border-radius:var(--radius);padding:8px 14px;margin-bottom:4px;}
-.grad-group-title .hint{color:rgba(255,255,255,.75);font-size:13px;font-weight:400;margin:0;}
-.nalog-group-title{font-size:16px;font-weight:700;color:var(--steel-dark);line-height:1.35;padding:14px 2px 6px;}
-.nalog-group-title .hint{display:inline-block;font-size:13px;font-weight:400;color:var(--ink-soft);}
-.grad-group-title + .nalog-group-title{border-top:none;padding-top:10px;}
-.empty{color:var(--ink-soft);font-size:13px;padding:16px 0;text-align:center;}
-.loading{color:var(--ink-soft);font-size:13px;padding:16px 0;text-align:center;}
-
-.info-msg{font-size:12px;color:var(--good);font-weight:600;background:rgba(63,107,74,0.08);border:1px solid rgba(63,107,74,0.25);border-radius:var(--radius);padding:9px 12px;margin-bottom:16px;display:none;}
-.info-msg.visible{display:block;}
-
-/* LOGIN OVERLAY */
-.login-overlay{position:fixed;inset:0;background:var(--paper);display:flex;align-items:center;justify-content:center;z-index:999;padding:20px;}
-.login-box{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:36px 40px 32px;width:100%;max-width:380px;}
-.login-title{font-family:'Space Grotesk',sans-serif;font-size:18px;font-weight:700;text-transform:uppercase;letter-spacing:0.04em;margin:0 0 4px;}
-.login-sub{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--ink-soft);letter-spacing:0.04em;margin-bottom:28px;}
-.login-divider{border:none;border-top:1px solid var(--line-soft);margin:0 0 22px;}
-.login-err{font-size:12px;color:var(--danger);font-weight:600;background:rgba(168,67,47,0.08);border:1px solid rgba(168,67,47,0.25);border-radius:var(--radius);padding:9px 12px;margin-bottom:16px;display:none;}
-.login-err.visible{display:block;}
-.login-box .btn-primary{width:100%;margin-top:6px;font-size:13.5px;padding:12px;}
-</style>
-<link rel="stylesheet" href="tema.css">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Izveštaji o ponudama — Termoelektro Enel</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="tamna.css">
 </head>
 <body>
 
-<!-- LOGIN OVERLAY -->
-<div class="login-overlay" id="loginOverlay">
+<!-- PRIJAVA -->
+<div class="login-overlay" id="loginOverlay" style="display:none;">
+  <div class="login-logo"><img class="logo-img" src="logo.jpg" alt="Termoelektro Enel AD"></div>
   <div class="login-box">
-    <div class="login-title">Izveštaji o ponudama</div>
-    <div class="login-sub">Zahtev za nabavku — administracija i overa/odobrenje</div>
+    <div class="login-title">Prijava</div>
+    <div class="login-sub">Izveštaji o ponudama</div>
     <hr class="login-divider">
     <div class="login-err" id="loginErr">Pogrešno korisničko ime ili lozinka.</div>
     <div class="field">
@@ -164,6 +31,7 @@ td.kolicina-menjana{color:#8A5A00;font-weight:700;}
 </div>
 
 <div class="login-overlay" id="pwOverlay" style="display:none;">
+  <div class="login-logo"><img class="logo-img" src="logo.jpg" alt="Termoelektro Enel AD"></div>
   <div class="login-box">
     <div class="login-title">Potrebna je nova lozinka</div>
     <div class="login-sub">Iz bezbednosnih razloga, postavi novu lozinku pre nastavka rada</div>
@@ -182,175 +50,245 @@ td.kolicina-menjana{color:#8A5A00;font-weight:700;}
 </div>
 
 <!-- GLAVNI SADRŽAJ -->
-<div class="app" id="app" style="display:none;">
-  <div class="masthead">
-    <div>
-      <h1>Izveštaji o ponudama</h1>
-      <div class="sub">Poređenje ponuda dobavljača i izbor — Zahtev za nabavku</div>
-    </div>
-    <div class="masthead-right">
-      <span class="current-user-badge" id="currentUserBadge">▸ …</span>
+<div id="app" style="display:none;">
+  <header class="appbar">
+    <a class="logo-link" href="pocetna.html" title="Početna"><img class="logo-img" src="logo.jpg" alt="Termoelektro Enel AD"></a>
+    <nav>
+      <a href="index.html">Zahtevi za nabavku</a>
+      <a href="ponude.html" class="active">Izveštaji o ponudama</a>
+    </nav>
+    <div class="user">
+      <span class="current-user-badge" id="currentUserBadge">…</span>
       <button type="button" class="btn-logout" id="logoutBtn">Odjavi se</button>
     </div>
-  </div>
-  <nav class="module-nav">
-    <a href="index.html">Zahtev za nabavku</a>
-    <a href="ponude.html" class="active">Izveštaji o ponudama</a>
-    <a href="admin.html" class="admin-only-inline">Administracija</a>
-  </nav>
+  </header>
 
-  <!-- NEMA PRISTUPA (za neadmin korisnike bez validnog linka) -->
-  <div class="card" id="noAccessCard" style="display:none;">
-    <h2>Nemate pristup ovoj stranici</h2>
-    <p id="noAccessText">Ova stranica je namenjena administratorima, ili osobama koje su dobile link za overu konkretnog izveštaja o ponudama.</p>
-  </div>
+  <div class="shell" id="shell">
+    <!-- LEVO: lista izveštaja -->
+    <aside class="side admin-only-card" id="sideList">
+      <div class="side-top">
+        <button type="button" class="btn btn-primary" id="otvoriNoviBtn">+ Novi izveštaj</button>
+        <div class="row">
+          <button type="button" class="btn-ghost" id="otvoriZbirnaBtn" title="Zbirna specifikacija po nalogu za realizaciju (otvara se u novom tabu)">▤ Zbirna specifikacija</button>
+          <button type="button" class="btn-ghost" id="otvoriExcelBtn" title="Izveštaj o završenim nabavkama (Excel po nalogu)">⇩ Excel završenih</button>
+        </div>
+        <input type="search" id="pretragaListe" placeholder="Pretraga: broj, zahtev, nalog, dobavljač…">
+        <div class="chips" id="filterChips"></div>
+        <select id="filterNalog" title="Filter po nalogu za realizaciju"><option value="">Svi nalozi za realizaciju</option></select>
+      </div>
+      <div id="ponudaListWrap"><div class="loading">Učitavanje…</div></div>
+    </aside>
 
-  <!-- PONUDE I IZBOR DOBAVLJAČA -->
-  <div class="card admin-only-card">
+    <!-- DESNO: izabrani izveštaj -->
+    <main class="main">
+      <div class="card" id="noAccessCard" style="display:none;">
+        <h2>Nemate pristup ovoj stranici</h2>
+        <p id="noAccessText">Ova stranica je namenjena administratorima, ili osobama koje su dobile link za overu konkretnog izveštaja o ponudama.</p>
+      </div>
+
+      <div class="prazno" id="praznoStanje">
+        <div class="ic">📋</div>
+        <div>Izaberite izveštaj iz liste levo<br>ili napravite novi.</div>
+      </div>
+
+      <div id="ponudaEditorCard" style="display:none;">
+        <div class="pe-head">
+          <div class="t1">
+            <h2 id="ponudaEditorTitle">Izveštaj o ponudama</h2>
+            <span id="peStatusBadgeWrap"></span>
+            <div class="pe-actions" id="peActionsWrap">
+              <button type="button" class="btn-ghost" id="peExportBtn">Izvezi PDF</button>
+              <button type="button" class="btn-ghost" id="pePosaljiNaOveruBtn" style="display:none;">Pošalji na overu</button>
+              <button type="button" class="btn-ghost" id="peResendBtn" style="display:none;">Pošalji mejl ponovo</button>
+              <button type="button" class="btn btn-primary editor-only-part" id="peSaveBtn">Sačuvaj</button>
+              <div class="vise" id="peViseWrap">
+                <button type="button" class="btn-ghost" id="peViseBtn" title="Još radnji">⋯</button>
+                <div class="vise-meni" id="peViseMeni">
+                  <button type="button" id="peDopunaBtn">Dopunski izveštaj…</button>
+                  <button type="button" id="pePorucenBtn">Označi poručeno</button>
+                  <button type="button" id="peObrisiBtn" class="opasno">Obriši izveštaj</button>
+                </div>
+              </div>
+              <button type="button" class="btn-ghost" id="peCloseBtn" title="Zatvori izveštaj">✕</button>
+            </div>
+          </div>
+          <div class="sub" id="peSub"></div>
+          <div class="tabs" id="peTabs">
+            <button type="button" class="tab" data-tab="osnovno">Osnovno</button>
+            <button type="button" class="tab" data-tab="ponude">Ponude dobavljača <span class="n" id="tabNDob">0</span></button>
+            <button type="button" class="tab" data-tab="poredjenje">Poređenje i izbor <span class="n" id="tabNPoz">0</span></button>
+            <button type="button" class="tab" data-tab="overa">Overa i istorija</button>
+          </div>
+        </div>
+
+        <div class="pe-body">
+          <div class="pe-poruke">
+            <div class="err" id="peReturnComment" style="display:none;"></div>
+            <div class="err" id="peNesacuvanoHint" style="display:none;">⚠ Ima nesačuvanih izmena — klikni „Sačuvaj" da bi ponude dobavljača i prilozi bili trajno sačuvani.</div>
+            <div class="hint" id="peZakljucanoHint" style="display:none;"></div>
+            <div class="err" id="peErr"></div>
+            <div class="info-msg" id="peInfo"></div>
+          </div>
+
+          <!-- Overa (vidi je samo onaj ko je trenutno na redu) -->
+          <div id="peOveraActionsWrap" style="display:none;">
+            <div class="sec-title" style="color:var(--amber);">Izveštaj čeka vašu overu</div>
+            <div class="field">
+              <label for="peOveraKomentar">Napomena (opciono uz overu, obavezno ako vraćaš na doradu)</label>
+              <textarea id="peOveraKomentar" rows="2"></textarea>
+            </div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+              <button type="button" class="btn btn-primary" id="peOveriBtn">Overi i prosledi dalje</button>
+              <button type="button" class="btn-ghost" id="peVratiBtn">Vrati na doradu</button>
+            </div>
+            <div class="err" id="peOveraErr"></div>
+          </div>
+
+          <div class="kpis editor-only-part">
+            <div class="kpi"><div class="k">Nabavna vrednost (bez PDV)</div><div class="v"><span id="peUkupnoBezPdv">0</span></div></div>
+            <div class="kpi"><div class="k">Nabavna vrednost (sa PDV 20%)</div><div class="v"><span id="peUkupnoSaPdv">0</span></div></div>
+            <div class="kpi"><div class="k">Ugovoreno (bez PDV)</div><div class="v"><span id="peUkupnoUgovorenoBezPdv">0</span></div></div>
+            <div class="kpi"><div class="k">Ugovoreno (sa PDV 20%)</div><div class="v"><span id="peUkupnoUgovorenoSaPdv">0</span></div></div>
+            <div class="kpi" id="peRazlikaKpi"><div class="k">Razlika (marža)</div><div class="v"><span id="peRazlika">0</span></div></div>
+          </div>
+
+          <!-- TAB: OSNOVNO -->
+          <section class="pane" data-pane="osnovno">
+            <div class="card editor-only-part">
+              <div class="sec-title">Podaci izveštaja</div>
+              <div class="row3">
+                <div class="field">
+                  <label for="peVrstaRadova">Vrsta radova</label>
+                  <input type="text" id="peVrstaRadova" placeholder="npr. Isporuka kablova">
+                </div>
+                <div class="field">
+                  <label for="peAdresa">Adresa isporuke</label>
+                  <select id="peAdresa"><option value="">— izaberi adresu —</option></select>
+                </div>
+                <div class="field">
+                  <label for="peKurs">Kurs € (RSD)</label>
+                  <div style="display:flex;gap:6px;">
+                    <input type="number" id="peKurs" step="0.0001" style="flex:1;">
+                    <button type="button" class="btn-ghost" id="peOsveziKursBtn">NBS</button>
+                  </div>
+                  <div class="hint" id="peKursHint"></div>
+                </div>
+              </div>
+              <div class="field" style="margin-bottom:0;">
+                <label for="peNapomena">Napomena</label>
+                <textarea id="peNapomena" rows="3" placeholder="Slobodan tekst — npr. dodatna objašnjenja, dogovori sa dobavljačima, itd."></textarea>
+              </div>
+              <div class="hint">PDV je pretpostavljen na 20% (standardna stopa u Srbiji).</div>
+            </div>
+            <div class="field" id="peNapomenaPregledWrap" style="display:none;">
+              <div class="napomena-istaknuta"><span class="napomena-label">📌 Napomena</span><span id="peNapomenaPregled"></span></div>
+            </div>
+          </section>
+
+          <!-- TAB: PONUDE DOBAVLJAČA -->
+          <section class="pane" data-pane="ponude">
+            <div class="pozicija-block editor-only-part" id="peBulkBlock">
+              <div class="pozicija-head">
+                <div class="naziv">Unos ponude dobavljača (sve pozicije odjednom)</div>
+                <div class="meta" id="bulkModeLabel"></div>
+              </div>
+              <div class="row3">
+                <div class="field"><label for="bulkDobavljac">Naziv dobavljača</label><input type="text" id="bulkDobavljac" placeholder="Naziv dobavljača"></div>
+                <div class="field"><label for="bulkAvans">Avans</label><input type="text" id="bulkAvans" placeholder="npr. 30%"></div>
+                <div class="field"><label for="bulkNacin">Način plaćanja</label><input type="text" id="bulkNacin" placeholder="npr. Virmanski 30 dana"></div>
+              </div>
+              <div class="field">
+                <label>Ponuda dobavljača (PDF, Excel, Word) — do 5 fajlova, važi za sve pozicije</label>
+                <input type="file" id="bulkPdfInput" accept=".pdf,.xls,.xlsx,.docx,application/pdf,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.openxmlformats-officedocument.wordprocessingml.document" multiple>
+                <div class="hint" id="bulkPdfHint"></div>
+              </div>
+              <div id="bulkStavkeWrap"></div>
+              <div class="err" id="bulkErr"></div>
+              <div style="display:flex;gap:8px;margin-top:12px;">
+                <button type="button" class="btn btn-primary" id="bulkSaveBtn">Sačuvaj ponudu ovog dobavljača</button>
+                <button type="button" class="btn-ghost" id="bulkResetBtn" style="display:none;">Otkaži izmenu</button>
+              </div>
+            </div>
+
+            <div class="field" id="peDobavljaciField">
+              <div class="sec-title" style="margin-top:8px;">Dobavljači uneti u ovaj izveštaj</div>
+              <div id="bulkDobavljaciWrap"><div class="hint">Još uvek nema unetih dobavljača.</div></div>
+            </div>
+          </section>
+
+          <!-- TAB: POREĐENJE I IZBOR -->
+          <section class="pane" data-pane="poredjenje">
+            <div class="sec-title">Pregled izveštaja (za overu i odobrenje)</div>
+            <div class="pregled-scroll"><div id="pePregledWrap"></div></div>
+            <div class="legenda" id="peLegenda">Zeleno = najniža cena za poziciju · <b style="color:var(--accent-strong)">plavo</b> = predlog rukovodioca<span class="editor-only-part"> · klik na cenu dobavljača postavlja predlog</span></div>
+            <div class="editor-only-part">
+              <div class="sec-title">Izbor po poziciji — količina, predlog, ugovorena cena</div>
+              <div id="peStavkeWrap"></div>
+            </div>
+          </section>
+
+          <!-- TAB: OVERA I ISTORIJA -->
+          <section class="pane" data-pane="overa">
+            <div class="card">
+              <div class="sec-title">Istorija</div>
+              <div id="peLogWrap"><div class="hint">Još uvek nema istorije.</div></div>
+            </div>
+          </section>
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<!-- PROZOR: novi izveštaj -->
+<div class="modal-bg" id="modalNovi">
+  <div class="modal">
     <h2>Novi izveštaj o ponudama</h2>
-    <p class="section-note">Izaberi postojeći zahtev za nabavku — pozicije će se automatski učitati, pa dodaješ ponude dobavljača za svaku. Broj izveštaja (IP) automatski se poklapa sa brojem zahteva (ZN) radi sledljivosti.</p>
-    <div class="field field-istaknuto">
+    <p class="section-note">Izaberi odobreni zahtev za nabavku — pozicije se učitavaju automatski. Broj izveštaja (IP) prati broj zahteva (ZN).</p>
+    <div class="field">
       <label for="pZahtev">Zahtev za nabavku</label>
       <select id="pZahtev"><option value="">— izaberi zahtev —</option></select>
     </div>
     <div class="err" id="pNoviErr"></div>
-    <button type="button" class="btn btn-primary" id="pKreirajBtn">Kreiraj izveštaj</button>
+    <div class="dugmad">
+      <button type="button" class="btn-ghost" data-zatvori-modal>Otkaži</button>
+      <button type="button" class="btn btn-primary" id="pKreirajBtn">Kreiraj izveštaj</button>
+    </div>
   </div>
+</div>
 
-  <div class="card admin-only-card">
+<!-- PROZOR: zbirna specifikacija po nalogu -->
+<div class="modal-bg" id="modalZbirna">
+  <div class="modal">
+    <h2>Zbirna specifikacija po nalogu</h2>
+    <p class="section-note">Sve pozicije iz zahteva za izabrani nalog za realizaciju, sa statusom poručivanja i isporuke. Otvara se u novom tabu — ista kao na stranici Zahtevi za nabavku.</p>
+    <div class="field">
+      <label for="zbirnaNalog">Nalog za realizaciju</label>
+      <select id="zbirnaNalog"><option value="">— izaberi nalog —</option></select>
+    </div>
+    <div class="err" id="zbirnaErr"></div>
+    <div class="dugmad">
+      <button type="button" class="btn-ghost" data-zatvori-modal>Zatvori</button>
+      <button type="button" class="btn btn-primary" id="zbirnaOtvoriBtn">Otvori zbirnu specifikaciju</button>
+    </div>
+  </div>
+</div>
+
+<!-- PROZOR: izveštaj o završenim nabavkama -->
+<div class="modal-bg" id="modalExcel">
+  <div class="modal">
     <h2>Izveštaj o završenim nabavkama</h2>
-    <p class="section-note">Excel sa svim poručenim pozicijama za izabrani nalog za realizaciju: broj izveštaja, dobavljač, opis, JM, količina i nabavna cena (bez PDV). Uzimaju se samo odobreni izveštaji označeni kao „Poručeno".</p>
-    <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;">
-      <div class="field field-istaknuto" style="margin-bottom:0;min-width:280px;flex:0 1 480px;">
-        <label for="zavrseneNalog">Nalog za realizaciju</label>
-        <select id="zavrseneNalog"><option value="">— izaberi nalog —</option></select>
-      </div>
-      <button type="button" class="btn btn-primary" id="zavrseneExcelBtn">Preuzmi Excel</button>
+    <p class="section-note">Excel sa svim poručenim pozicijama za izabrani nalog: broj izveštaja, dobavljač, opis, JM, količina i nabavna cena (bez PDV). Uzimaju se samo odobreni izveštaji označeni kao „Poručeno".</p>
+    <div class="field">
+      <label for="zavrseneNalog">Nalog za realizaciju</label>
+      <select id="zavrseneNalog"><option value="">— izaberi nalog —</option></select>
     </div>
     <div class="err" id="zavrseneErr"></div>
-  </div>
-
-  <div class="card admin-only-card">
-    <div style="display:flex;align-items:flex-end;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:4px;">
-      <h2 style="margin:0;">Postojeći izveštaji o ponudama</h2>
-      <div class="field-istaknuto">
-        <label for="filterPonudaStatus" style="display:block;margin-bottom:3px;">Status poručivanja</label>
-        <select id="filterPonudaStatus" style="min-width:170px;">
-          <option value="">Svi (uključujući poručene)</option>
-          <option value="neporucen" selected>Sakrij poručene</option>
-          <option value="porucen">Samo poručene</option>
-        </select>
-      </div>
-    </div>
-    <div id="ponudaListWrap"><div class="loading">Učitavanje…</div></div>
-  </div>
-
-  <!-- EDITOR IZVEŠTAJA O PONUDAMA -->
-  <div class="card" id="ponudaEditorCard" style="display:none;">
-    <h2 id="ponudaEditorTitle" class="naslov-istaknuto">Izveštaj o ponudama</h2>
-    <div style="margin-bottom:10px;" id="peStatusBadgeWrap"></div>
-    <div class="err" id="peReturnComment" style="display:none;margin-bottom:10px;"></div>
-    <div class="row3 editor-only-part">
-      <div class="field">
-        <label for="peVrstaRadova">Vrsta radova</label>
-        <input type="text" id="peVrstaRadova" placeholder="npr. Isporuka kablova">
-      </div>
-      <div class="field">
-        <label for="peAdresa">Adresa isporuke</label>
-        <select id="peAdresa"><option value="">— izaberi adresu —</option></select>
-      </div>
-      <div class="field">
-        <label for="peKurs">Kurs € (RSD)</label>
-        <div style="display:flex;gap:6px;">
-          <input type="number" id="peKurs" step="0.0001" style="flex:1;">
-          <button type="button" class="btn-ghost" id="peOsveziKursBtn" style="white-space:nowrap;">Osveži (NBS)</button>
-        </div>
-        <div class="hint" id="peKursHint"></div>
-      </div>
-    </div>
-
-    <div class="field editor-only-part">
-      <label for="peNapomena">Napomena</label>
-      <textarea id="peNapomena" rows="3" placeholder="Slobodan tekst — npr. dodatna objašnjenja, dogovori sa dobavljačima, itd." style="width:100%;padding:8px;border:1px solid var(--line);border-radius:var(--radius);font-family:inherit;"></textarea>
-    </div>
-
-    <div class="pozicija-block editor-only-part" id="peBulkBlock" style="background:#F3F4EE;">
-      <div class="pozicija-head">
-        <div class="naziv">Unos ponude dobavljača (sve pozicije odjednom)</div>
-        <div class="meta" id="bulkModeLabel"></div>
-      </div>
-      <div class="row3">
-        <div class="field"><label for="bulkDobavljac">Naziv dobavljača</label><input type="text" id="bulkDobavljac" placeholder="Naziv dobavljača"></div>
-        <div class="field"><label for="bulkAvans">Avans</label><input type="text" id="bulkAvans" placeholder="npr. 30%"></div>
-        <div class="field"><label for="bulkNacin">Način plaćanja</label><input type="text" id="bulkNacin" placeholder="npr. Virmanski 30 dana"></div>
-      </div>
-      <div class="field">
-        <label>Ponuda dobavljača (PDF, Excel, Word) — do 5 fajlova, važi za sve pozicije</label>
-        <input type="file" id="bulkPdfInput" accept=".pdf,.xls,.xlsx,.docx,application/pdf,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.openxmlformats-officedocument.wordprocessingml.document" multiple>
-        <div class="hint" id="bulkPdfHint"></div>
-      </div>
-      <div id="bulkStavkeWrap"></div>
-      <div class="err" id="bulkErr"></div>
-      <div style="display:flex;gap:8px;margin-top:10px;">
-        <button type="button" class="btn btn-primary" id="bulkSaveBtn">Sačuvaj ponudu ovog dobavljača</button>
-        <button type="button" class="btn-ghost" id="bulkResetBtn" style="display:none;">Otkaži izmenu</button>
-      </div>
-    </div>
-
-    <div class="field" id="peDobavljaciField">
-      <label>Dobavljači uneti u ovaj izveštaj <span class="hint">(dugme "Otvori" otvara priloženu ponudu tog dobavljača)</span></label>
-      <div id="bulkDobavljaciWrap"><div class="hint">Još uvek nema unetih dobavljača.</div></div>
-    </div>
-
-    <div id="peStavkeWrap" class="editor-only-part"></div>
-
-    <div class="editor-only-part" style="display:flex;justify-content:flex-end;gap:24px;margin:16px 0;padding-top:12px;border-top:1px solid var(--line-soft);font-family:'IBM Plex Mono',monospace;">
-      <div>Ukupno bez PDV: <strong id="peUkupnoBezPdv">0</strong> RSD</div>
-      <div>Ukupno sa PDV (20%): <strong id="peUkupnoSaPdv">0</strong> RSD</div>
-      <div>Ukupno ugovoreno bez PDV: <strong id="peUkupnoUgovorenoBezPdv">0</strong> RSD</div>
-      <div>Ukupno ugovoreno sa PDV (20%): <strong id="peUkupnoUgovorenoSaPdv">0</strong> RSD</div>
-    </div>
-    <div class="hint editor-only-part">Napomena: PDV je pretpostavljen na 20% (standardna stopa u Srbiji) — javi ako treba drugačije.</div>
-
-    <div class="field" id="peNapomenaPregledWrap" style="display:none;">
-      <div class="napomena-istaknuta"><span class="napomena-label">📌 Napomena</span><span id="peNapomenaPregled"></span></div>
-    </div>
-
-    <div class="field" style="margin-top:20px;">
-      <label>Pregled izveštaja (za overu i odobrenje)</label>
-      <div id="pePregledWrap" style="overflow-x:auto;padding-bottom:18px;"></div>
-    </div>
-
-    <div class="err" id="peNesacuvanoHint" style="display:none;">⚠ Ima nesačuvanih izmena — klikni „Sačuvaj izveštaj" da bi ponude dobavljača i prilozi bili trajno sačuvani.</div>
-    <div class="hint" id="peZakljucanoHint" style="display:none;"></div>
-    <div class="err" id="peErr"></div>
-    <div class="info-msg" id="peInfo"></div>
-    <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;" id="peActionsWrap">
-      <button type="button" class="btn btn-primary editor-only-part" id="peSaveBtn">Sačuvaj izveštaj</button>
-      <button type="button" class="btn-ghost" id="peExportBtn">Izvezi PDF</button>
-      <button type="button" class="btn-ghost" id="pePosaljiNaOveruBtn" style="display:none;">Pošalji na overu</button>
-      <button type="button" class="btn-ghost" id="peResendBtn" style="display:none;">Pošalji mejl ponovo</button>
-      <button type="button" class="btn-ghost" id="peCloseBtn">Zatvori</button>
-    </div>
-
-    <div id="peOveraActionsWrap" style="display:none;margin-top:14px;padding-top:14px;border-top:1px solid var(--line-soft);">
-      <div class="field">
-        <label for="peOveraKomentar">Napomena (opciono uz overu, obavezno ako vraćaš na doradu)</label>
-        <textarea id="peOveraKomentar" rows="2" style="width:100%;padding:8px;border:1px solid var(--line);border-radius:var(--radius);font-family:inherit;"></textarea>
-      </div>
-      <div style="display:flex;gap:8px;">
-        <button type="button" class="btn btn-primary" id="peOveriBtn">Overi i prosledi dalje</button>
-        <button type="button" class="btn-ghost" id="peVratiBtn">Vrati na doradu</button>
-      </div>
-      <div class="err" id="peOveraErr"></div>
-    </div>
-
-    <div style="margin-top:20px;">
-      <h3 style="font-size:14px;margin-bottom:8px;">Istorija</h3>
-      <div id="peLogWrap"><div class="hint">Još uvek nema istorije.</div></div>
+    <div class="dugmad">
+      <button type="button" class="btn-ghost" data-zatvori-modal>Zatvori</button>
+      <button type="button" class="btn btn-primary" id="zavrseneExcelBtn">Preuzmi Excel</button>
     </div>
   </div>
-
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -358,6 +296,7 @@ td.kolicina-menjana{color:#8A5A00;font-weight:700;}
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="supabase-config.js"></script>
 <script src="supabase-backend.js"></script>
+<script src="zbirna.js"></script>
 <script>
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycby9zpoac93iRvD7gavKdgKel7XaT_lmDBTfTc42-M0iKo3LIj7MSuVxXN36sTUDpBcU/exec";
 
@@ -444,7 +383,7 @@ async function handlePostAuth(){
   sessionStorage.setItem(SESSION_KEY, '1');
 
   const trenutnoIme = await ZN.currentUsername();
-  $('currentUserBadge').textContent = `▸ ${trenutnoIme||'?'}${IS_ADMIN_PONUDE?' (admin)':''}`;
+  $('currentUserBadge').textContent = `${trenutnoIme||'?'}${IS_ADMIN_PONUDE?' (admin)':''}`;
 
   await loadApprovalRoles();
   const jeRukovodilacNabavke = !!(CURRENT_USER_ID && APPROVAL_ROLES.some(r=>r.step===4 && r.userId===CURRENT_USER_ID));
@@ -452,10 +391,11 @@ async function handlePostAuth(){
 
   document.querySelectorAll('.admin-only-card').forEach(el=>{ el.style.display = MOZE_KREIRATI_PONUDE ? '' : 'none'; });
   document.querySelectorAll('.admin-only-inline').forEach(el=>{ if(!IS_ADMIN_PONUDE) el.style.display='none'; });
-  $('app').classList.toggle('wide-mode', !IS_ADMIN_PONUDE);
+  $('shell').classList.toggle('bez-liste', !MOZE_KREIRATI_PONUDE);
 
   if(!MOZE_KREIRATI_PONUDE && !PONUDA_LINK_ID){
     $('noAccessCard').style.display='block';
+    $('praznoStanje').style.display='none';
     showApp();
     return;
   }
@@ -468,6 +408,7 @@ async function handlePostAuth(){
     const p = PONUDE.find(x=>x.id===PONUDA_LINK_ID);
     if(!p){
       $('noAccessCard').style.display='block';
+      $('praznoStanje').style.display='none';
       $('noAccessText').textContent='Nemate pristup ovom izveštaju o ponudama, ili on ne postoji (ili je već prošao vaš korak u lancu odobravanja).';
     }else{
       openPonudaEditor(PONUDA_LINK_ID);
@@ -478,7 +419,7 @@ async function handlePostAuth(){
 $('loginBtn').addEventListener('click', doLogin);
 $('loginPass').addEventListener('keydown', e => { if(e.key==='Enter') doLogin(); });
 $('loginUser').addEventListener('keydown', e => { if(e.key==='Enter') $('loginPass').focus(); });
-$('logoutBtn').addEventListener('click', async ()=>{ if(!potvrdiNapustanje_()) return; await ZN.signOut(); sessionStorage.removeItem(SESSION_KEY); showLogin(); });
+$('logoutBtn').addEventListener('click', async ()=>{ if(!potvrdiNapustanje_()) return; await ZN.signOut(); sessionStorage.removeItem(SESSION_KEY); location.href='pocetna.html'; });
 
 /* ============================================================
    API HELPERS
@@ -667,7 +608,8 @@ function otvoriUrediDobavljaca_(dobavljac){
   $('bulkResetBtn').style.display = 'inline-block';
   renderBulkStavkeTable();
   popuniBulkZaDobavljaca_(dobavljac);
-  $('bulkDobavljac').closest('.pozicija-block').scrollIntoView({behavior:'smooth',block:'start'});
+  prikaziTab_('ponude');
+  window.scrollTo({top:0, behavior:'smooth'});
 }
 
 function resetBulkForm(){
@@ -704,6 +646,7 @@ function renderBulkDobavljaci(){
   const wrap = $('bulkDobavljaciWrap');
   const imena = [];
   currentPonuda.stavke.forEach(s=>s.ponude.forEach(o=>{ if(!imena.includes(o.dobavljac)) imena.push(o.dobavljac); }));
+  $('tabNDob').textContent = imena.length;
   if(!imena.length){ wrap.innerHTML='<div class="hint">Još uvek nema unetih dobavljača.</div>'; return; }
   wrap.innerHTML = imena.map(name=>{
     const brojPozicija = currentPonuda.stavke.filter(s=>s.ponude.some(o=>o.dobavljac===name)).length;
@@ -770,12 +713,19 @@ function renderPePregled(){
     const ugovorenoUkupno = ukupnoUgovorenoZaPoziciju_(s);
     if(ugovorenoUkupno!=null) ukupnoUgovoreno += ugovorenoUkupno;
 
+    // najniža cena za poziciju (u RSD, zbog ponuda u EUR)
+    // (ponude u EUR bez unetog kursa se ne porede)
+    const uporedive = s.ponude.filter(o=>o.valuta!=='EUR' || Number($('peKurs').value)>0);
+    const najnizaRSD = uporedive.length ? Math.min(...uporedive.map(o=>ukupnoRSD_(o,1))) : null;
     const supplierCells = SUPPLIERS.map(name=>{
       const o = s.ponude.find(x=>x.dobavljac===name);
       const izabranaCela = izabrana && o===izabrana;
-      const cls = izabranaCela ? ' class="izabrano"' : '';
-      if(!o) return `<td class="num"${cls}>—</td><td class="center"${cls}>—</td>`;
-      return `<td class="num"${cls}>${fmtCena_(jedCena_(o))}</td><td class="center"${cls}>${escapeHtml(o.rok||'—')}</td>`;
+      const najjeftinija = o && uporedive.length>1 && uporedive.includes(o) && ukupnoRSD_(o,1)===najnizaRSD;
+      const cls = izabranaCela ? ' izabrano' : (najjeftinija ? ' najjeftinije' : '');
+      // klik na cenu postavlja predlog rukovodioca (samo dok se izveštaj uređuje)
+      const pick = trenutniMozeUredovati && o ? ` data-pick="${idx}" data-pick-dob="${escapeHtml(name)}" title="Klik = predlog rukovodioca"` : '';
+      if(!o) return `<td class="num">—</td><td class="center">—</td>`;
+      return `<td class="num${cls}"${pick}>${fmtCena_(jedCena_(o))}${o.valuta==='EUR'?' €':''}</td><td class="center${cls}"${pick}>${escapeHtml(o.rok||'—')}</td>`;
     }).join('');
 
     return `<tr>
@@ -827,6 +777,13 @@ function renderPePregled(){
     <div class="razlika">Razlika: <strong>${fmtCena_(razlika)}</strong> RSD</div>
     <div>Razlika: <strong>${fmtCena_(razlikaPct)}%</strong></div>
   </div>`;
+  wrap.querySelectorAll('[data-pick]').forEach(td=>td.addEventListener('click',e=>{
+    const s = currentPonuda.stavke[Number(e.currentTarget.dataset.pick)];
+    const dob = e.currentTarget.dataset.pickDob;
+    s.predlogRukovodioca = s.predlogRukovodioca===dob ? '' : dob;
+    postaviNesacuvano_(true);
+    renderPeStavke();
+  }));
 }
 
 $('bulkSaveBtn').addEventListener('click', async ()=>{
@@ -987,18 +944,58 @@ function populateZahtevSelect(){
   });
 }
 
+// Lista izveštaja (leva kolona): filter po statusu + pretraga, grupisano
+// po gradilištu i nalogu. Radnje nad izveštajem (dopunski, poručeno,
+// brisanje) su u meniju "⋯" otvorenog izveštaja.
+const FILTERI_LISTE = [
+  ['aktivni','Aktivni', p=>!p.porucen],
+  ['u_izradi','U izradi', p=>!p.porucen && (p.status||'u_izradi')==='u_izradi'],
+  ['na_overi','Na overi', p=>p.status==='na_overi'],
+  ['vracen_na_doradu','Vraćeno', p=>p.status==='vracen_na_doradu'],
+  ['odobren','Odobreno', p=>p.status==='odobren' && !p.porucen],
+  ['porucen','Poručeno', p=>!!p.porucen],
+  ['svi','Svi', ()=>true],
+];
+let filterListe = 'aktivni';
+function tekstZaPretragu_(p, z){
+  const nalog = z ? z.nalog : '';
+  const nOpis = (NALOZI.find(x=>x.kod===nalog)||{}).opis||'';
+  const gNaziv = z ? ((GRADILISTA.find(x=>x.kod===z.gradiliste)||{}).naziv||'') : '';
+  const dob = [...new Set((p.stavke||[]).flatMap(s=>(s.ponude||[]).map(o=>o.dobavljac)))].join(' ');
+  return [p.brojIzvestaja, z&&z.redniBroj, nalog, nOpis, z&&z.gradiliste, gNaziv, p.vrstaRadova, dob].join(' ').toLowerCase();
+}
+const nalogIzvestaja_ = p => (ZAHTEVI.find(x=>x.id===p.requestId)||{}).nalog||'';
+function populateFilterNalog_(){
+  const sel = $('filterNalog'), trenutni = sel.value;
+  const nalozi = [...new Set(PONUDE.map(nalogIzvestaja_).filter(Boolean))]
+    .sort((a,b)=>String(a).localeCompare(String(b),'sr',{numeric:true}));
+  sel.innerHTML = '<option value="">Svi nalozi za realizaciju</option>' + nalozi.map(n=>{
+    const opis = (NALOZI.find(x=>x.kod===n)||{}).opis||'';
+    return `<option value="${escapeHtml(n)}">${escapeHtml(n)}${opis?' — '+escapeHtml(opis):''} (${PONUDE.filter(p=>nalogIzvestaja_(p)===n).length})</option>`;
+  }).join('');
+  sel.value = nalozi.includes(trenutni) ? trenutni : '';
+  sel.classList.toggle('aktivan', !!sel.value);
+}
 function renderPonudaList(){
   populateZavrseneNalogSelect_();
+  populateFilterNalog_();
+  const izabraniNalog = $('filterNalog').value;
+  const uNalogu = PONUDE.filter(p=>!izabraniNalog || nalogIzvestaja_(p)===izabraniNalog);
+  $('filterChips').innerHTML = FILTERI_LISTE.map(([k,t,f])=>
+    `<button type="button" class="chip${k===filterListe?' on':''}" data-filter="${k}">${t}<span class="n">${uNalogu.filter(f).length}</span></button>`).join('');
+  $('filterChips').querySelectorAll('[data-filter]').forEach(b=>b.addEventListener('click',e=>{ filterListe=e.currentTarget.dataset.filter; renderPonudaList(); }));
+
   const wrap=$('ponudaListWrap');
   if(!PONUDE.length){ wrap.innerHTML='<div class="empty">Još uvek nema izveštaja o ponudama.</div>'; return; }
 
-  const filterVal = $('filterPonudaStatus').value;
-  const filtrirano = PONUDE.filter(p=>{
-    if(filterVal==='neporucen') return !p.porucen;
-    if(filterVal==='porucen') return !!p.porucen;
-    return true;
+  const filterFn = (FILTERI_LISTE.find(x=>x[0]===filterListe)||FILTERI_LISTE[0])[2];
+  const q = $('pretragaListe').value.trim().toLowerCase();
+  const filtrirano = uNalogu.filter(p=>{
+    if(!filterFn(p)) return false;
+    if(!q) return true;
+    return tekstZaPretragu_(p, ZAHTEVI.find(x=>x.id===p.requestId)).includes(q);
   });
-  if(!filtrirano.length){ wrap.innerHTML='<div class="empty">Nema izveštaja koji odgovaraju izabranom filteru.</div>'; return; }
+  if(!filtrirano.length){ wrap.innerHTML='<div class="empty">Nema izveštaja za izabrani filter.</div>'; return; }
 
   // Grupisanje: gradilište -> nalog za realizaciju -> izveštaji od manjeg ka većem broju.
   // Izveštaji čiji je zahtev obrisan idu u posebnu grupu na kraju.
@@ -1011,55 +1008,118 @@ function renderPonudaList(){
     ((poGradilistu[g] = poGradilistu[g] || {})[n] = poGradilistu[g][n] || []).push({ p, z });
   });
   const uporedi = (a,b)=>String(a).localeCompare(String(b),'sr',{numeric:true});
-
-  const tabelaHtml = stavke => `<table><thead><tr><th style="width:170px;">Broj izveštaja</th><th style="width:150px;">Zahtev</th><th style="width:130px;">Datum zahteva</th><th>Status</th><th style="width:300px;"></th></tr></thead><tbody>
-    ${stavke.sort((a,b)=>uporedi(a.p.brojIzvestaja,b.p.brojIzvestaja)).map(({p,z})=>{
-      const mozeOznacitiPorucen = (IS_ADMIN_PONUDE || MOZE_KREIRATI_PONUDE) && p.status==='odobren';
-      const porucenoOznaka = p.porucen ? '<span class="tag" style="margin-left:6px;">Poručeno</span>' : '';
-      return `<tr>
-        <td style="font-family:'IBM Plex Mono',monospace;">${escapeHtml(p.brojIzvestaja)}</td>
-        <td>${z ? escapeHtml(z.redniBroj) : '<span class="hint">zahtev obrisan</span>'}</td>
-        <td>${z ? fmtDatum_(z.createdAt) : ''}</td>
-        <td>${ponudaStatusBadgeHtml(p)}${porucenoOznaka}</td>
-        <td class="row-actions">
-          <button class="btn-ghost" data-open-p="${p.id}">Otvori</button>
-          ${MOZE_KREIRATI_PONUDE && z?`<button class="btn-ghost" data-dopuna-p="${p.id}" title="Novi izveštaj samo za pozicije zahteva koje nisu pokrivene">Dopunski izveštaj</button>`:''}
-          ${mozeOznacitiPorucen?`<button class="btn-ghost" data-toggle-porucen="${p.id}" data-porucen="${p.porucen?'1':'0'}">${p.porucen?'Poništi poručeno':'Označi poručeno'}</button>`:''}
-          ${IS_ADMIN_PONUDE?`<button class="btn-danger-ghost" data-del-p="${p.id}" data-broj="${escapeHtml(p.brojIzvestaja)}">Obriši</button>`:''}
-        </td>
-      </tr>`;
-    }).join('')}
-  </tbody></table>`;
+  const aktivniId = currentPonuda ? currentPonuda.id : null;
+  const statusTekst = p => ({u_izradi:'U izradi',na_overi:'Na overi',vracen_na_doradu:'Vraćeno',odobren:'Odobreno'})[p.status||'u_izradi']||p.status;
 
   wrap.innerHTML = Object.keys(poGradilistu).sort(uporedi).map(g=>{
     const nalozi = poGradilistu[g];
-    const ukupno = Object.values(nalozi).reduce((s,a)=>s+a.length,0);
     const gNaziv = (GRADILISTA.find(x=>x.kod===g)||{}).naziv||'';
     const gNaslov = g===BEZ_ZAHTEVA ? 'Bez zahteva (zahtev obrisan)' : escapeHtml(g)+(gNaziv?' · '+escapeHtml(gNaziv):'');
-    return `<div class="grad-group">
-      <div class="grad-group-title">${gNaslov} <span class="hint">(${ukupno})</span></div>
-      ${Object.keys(nalozi).sort(uporedi).map(n=>{
-        const nOpis = (NALOZI.find(x=>x.kod===n)||{}).opis||'';
-        return (n===BEZ_ZAHTEVA ? '' : `<div class="nalog-group-title">${escapeHtml(n)}${nOpis?'<span class="ng-naziv">— '+escapeHtml(nOpis)+'</span>':''} <span class="hint">(${nalozi[n].length})</span></div>`)
-          + tabelaHtml(nalozi[n]);
-      }).join('')}
-    </div>`;
+    return `<div class="lg-grad">${gNaslov}</div>` + Object.keys(nalozi).sort(uporedi).map(n=>{
+      const nOpis = (NALOZI.find(x=>x.kod===n)||{}).opis||'';
+      const naslov = n===BEZ_ZAHTEVA ? '' : `<div class="lg-nalog"><b>${escapeHtml(n)}</b>${nOpis?' — '+escapeHtml(nOpis):''}</div>`;
+      return naslov + nalozi[n].sort((a,b)=>uporedi(a.p.brojIzvestaja,b.p.brojIzvestaja)).map(({p,z})=>{
+        const st = p.status||'u_izradi';
+        const brDob = new Set((p.stavke||[]).flatMap(s=>(s.ponude||[]).map(o=>o.dobavljac))).size;
+        return `<div class="li s-${st}${p.id===aktivniId?' on':''}" data-open-p="${p.id}">
+          <span class="b">${escapeHtml(p.brojIzvestaja)}</span>
+          <span>${p.porucen?'<span class="tag">Poručeno</span>':`<span class="status-badge status-${st}">${escapeHtml(statusTekst(p))}</span>`}</span>
+          <span class="m">${z?'zahtev '+fmtDatum_(z.createdAt):'zahtev obrisan'} · ${brDob} ${brDob===1?'dobavljač':'dobavljača'}</span>
+        </div>`;
+      }).join('');
+    }).join('');
   }).join('');
-  wrap.querySelectorAll('[data-open-p]').forEach(b=>b.addEventListener('click',e=>{ if(potvrdiNapustanje_()) openPonudaEditor(e.currentTarget.dataset.openP); }));
-  wrap.querySelectorAll('[data-dopuna-p]').forEach(b=>b.addEventListener('click',e=>otvoriDopunskiIzvestaj_(e.currentTarget.dataset.dopunaP)));
-  wrap.querySelectorAll('[data-toggle-porucen]').forEach(b=>b.addEventListener('click',async e=>{
-    const id=e.currentTarget.dataset.togglePorucen, trenutno=e.currentTarget.dataset.porucen==='1';
-    const r=await apiPost('postaviPorucenoPonuda',{ id, porucen: !trenutno });
-    if(r&&r.error) alert(r.error); else await loadPonudeSection();
-  }));
-  wrap.querySelectorAll('[data-del-p]').forEach(b=>b.addEventListener('click',async e=>{
-    const id=e.currentTarget.dataset.delP, broj=e.currentTarget.dataset.broj;
-    if(!confirm(`Obrisati izveštaj ${broj}? Ova radnja je trajna.`)) return;
-    const r=await apiPost('deletePonuda',{id});
-    if(r&&r.error) alert(r.error); else { if(currentPonuda&&currentPonuda.id===id) closePonudaEditor(); await loadPonudeSection(); }
+  wrap.querySelectorAll('[data-open-p]').forEach(b=>b.addEventListener('click',e=>{
+    const id = e.currentTarget.dataset.openP;
+    if(currentPonuda && currentPonuda.id===id) return;
+    if(potvrdiNapustanje_()) openPonudaEditor(id);
   }));
 }
-$('filterPonudaStatus').addEventListener('change', renderPonudaList);
+$('pretragaListe').addEventListener('input', renderPonudaList);
+$('filterNalog').addEventListener('change', renderPonudaList);
+
+// Radnje nad otvorenim izveštajem (meni "⋯")
+function osveziMeniIzvestaja_(){
+  const p = currentPonuda && PONUDE.find(x=>x.id===currentPonuda.id);
+  const z = p && ZAHTEVI.find(x=>x.id===p.requestId);
+  const mozeDopunu = !!(p && MOZE_KREIRATI_PONUDE && z);
+  const mozePorucen = !!(p && (IS_ADMIN_PONUDE || MOZE_KREIRATI_PONUDE) && p.status==='odobren');
+  const mozeBrisanje = !!(p && IS_ADMIN_PONUDE);
+  $('peDopunaBtn').style.display = mozeDopunu ? '' : 'none';
+  $('pePorucenBtn').style.display = mozePorucen ? '' : 'none';
+  $('pePorucenBtn').textContent = p && p.porucen ? 'Poništi poručeno' : 'Označi poručeno';
+  $('peObrisiBtn').style.display = mozeBrisanje ? '' : 'none';
+  $('peViseWrap').style.display = (mozeDopunu||mozePorucen||mozeBrisanje) ? '' : 'none';
+}
+$('peViseBtn').addEventListener('click', e=>{ e.stopPropagation(); $('peViseMeni').classList.toggle('on'); });
+document.addEventListener('click', ()=>$('peViseMeni').classList.remove('on'));
+$('peDopunaBtn').addEventListener('click', ()=>{ if(currentPonuda) otvoriDopunskiIzvestaj_(currentPonuda.id); });
+$('pePorucenBtn').addEventListener('click', async ()=>{
+  const p = currentPonuda && PONUDE.find(x=>x.id===currentPonuda.id); if(!p) return;
+  const r=await apiPost('postaviPorucenoPonuda',{ id:p.id, porucen: !p.porucen });
+  if(r&&r.error){ alert(r.error); return; }
+  await loadPonudeSection();
+  osveziMeniIzvestaja_();
+});
+$('peObrisiBtn').addEventListener('click', async ()=>{
+  const p = currentPonuda && PONUDE.find(x=>x.id===currentPonuda.id); if(!p) return;
+  if(!confirm(`Obrisati izveštaj ${p.brojIzvestaja}? Ova radnja je trajna.`)) return;
+  const r=await apiPost('deletePonuda',{id:p.id});
+  if(r&&r.error){ alert(r.error); return; }
+  postaviNesacuvano_(false);
+  closePonudaEditor();
+  await loadPonudeSection();
+});
+
+// Tabovi u izveštaju
+let aktivniTab = 'osnovno';
+function prikaziTab_(t){
+  aktivniTab = t;
+  document.querySelectorAll('#peTabs .tab').forEach(b=>b.classList.toggle('on', b.dataset.tab===t));
+  document.querySelectorAll('#ponudaEditorCard .pane').forEach(p=>p.classList.toggle('on', p.dataset.pane===t));
+}
+document.querySelectorAll('#peTabs .tab').forEach(b=>b.addEventListener('click',()=>prikaziTab_(b.dataset.tab)));
+
+// Prozori (novi izveštaj, Excel završenih)
+function otvoriModal_(id){ $(id).classList.add('on'); }
+function zatvoriModale_(){ document.querySelectorAll('.modal-bg').forEach(m=>m.classList.remove('on')); }
+$('otvoriNoviBtn').addEventListener('click', ()=>{ $('pNoviErr').textContent=''; otvoriModal_('modalNovi'); });
+$('otvoriExcelBtn').addEventListener('click', ()=>{ $('zavrseneErr').textContent=''; otvoriModal_('modalExcel'); });
+
+// Zbirna specifikacija po nalogu (isti kod kao na stranici Zahtevi za nabavku — zbirna.js).
+// Nalozi: oni za koje postoji bar jedan zahtev koji korisnik vidi.
+$('otvoriZbirnaBtn').addEventListener('click', ()=>{
+  const nalozi = [...new Set(ZAHTEVI.map(z=>z.nalog).filter(Boolean))].sort((a,b)=>String(a).localeCompare(String(b),'sr',{numeric:true}));
+  $('zbirnaNalog').innerHTML = '<option value="">— izaberi nalog —</option>' + nalozi.map(n=>{
+    const opis = (NALOZI.find(x=>x.kod===n)||{}).opis||'';
+    return `<option value="${escapeHtml(n)}">${escapeHtml(n)}${opis?' — '+escapeHtml(opis):''}</option>`;
+  }).join('');
+  if(nalozi.includes($('filterNalog').value)) $('zbirnaNalog').value = $('filterNalog').value;
+  $('zbirnaErr').textContent='';
+  otvoriModal_('modalZbirna');
+});
+$('zbirnaOtvoriBtn').addEventListener('click', async ()=>{
+  const nalog = $('zbirnaNalog').value;
+  if(!nalog){ $('zbirnaErr').textContent='Izaberi nalog za realizaciju.'; return; }
+  // Tab se otvara odmah (dok traje klik), da ga pregledač ne blokira; sadržaj
+  // dobija tek pošto se zahtevi sveže učitaju iz baze.
+  const tab = window.open('', '_blank');
+  if(!tab){ $('zbirnaErr').textContent='Browser je blokirao novi tab — dozvoli pop-up prozore za ovu stranicu.'; return; }
+  try{ tab.document.title = 'Učitavanje…'; tab.document.body.innerHTML = '<p style="font-family:sans-serif;padding:20px;">Učitavanje zbirne specifikacije…</p>'; }catch(e){}
+  try{
+    const zData = await apiGet('list');
+    ZAHTEVI = (zData.requests||[]);
+  }catch(e){ tab.close(); $('zbirnaErr').textContent='Zahtevi nisu učitani — pokušaj ponovo.'; return; }
+  zatvoriModale_();
+  otvoriZbirnuSpecifikaciju({
+    nalog, tab, zahtevi: ZAHTEVI,
+    nazivGradilista: kod => (GRADILISTA.find(g=>g.kod===String(kod))||{}).naziv||'',
+    nazivNaloga: kod => (NALOZI.find(n=>n.kod===String(kod))||{}).opis||''
+  });
+});
+document.querySelectorAll('[data-zatvori-modal]').forEach(b=>b.addEventListener('click', zatvoriModale_));
+document.querySelectorAll('.modal-bg').forEach(m=>m.addEventListener('click', e=>{ if(e.target===m) zatvoriModale_(); }));
+document.addEventListener('keydown', e=>{ if(e.key==='Escape'){ zatvoriModale_(); $('peViseMeni').classList.remove('on'); } });
 
 /* ===== IZVEŠTAJ O ZAVRŠENIM NABAVKAMA (Excel) ===== */
 // Poručeni (odobreni + "Poručeno") izveštaji, po nalogu zahteva za koji su rađeni.
@@ -1265,8 +1325,11 @@ function openPonudaEditor(id){
   priloziZaBrisanje = [];
   const z = ZAHTEVI.find(x=>x.id===p.requestId);
   const gradilisteNazivZaNaslov = z ? (GRADILISTA.find(g=>g.kod===z.gradiliste)||{}).naziv||'' : '';
-  const gradilisteDeoNaslova = z ? ` — ${z.gradiliste}${gradilisteNazivZaNaslov?' ('+gradilisteNazivZaNaslov+')':''}` : '';
-  $('ponudaEditorTitle').textContent = `Izveštaj o ponudama — ${p.brojIzvestaja}${z?' (zahtev '+z.redniBroj+')':''}${gradilisteDeoNaslova}`;
+  const nalogOpisZaNaslov = z ? (NALOZI.find(n=>n.kod===z.nalog)||{}).opis||'' : '';
+  $('ponudaEditorTitle').textContent = p.brojIzvestaja;
+  $('peSub').textContent = z
+    ? [`Zahtev ${z.redniBroj} (${fmtDatum_(z.createdAt)})`, `${z.gradiliste}${gradilisteNazivZaNaslov?' '+gradilisteNazivZaNaslov:''}`, `nalog ${z.nalog}${nalogOpisZaNaslov?' — '+nalogOpisZaNaslov:''}`].join('  ·  ')
+    : 'Zahtev za ovaj izveštaj je obrisan.';
   $('peVrstaRadova').value = p.vrstaRadova||'';
   $('peNapomena').value = p.napomena||'';
   $('peNapomenaPregledWrap').style.display = p.napomena ? '' : 'none';
@@ -1328,8 +1391,18 @@ function openPonudaEditor(id){
   renderBulkDobavljaci();
   renderPePregled();
   loadPonudaLog_(id);
+  zatvoriModale_();
+  $('praznoStanje').style.display='none';
   $('ponudaEditorCard').style.display='block';
-  $('ponudaEditorCard').scrollIntoView({behavior:'smooth',block:'start'});
+  $('tabNPoz').textContent = currentPonuda.stavke.length;
+  // Ko samo pregleda (overavaoci) ili ima overu na redu, počinje od tabele poređenja.
+  if(!trenutniMozeUredovati && aktivniTab==='osnovno') aktivniTab = 'poredjenje';
+  if(mogucaOvera) aktivniTab = 'poredjenje';
+  prikaziTab_(aktivniTab);
+  osveziMeniIzvestaja_();
+  renderPonudaList();
+  if(window.matchMedia('(max-width:860px)').matches) $('ponudaEditorCard').scrollIntoView({behavior:'smooth',block:'start'});
+  else window.scrollTo({top:0});
 }
 
 async function loadPonudaLog_(id){
@@ -1350,6 +1423,8 @@ function closePonudaEditor(){
   currentPonuda=null;
   postaviNesacuvano_(false);
   $('ponudaEditorCard').style.display='none';
+  $('praznoStanje').style.display='';
+  renderPonudaList();
 }
 $('peCloseBtn').addEventListener('click', ()=>{ if(potvrdiNapustanje_()) closePonudaEditor(); });
 
@@ -1525,6 +1600,10 @@ function renderPeTotals(){
   $('peUkupnoSaPdv').textContent = fmtBroj_(bezPdv*1.2);
   $('peUkupnoUgovorenoBezPdv').textContent = fmtBroj_(ugovorenoBezPdv);
   $('peUkupnoUgovorenoSaPdv').textContent = fmtBroj_(ugovorenoBezPdv*1.2);
+  const razlika = ugovorenoBezPdv - bezPdv;
+  $('peRazlika').textContent = ugovorenoBezPdv ? `${fmtBroj_(razlika)} (${fmtBroj_(bezPdv?razlika/bezPdv*100:0)}%)` : '—';
+  $('peRazlikaKpi').classList.toggle('good', !!ugovorenoBezPdv && razlika>=0);
+  $('peRazlikaKpi').classList.toggle('bad', !!ugovorenoBezPdv && razlika<0);
 }
 
 $('peKurs').addEventListener('input', renderPeTotals);
@@ -2019,6 +2098,8 @@ $('peVratiBtn').addEventListener('click', async ()=>{
   const uid = await ZN.currentUserId();
   if(uid){
     await handlePostAuth();
+  }else{
+    showLogin();
   }
 })();
 </script>
