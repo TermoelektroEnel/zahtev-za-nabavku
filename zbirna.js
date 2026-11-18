@@ -41,9 +41,17 @@ h1{font-family:'Space Grotesk',sans-serif;font-size:20px;text-transform:uppercas
 .save-banner.err{display:inline-block;background:#F8D3CC;color:#8A3B2B;}
 .toolbar button{font-family:'IBM Plex Sans',sans-serif;font-weight:600;font-size:13px;padding:9px 16px;border-radius:3px;border:1px solid #243D4C;background:#243D4C;color:#fff;cursor:pointer;}
 .toolbar button.ghost{background:#F7F7F2;color:#243D4C;}
-.card{background:#F7F7F2;border:1px solid #CBCFC5;border-radius:3px;padding:16px;overflow-x:auto;}
-table{width:100%;border-collapse:collapse;}
+/* Tabela zauzima ostatak visine prozora i skroluje se unutar kartice, pa je
+   horizontalni skrol bar uvek na dnu ekrana, a zaglavlje uvek na vrhu. */
+html,body{height:100%;}
+body{display:flex;flex-direction:column;}
+.toolbar{flex:0 0 auto;}
+.card{background:#F7F7F2;border:1px solid #CBCFC5;border-radius:3px;padding:0 16px 16px;overflow:auto;flex:1 1 auto;min-height:0;}
+table{width:100%;border-collapse:separate;border-spacing:0;}
 th{text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:0.05em;border-bottom:1.5px solid #1a1a1a;padding:6px 8px;color:#444;white-space:nowrap;}
+thead th{position:sticky;top:0;z-index:3;background:#F7F7F2;}
+thead tr:first-child th{padding-top:16px;}
+thead tr.filter-row th{top:var(--visina-zaglavlja,0px);}
 td{padding:7px 8px;border-bottom:1px solid #ddd;font-size:12.5px;}
 .num{text-align:right;font-family:'IBM Plex Mono',monospace;}
 .status-nije td{background:#F1948A;color:#1a1a1a;}
@@ -57,7 +65,7 @@ select:disabled, input[type=date]:disabled, input[type=number]:disabled, input[t
 textarea.napomena-zbirna{font-family:'IBM Plex Sans',sans-serif;font-size:12.5px;padding:5px 6px;border-radius:3px;border:1px solid #CBCFC5;background:#fff;color:inherit;width:220px;min-height:30px;resize:vertical;display:block;}
 .filter-row th{padding:4px 8px 8px;border-bottom:1.5px solid #1a1a1a;}
 .filter-row input[type=text]{width:100%;min-width:70px;padding:5px 7px;font-size:11.5px;font-weight:400;text-transform:none;letter-spacing:normal;}
-@media print{.toolbar{display:none;}.filter-row{display:none;}body{background:#fff;}.card{border:none;padding:0;overflow:visible;}table{width:auto;}th{white-space:normal;}}
+@media print{.toolbar{display:none;}.filter-row{display:none;}html,body{height:auto;}body{background:#fff;display:block;}.card{border:none;padding:0;overflow:visible;}table{width:auto;}th{white-space:normal;}thead th{position:static;}thead tr:first-child th{padding-top:6px;}}
 @page{ margin:10mm; }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"><\/script>
@@ -243,7 +251,16 @@ async function sacuvajSve(){
   setTimeout(()=>{ banner.className='save-banner'; banner.textContent=''; }, 6000);
 }
 document.getElementById('sacuvajSveBtn').addEventListener('click', sacuvajSve);
+// Red sa filterima se lepi odmah ispod prvog reda zaglavlja, pa mu treba
+// njegova stvarna visina.
+function postaviVisinuZaglavlja_(){
+  const prvi=document.querySelector('thead tr');
+  if(prvi) document.documentElement.style.setProperty('--visina-zaglavlja', prvi.offsetHeight+'px');
+}
+window.addEventListener('resize', postaviVisinuZaglavlja_);
 render();
+postaviVisinuZaglavlja_();
+if(document.fonts && document.fonts.ready) document.fonts.ready.then(postaviVisinuZaglavlja_);
 <\/script>
 </body>
 </html>`;
