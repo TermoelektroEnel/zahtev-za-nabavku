@@ -163,7 +163,7 @@ function render(){
       +'<td>'+escapeHtml(s.jm)+'</td>'
       +'<td class="num" style="font-weight:600;">'+escapeHtml(s.zaNabavku!==undefined?s.zaNabavku:'')+'</td>'
       +'<td><input type="number" min="0" step="any" style="width:80px;" data-req="'+reqIdx+'" data-idx="'+idx+'" data-field="isporuceno" value="'+escapeHtml(s.isporuceno||'')+'"></td>'
-      +'<td class="num" style="font-weight:600;">'+(s.status==='ne poručuje se'?'—':escapeHtml(preostaloZaIsporuku(s)))+'</td>'
+      +'<td class="num preostalo" style="font-weight:600;">'+(s.status==='ne poručuje se'?'—':escapeHtml(preostaloZaIsporuku(s)))+'</td>'
       +'<td>'+escapeHtml(formatDatumSr(s.rok))+'</td>'
       +'<td style="text-align:center;">'+escapeHtml(s.atest||'—')+'</td>'
       +'<td><select data-req="'+reqIdx+'" data-idx="'+idx+'" data-field="status">'
@@ -196,17 +196,29 @@ async function onFieldChange(e){
     const z=parseFloat(stavka.zaNabavku); const i=parseFloat(value);
     if(!isNaN(z)&&!isNaN(i)&&z!==0&&stavka.status!=='ne poručuje se'){ if(i===z) stavka.status='isporučeno'; else if(i>0&&i<z) stavka.status='poručeno'; }
   }
+  // Osvežava se samo ovaj red, ne cela tabela: ponovno crtanje tabele bi
+  // uništilo polje u koje je korisnik upravo kliknuo, pa je trebalo kliknuti
+  // dva puta da bi se upisivalo.
+  const tr=e.target.closest('tr');
+  osveziRed_(tr, stavka);
   const statusMsg=document.getElementById('statusMsg'); statusMsg.textContent='Čuvanje…';
   try{
     const { error }=await sbClient.rpc('update_isporuka_stavke', { p_request_id: req.id, p_stavke: req.stavke });
     statusMsg.textContent=error?'Greška: '+error.message:'Sačuvano '+new Date().toLocaleTimeString('sr-RS');
   }catch(err){ statusMsg.textContent='Greška pri čuvanju — proveri konekciju.'; }
-  render();
   if(field==='status' && value==='ne poručuje se' && !String(stavka.napomenaZbirna||'').trim()){
-    const nap=document.querySelector('textarea[data-req="'+reqIdx+'"][data-idx="'+idx+'"][data-field="napomenaZbirna"]');
+    const nap=tr && tr.querySelector('textarea[data-field="napomenaZbirna"]');
     if(nap){ nap.classList.add('nap-obavezna'); nap.placeholder='upiši zašto se ne poručuje…'; nap.focus(); }
     statusMsg.textContent='Sačuvano — upiši u Napomenu zašto se pozicija ne poručuje.';
   }
+}
+function osveziRed_(tr, s){
+  if(!tr) return;
+  tr.className=statusKlasa(s.status);
+  const sel=tr.querySelector('select[data-field="status"]'); if(sel && sel.value!==s.status) sel.value=s.status;
+  const pre=tr.querySelector('td.preostalo'); if(pre) pre.textContent=(s.status==='ne poručuje se'?'—':String(preostaloZaIsporuku(s)));
+  const nap=tr.querySelector('textarea[data-field="napomenaZbirna"]');
+  if(nap && String(s.napomenaZbirna||'').trim()){ nap.classList.remove('nap-obavezna'); nap.placeholder='komentar…'; }
 }
 async function sacuvajSve(){
   const banner=document.getElementById('saveBanner');
