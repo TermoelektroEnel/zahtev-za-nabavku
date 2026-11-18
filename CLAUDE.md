@@ -45,7 +45,7 @@ Korisnik koji radi sa Claude-om je **Rukovodilac nabavke** (i administrator). On
 - 2.–5.11.: izmena količine u izveštaju, datum zahteva pored broja, kolona „Napomena“ i status „ne poručuje se“ (zelen red) u Zbirnoj specifikaciji.
 - 9.11.: Izveštaj o završenim nabavkama (Excel po nalogu, samo poručeni izveštaji, cena izabranog dobavljača posle rabata).
 - 11.11. (Mac): redizajn — tamni mod, uvodna stranica, nova stranica Izveštaji o ponudama (lista levo, tabovi, filter po nalogu).
-- 18.11.: Zbirna specifikacija — upis posle jednog klika (posle čuvanja polja osvežava se samo taj red, ne cela tabela; ne vraćati `render()` u `onFieldChange`).
+- 18.11.: Zbirna specifikacija — upis posle jednog klika (posle čuvanja polja osvežava se samo taj red, ne cela tabela; ne vraćati `render()` u `onFieldChange`). Tabela u visini prozora sa skrolom unutar kartice: horizontalni skrol bar uvek na dnu, zaglavlje i filteri lepljivi na vrhu.
 - Stara probna verzija sa podacima na GitHub-u sačuvana je kao tag `arhiva/branch-sa-baza-na-github`.
 
 ## Budućnost
