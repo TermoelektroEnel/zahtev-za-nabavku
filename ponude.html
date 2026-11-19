@@ -702,7 +702,7 @@ function renderPePregled(){
     <th rowspan="2">Rb.</th><th rowspan="2">Naziv</th>
     ${SUPPLIERS.map(name=>`<th colspan="2">${escapeHtml(name)}</th>`).join('')}
     <th rowspan="2">JM</th><th rowspan="2">Količina</th>
-    <th rowspan="2">Ugovorena cena<br>(bez PDV)</th><th rowspan="2">Predlog<br>rukovodioca</th>
+    <th rowspan="2">Ugovorena cena<br>(bez PDV, RSD)</th><th rowspan="2">Predlog<br>rukovodioca</th>
   </tr>`;
   const headRow2 = `<tr>${SUPPLIERS.map(()=>'<th>Jed.cena</th><th>Rok isporuke</th>').join('')}</tr>`;
 
@@ -1749,7 +1749,7 @@ async function buildPonudaPdfBlob_(p, zahtev){
       {content:'Rb.', rowSpan:2}, {content:'Naziv', rowSpan:2},
       ...SUPPLIERS.map(name=>({content:name, colSpan:2, styles:{halign:'center'}})),
       {content:'JM', rowSpan:2}, {content:'Količina', rowSpan:2},
-      {content:'Ugovorena cena (bez PDV)', rowSpan:2},
+      {content:'Ugovorena cena (bez PDV, RSD)', rowSpan:2},
       {content:'Predlog rukovodioca', rowSpan:2}
     ],
     [ ...SUPPLIERS.flatMap(()=>['Jed.cena','Rok isporuke']) ]
